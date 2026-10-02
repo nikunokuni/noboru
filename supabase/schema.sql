@@ -1,0 +1,297 @@
+-- ============================================================
+-- ノボル Supabase スキーマ（v2）
+-- 仕様は docs/spec.md を参照
+-- Supabase の「SQL Editor」に貼り付けて実行してください
+-- （旧 supabase_schema.sql とは互換性がありません。新しいプロジェクトに適用する想定）
+-- ============================================================
+
+-- ─── 列挙型 ─────────────────────────────────────────────────
+CREATE TYPE parking_status AS ENUM ('dedicated', 'nearby', 'none', 'unknown');
+CREATE TYPE goshuin_status AS ENUM ('available', 'written_only', 'none', 'unknown');
+CREATE TYPE shrine_status  AS ENUM ('active', 'hidden');
+CREATE TYPE request_status AS ENUM ('pending', 'approved', 'rejected');
+
+-- ============================================================
+-- 1. 神社マスタ
+--    元データは OSM / Wikidata / Wikipedia（scripts/ の取り込み処理で投入）
+--    ユーザーは直接更新できず、shrine_edits 経由でのみ変更される
+-- ============================================================
+CREATE TABLE shrines (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  osm_ref             TEXT UNIQUE,              -- 'node/123' 'way/456' など。申請で追加された社は NULL
+  wikidata_id         TEXT,                     -- 'Q123456'
+  name                TEXT NOT NULL,            -- 名前のない祠は「名称不明の社（地名）」
+  name_kana           TEXT,
+  prefecture          TEXT NOT NULL,
+  municipality        TEXT,
+  address             TEXT,
+  lat                 DOUBLE PRECISION NOT NULL,
+  lng                 DOUBLE PRECISION NOT NULL,
+
+  -- 基本情報
+  deities             TEXT,                     -- ご祭神
+  benefits            TEXT[] NOT NULL DEFAULT '{}',  -- ご利益
+  shrine_rank         TEXT,                     -- 社格
+
+  -- アクセス（駅・バス停は取り込み時に OSM から自動計算）
+  nearest_station          TEXT,
+  nearest_station_m        INTEGER,             -- 直線距離（m）
+  nearest_bus_stop         TEXT,
+  nearest_bus_stop_m       INTEGER,
+  access_note              TEXT,                -- 「〇〇駅から徒歩15分、石段あり」など補足
+  parking             parking_status NOT NULL DEFAULT 'unknown',
+  goshuin             goshuin_status NOT NULL DEFAULT 'unknown',
+
+  -- 特徴（神話・創建の背景など）
+  features            TEXT,
+  features_source     TEXT,                     -- 'wikipedia:<記事名>' / 'user' / 'editor'
+
+  -- 集計（records のトリガーで自動更新）
+  record_count        INTEGER NOT NULL DEFAULT 0,
+  visitor_count       INTEGER NOT NULL DEFAULT 0,   -- 参拝したユーザー数（重複なし）
+  first_visited_on    DATE,                        -- 最初の参拝日。NULL = まだ誰も行っていない
+
+  status              shrine_status NOT NULL DEFAULT 'active',
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_shrines_prefecture ON shrines(prefecture);
+CREATE INDEX idx_shrines_latlng     ON shrines(lat, lng);
+CREATE INDEX idx_shrines_unvisited  ON shrines(prefecture) WHERE first_visited_on IS NULL AND status = 'active';
+
+-- ============================================================
+-- 2. 参拝記録
+-- ============================================================
+CREATE TABLE records (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id           UUID NOT NULL UNIQUE,     -- 端末側で採番。オフライン送信の再送で二重登録しないため
+  user_id             UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  shrine_id           UUID NOT NULL REFERENCES shrines(id) ON DELETE RESTRICT,
+  visited_on          DATE NOT NULL DEFAULT CURRENT_DATE,   -- 後から選べる
+  emotion_level       INTEGER NOT NULL DEFAULT 50 CHECK (emotion_level BETWEEN 0 AND 100),
+  public_memo         TEXT NOT NULL DEFAULT '',
+  next_memo           TEXT NOT NULL DEFAULT '',
+  is_public           BOOLEAN NOT NULL DEFAULT TRUE,
+  onsite              BOOLEAN NOT NULL DEFAULT FALSE,       -- 「現地で記録」印（GPSで近くにいた）
+  location_accuracy_m INTEGER,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_records_user   ON records(user_id, visited_on DESC);
+CREATE INDEX idx_records_shrine ON records(shrine_id, visited_on DESC);
+
+-- 非公開メモは別テーブル（records を公開しても読まれないように）
+CREATE TABLE record_private_notes (
+  record_id    UUID PRIMARY KEY REFERENCES records(id) ON DELETE CASCADE,
+  user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  private_memo TEXT NOT NULL DEFAULT ''
+);
+
+-- 写真（Storage バケット 'photos' に保存。パスは <user_id>/<record_id>/<n>.jpg）
+CREATE TABLE photos (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  record_id  UUID NOT NULL REFERENCES records(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  path       TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_photos_record ON photos(record_id);
+
+-- ============================================================
+-- 3. 情報提供（神社情報の追加・訂正）
+--    最初は「最後に提供された内容を採用し、履歴を残す」方式
+-- ============================================================
+CREATE TABLE shrine_edits (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shrine_id  UUID NOT NULL REFERENCES shrines(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  field      TEXT NOT NULL CHECK (field IN (
+               'address', 'deities', 'benefits', 'shrine_rank',
+               'access_note', 'parking', 'goshuin', 'features', 'name_kana')),
+  value      JSONB NOT NULL,                    -- 文字列 / 文字列配列 / 列挙値
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_shrine_edits_shrine ON shrine_edits(shrine_id, created_at DESC);
+
+-- リストにない神社の追加申請（管理者が確認して shrines に追加）
+CREATE TABLE shrine_requests (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  lat        DOUBLE PRECISION,
+  lng        DOUBLE PRECISION,
+  note       TEXT NOT NULL DEFAULT '',
+  status     request_status NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- 4. 参拝の手引き（note 記事へのリンク）
+--    context: 'general'=マイページ一覧 / 'etiquette'=記録画面 / 'goshuin'=御朱印欄 など
+-- ============================================================
+CREATE TABLE guide_links (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title       TEXT NOT NULL,
+  url         TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  context     TEXT NOT NULL DEFAULT 'general',
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  is_active   BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+-- ============================================================
+-- 5. アプリ設定値（神社一覧ファイルのバージョンなど）
+-- ============================================================
+CREATE TABLE app_meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+INSERT INTO app_meta (key, value) VALUES ('shrine_index_version', '0');
+
+-- ============================================================
+-- トリガー
+-- ============================================================
+
+-- records の増減で shrines の集計列を更新
+CREATE OR REPLACE FUNCTION refresh_shrine_stats(target UUID) RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  UPDATE shrines s SET
+    record_count     = agg.cnt,
+    visitor_count    = agg.users,
+    first_visited_on = agg.first_on
+  FROM (
+    SELECT COUNT(*)::INT AS cnt,
+           COUNT(DISTINCT user_id)::INT AS users,
+           MIN(visited_on) AS first_on
+    FROM records WHERE shrine_id = target
+  ) agg
+  WHERE s.id = target;
+END $$;
+
+CREATE OR REPLACE FUNCTION on_record_change() RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF TG_OP IN ('INSERT', 'UPDATE') THEN
+    PERFORM refresh_shrine_stats(NEW.shrine_id);
+  END IF;
+  IF TG_OP IN ('DELETE', 'UPDATE') AND (TG_OP = 'DELETE' OR OLD.shrine_id <> NEW.shrine_id) THEN
+    PERFORM refresh_shrine_stats(OLD.shrine_id);
+  END IF;
+  RETURN NULL;
+END $$;
+
+CREATE TRIGGER trg_records_stats
+AFTER INSERT OR UPDATE OF shrine_id, visited_on, user_id OR DELETE ON records
+FOR EACH ROW EXECUTE FUNCTION on_record_change();
+
+-- 情報提供を shrines に反映（最後に提供された内容を採用）
+CREATE OR REPLACE FUNCTION apply_shrine_edit() RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  UPDATE shrines SET
+    address         = CASE WHEN NEW.field = 'address'     THEN NEW.value #>> '{}' ELSE address END,
+    name_kana       = CASE WHEN NEW.field = 'name_kana'   THEN NEW.value #>> '{}' ELSE name_kana END,
+    deities         = CASE WHEN NEW.field = 'deities'     THEN NEW.value #>> '{}' ELSE deities END,
+    shrine_rank     = CASE WHEN NEW.field = 'shrine_rank' THEN NEW.value #>> '{}' ELSE shrine_rank END,
+    access_note     = CASE WHEN NEW.field = 'access_note' THEN NEW.value #>> '{}' ELSE access_note END,
+    features        = CASE WHEN NEW.field = 'features'    THEN NEW.value #>> '{}' ELSE features END,
+    features_source = CASE WHEN NEW.field = 'features'    THEN 'user' ELSE features_source END,
+    benefits        = CASE WHEN NEW.field = 'benefits'
+                        THEN ARRAY(SELECT jsonb_array_elements_text(NEW.value)) ELSE benefits END,
+    parking         = CASE WHEN NEW.field = 'parking' THEN (NEW.value #>> '{}')::parking_status ELSE parking END,
+    goshuin         = CASE WHEN NEW.field = 'goshuin' THEN (NEW.value #>> '{}')::goshuin_status ELSE goshuin END,
+    updated_at      = NOW()
+  WHERE id = NEW.shrine_id;
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER trg_shrine_edits_apply
+AFTER INSERT ON shrine_edits
+FOR EACH ROW EXECUTE FUNCTION apply_shrine_edit();
+
+-- ============================================================
+-- 集計関数（個人を特定しない数字だけを返す）
+-- ============================================================
+
+-- ホームに出す全体の数字
+CREATE OR REPLACE FUNCTION get_app_stats() RETURNS JSON
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT json_build_object(
+    'active_users',     (SELECT COUNT(DISTINCT user_id) FROM records),
+    'active_users_30d', (SELECT COUNT(DISTINCT user_id) FROM records
+                          WHERE created_at > NOW() - INTERVAL '30 days'),
+    'total_shrines',    (SELECT COUNT(*) FROM shrines WHERE status = 'active'),
+    'visited_shrines',  (SELECT COUNT(*) FROM shrines
+                          WHERE status = 'active' AND first_visited_on IS NOT NULL)
+  );
+$$;
+
+-- 都道府県別の達成率
+CREATE OR REPLACE FUNCTION get_prefecture_progress() RETURNS TABLE (
+  prefecture TEXT, total BIGINT, visited BIGINT
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT prefecture,
+         COUNT(*),
+         COUNT(*) FILTER (WHERE first_visited_on IS NOT NULL)
+  FROM shrines WHERE status = 'active'
+  GROUP BY prefecture ORDER BY prefecture;
+$$;
+
+GRANT EXECUTE ON FUNCTION get_app_stats(), get_prefecture_progress() TO anon, authenticated;
+REVOKE EXECUTE ON FUNCTION refresh_shrine_stats(UUID) FROM PUBLIC;
+
+-- ============================================================
+-- Row Level Security
+-- ============================================================
+ALTER TABLE shrines              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE records              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE record_private_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE photos               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shrine_edits         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shrine_requests      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE guide_links          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE app_meta             ENABLE ROW LEVEL SECURITY;
+
+-- 神社：誰でも読める。書き込みは取り込み処理（service_role）とトリガーのみ
+CREATE POLICY shrines_read ON shrines FOR SELECT USING (status = 'active');
+
+-- 記録：公開記録は誰でも、自分の記録は本人が読める
+CREATE POLICY records_read   ON records FOR SELECT USING (is_public OR auth.uid() = user_id);
+CREATE POLICY records_insert ON records FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY records_update ON records FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY records_delete ON records FOR DELETE USING (auth.uid() = user_id);
+
+-- 非公開メモ：本人のみ
+CREATE POLICY notes_owner ON record_private_notes FOR ALL
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 写真：記録が読めるなら読める
+CREATE POLICY photos_read ON photos FOR SELECT USING (
+  EXISTS (SELECT 1 FROM records r WHERE r.id = record_id AND (r.is_public OR r.user_id = auth.uid()))
+);
+CREATE POLICY photos_insert ON photos FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY photos_delete ON photos FOR DELETE USING (auth.uid() = user_id);
+
+-- 情報提供：履歴は誰でも読める。ログインユーザーが追加できる
+CREATE POLICY edits_read   ON shrine_edits FOR SELECT USING (TRUE);
+CREATE POLICY edits_insert ON shrine_edits FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- 追加申請：本人のみ読める
+CREATE POLICY requests_read   ON shrine_requests FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY requests_insert ON shrine_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- 手引きリンク・設定値：誰でも読める（編集はダッシュボードから）
+CREATE POLICY guide_links_read ON guide_links FOR SELECT USING (is_active);
+CREATE POLICY app_meta_read    ON app_meta    FOR SELECT USING (TRUE);
+
+-- ============================================================
+-- Storage（UIで作成）
+-- ============================================================
+-- photos      : 非公開バケット。署名付きURLで表示（非公開記録の写真を守るため）
+-- public-data : 公開バケット。shrines-index.<version>.json.gz を置く（docs/spec.md 参照）
