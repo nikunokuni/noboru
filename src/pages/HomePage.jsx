@@ -1,271 +1,201 @@
-import React, { useState, useRef } from 'react'
-import { supabase } from '../lib/supabase'
-import { compressImage } from '../lib/imageCompress'
+// 記録画面（ホーム）
+import React, { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
+import { useShrineIndex } from '../hooks/useShrineIndex'
+import { usePendingRecords } from '../hooks/usePendingRecords'
 import EmotionSlider from '../components/EmotionSlider'
-import OmikujiModal from '../components/OmikujiModal'
-import GodMessage from '../components/GodMessage'
+import ShrinePicker from '../components/ShrinePicker'
+import { GuideInlineLink } from '../components/GuideLinks'
+import { compressImage } from '../lib/imageCompress'
+import { distanceM, getCurrentPosition } from '../lib/geo'
+import { getById } from '../lib/indexCore'
+import { serverGetShrineItem } from '../lib/shrineIndex'
+import { fetchAppStats } from '../lib/community'
+import { todayStr } from '../lib/format'
+import { MAX_PHOTOS, ONSITE_RADIUS_M } from '../lib/constants'
 
-const today = () => {
-  const d = new Date()
-  const y = d.getFullYear() - 2018 // 令和換算
-  const m = d.getMonth() + 1
-  const day = d.getDate()
-  const months = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十', '十一', '十二']
-  return `令和${y}年　${months[m - 1]}月${day}日`
+function RecentVisitors() {
+  const [count, setCount] = useState(null)
+  useEffect(() => {
+    fetchAppStats().then((s) => setCount(s.recent_visitors)).catch(() => {})
+  }, [])
+  if (!count) return null
+  return <p className="quiet-count">この30日で、全国 {count.toLocaleString()}人 が参拝しています</p>
 }
 
+const emptyForm = () => ({
+  shrine: null, visitedOn: todayStr(), emotion: 50, tab: 'public',
+  publicMemo: '', privateMemo: '', nextMemo: '', isPublic: true, photos: [],
+})
+
 export default function HomePage() {
-  const { user } = useAuth()
-  const { toast, showToast } = useToast()
-
-  const [shrineName, setShrineName] = useState('')
-  const [emotionLevel, setEmotionLevel] = useState(50)
-  const [tab, setTab] = useState('public') // 'public' | 'private'
-  const [publicMemo, setPublicMemo] = useState('')
-  const [privateMemo, setPrivateMemo] = useState('')
-  const [nextMemo, setNextMemo] = useState('')
-  const [photos, setPhotos] = useState([]) // { file, preview }[]
-  const [showOmikuji, setShowOmikuji] = useState(false)
+  const { user, loading: authLoading, signInWithGoogle } = useAuth()
+  const { showToast } = useToast()
+  const { index, markVisited } = useShrineIndex()
+  const { addRecord } = usePendingRecords()
+  const [params, setParams] = useSearchParams()
+  const [form, setForm] = useState(emptyForm)
+  const [position, setPosition] = useState(null)
+  const [locating, setLocating] = useState(true)
   const [saving, setSaving] = useState(false)
+  const fileRef = useRef(null)
+  const update = (patch) => setForm((f) => ({ ...f, ...patch }))
 
-  const fileRef = useRef()
+  // 位置の取得は待たずに画面を出す
+  useEffect(() => {
+    let alive = true
+    getCurrentPosition().then((p) => { if (alive) { setPosition(p); setLocating(false) } })
+    return () => { alive = false }
+  }, [])
 
-  const handlePhotoSelect = async (e) => {
-    const files = Array.from(e.target.files)
-    if (photos.length + files.length > 5) {
-      showToast('写真は最大5枚まで')
-      return
-    }
+  // 神社詳細の「ここを記録する」から来たとき
+  const preset = params.get('shrine')
+  useEffect(() => {
+    if (!preset) return
+    const fromIndex = index && getById(index, preset)
+    if (fromIndex) { update({ shrine: fromIndex }); setParams({}, { replace: true }); return }
+    if (index) return
+    serverGetShrineItem(preset).then((item) => { if (item) update({ shrine: item }) }).catch(() => {})
+  }, [preset, index]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // プレビュー用URLの後始末
+  const photosRef = useRef(form.photos)
+  photosRef.current = form.photos
+  useEffect(() => () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.preview)), [])
+
+  const handlePhotos = async (e) => {
+    const files = Array.from(e.target.files || [])
+    e.target.value = ''
+    if (form.photos.length + files.length > MAX_PHOTOS) { showToast(`写真は${MAX_PHOTOS}枚までです`); return }
     for (const file of files) {
       try {
-        const compressed = await compressImage(file, 100)
-        const preview = URL.createObjectURL(compressed)
-        setPhotos(prev => [...prev, { file: compressed, preview }])
+        const blob = await compressImage(file)
+        const photo = { blob, preview: URL.createObjectURL(blob) }
+        setForm((f) => ({ ...f, photos: [...f.photos, photo] }))
       } catch {
         showToast('画像の処理に失敗しました')
       }
     }
-    e.target.value = ''
   }
 
-  const removePhoto = (index) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index))
+  const removePhoto = (i) => {
+    URL.revokeObjectURL(form.photos[i].preview)
+    update({ photos: form.photos.filter((_, j) => j !== i) })
   }
 
   const handleSave = async () => {
-    if (!shrineName.trim()) { showToast('神社名を入力してください'); return }
-    if (!user) { showToast('ログインが必要です'); return }
-
+    if (!form.shrine) { showToast('神社を選んでください'); return }
+    if (form.visitedOn > todayStr()) { showToast('参拝日が未来になっています'); return }
     setSaving(true)
     try {
-      // 1. 神社をupsert
-      const { data: shrine } = await supabase
-        .from('shrines')
-        .upsert({ name: shrineName.trim() }, { onConflict: 'name' })
-        .select()
-        .single()
-
-      // 2. 記録を保存
-      const { data: record, error } = await supabase
-        .from('records')
-        .insert({
-          user_id: user.id,
-          shrine_name: shrineName.trim(),
-          shrine_id: shrine?.id ?? null,
-          emotion_level: emotionLevel,
-          public_memo: publicMemo,
-          private_memo: privateMemo,
-          next_memo: nextMemo,
-          is_public: true,
-          visited_at: new Date().toISOString(),
-        })
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // 3. 写真をアップロード
-      for (const photo of photos) {
-        const ext = 'jpg'
-        const path = `${user.id}/${record.id}/${Date.now()}.${ext}`
-        const { error: uploadError } = await supabase.storage
-          .from('photos')
-          .upload(path, photo.file, { contentType: 'image/jpeg' })
-
-        if (!uploadError) {
-          const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(path)
-          await supabase.from('photos').insert({
-            record_id: record.id,
-            user_id: user.id,
-            url: publicUrl,
-            path,
-          })
-        }
-      }
-
-      showToast('記録しました　⛩')
-      // reset
-      setShrineName('')
-      setEmotionLevel(50)
-      setPublicMemo('')
-      setPrivateMemo('')
-      setNextMemo('')
-      setPhotos([])
-    } catch (e) {
-      console.error(e)
-      showToast('保存に失敗しました')
+      const dist = position ? distanceM(position.lat, position.lng, form.shrine.lat, form.shrine.lng) : null
+      const onsite = dist != null && dist <= ONSITE_RADIUS_M && form.visitedOn === todayStr()
+      await addRecord({
+        id: crypto.randomUUID(),
+        user_id: user.id,
+        shrine_id: form.shrine.id,
+        shrine_name: form.shrine.name,
+        visited_on: form.visitedOn,
+        emotion_level: form.emotion,
+        public_memo: form.publicMemo.trim(),
+        private_memo: form.privateMemo.trim(),
+        next_memo: form.nextMemo.trim(),
+        is_public: form.isPublic,
+        onsite,
+        location_accuracy_m: onsite ? position.accuracy : null,
+        photos: form.photos.map((p) => p.blob),
+        created_at: new Date().toISOString(),
+      })
+      markVisited(form.shrine.id)
+      form.photos.forEach((p) => URL.revokeObjectURL(p.preview))
+      setForm(emptyForm())
+      window.scrollTo(0, 0)
+    } catch {
+      showToast('端末への保存に失敗しました')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   return (
     <div className="app-shell">
-      <div className="top-bar">
+      <header className="top-bar">
         <div className="app-logo">ノ<span>ボ</span>ル</div>
-        <div style={{ fontSize: 11, color: 'var(--mist)', letterSpacing: '0.15em' }}>{today()}</div>
-      </div>
-
+      </header>
       <div className="page-content">
-        {/* 神社名 */}
-        <div className="field-wrap">
-          <label className="field-label">神社名</label>
-          <input
-            className="field-input"
-            placeholder="神社の名前を入力..."
-            value={shrineName}
-            onChange={e => setShrineName(e.target.value)}
-          />
-        </div>
+        <RecentVisitors />
 
-        {/* 感動の温度 */}
-        <div className="field-wrap">
-          <label className="field-label">感動の温度</label>
-          <EmotionSlider value={emotionLevel} onChange={setEmotionLevel} />
-        </div>
-
-        {/* 神様からのことば */}
-        <GodMessage
-          shrineName={shrineName}
-          emotionLevel={emotionLevel}
-          memo={publicMemo}
-        />
-
-        {/* おみくじAI */}
-        <button
-          onClick={() => setShowOmikuji(true)}
-          style={{
-            width: '100%',
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '12px 14px',
-            background: 'var(--gold-bg)',
-            borderRadius: 8,
-            border: '1px solid rgba(184,150,12,0.18)',
-            marginBottom: 20,
-            cursor: 'pointer',
-            textAlign: 'left',
-          }}
-        >
-          <span style={{ fontSize: 20 }}>🎴</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: 'var(--font-mincho)', fontSize: 12, color: 'var(--ink)', letterSpacing: '0.08em', marginBottom: 2 }}>
-              おみくじをAIに読んでもらう
-            </div>
-            <div style={{ fontSize: 9, color: 'var(--mist)' }}>写真かテキストで入力</div>
-          </div>
-          <span style={{ fontSize: 14, color: 'var(--gold)' }}>›</span>
-        </button>
-
-        {/* 公開・非公開タブ */}
-        <div className="tab-row">
-          <button className={`tab-btn ${tab === 'public' ? 'active' : ''}`} onClick={() => setTab('public')}>公開</button>
-          <button className={`tab-btn ${tab === 'private' ? 'active' : ''}`} onClick={() => setTab('private')}>非公開</button>
-        </div>
-
-        {tab === 'public' ? (
-          <div className="field-wrap">
-            <textarea
-              className="field-textarea"
-              placeholder="感想・口コミ・穴場情報など（みんなに公開されます）"
-              value={publicMemo}
-              onChange={e => setPublicMemo(e.target.value)}
-            />
+        {!authLoading && !user ? (
+          <div className="login-panel">
+            <div className="login-mark">⛩</div>
+            <p>参拝の記録を残すには<br />ログインが必要です</p>
+            <button className="btn-primary" onClick={signInWithGoogle}>Googleでログイン</button>
           </div>
         ) : (
-          <div className="field-wrap">
-            <textarea
-              className="field-textarea"
-              placeholder="個人的な気づき・深い内省（自分だけが見えます）"
-              value={privateMemo}
-              onChange={e => setPrivateMemo(e.target.value)}
-            />
-          </div>
-        )}
-
-        {/* 次回へのメモ */}
-        <div className="field-wrap">
-          <label className="field-label">次回へのメモ</label>
-          <input
-            className="field-input"
-            placeholder="次回また来たいときのために..."
-            value={nextMemo}
-            onChange={e => setNextMemo(e.target.value)}
-          />
-        </div>
-
-        {/* 写真 */}
-        <div className="section-mini">写真（最大5枚）</div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-          {photos.map((p, i) => (
-            <div key={i} style={{ position: 'relative' }}>
-              <img
-                src={p.preview}
-                alt=""
-                style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8 }}
-              />
-              <button
-                onClick={() => removePhoto(i)}
-                style={{
-                  position: 'absolute', top: -6, right: -6,
-                  width: 18, height: 18, borderRadius: '50%',
-                  background: 'var(--ink)', color: 'var(--paper)',
-                  border: 'none', fontSize: 10, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >✕</button>
+          <>
+            <div className="field-wrap">
+              <label className="field-label">神社</label>
+              <ShrinePicker value={form.shrine} onChange={(shrine) => update({ shrine })} position={position} locating={locating} />
             </div>
-          ))}
-          {photos.length < 5 && (
-            <div
-              onClick={() => fileRef.current.click()}
-              style={{
-                width: 72, height: 72, borderRadius: 8,
-                background: 'var(--paper2)',
-                border: '1.5px dashed rgba(26,18,8,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 22, color: 'rgba(26,18,8,0.2)', cursor: 'pointer',
-              }}
-            >＋</div>
-          )}
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            ref={fileRef}
-            onChange={handlePhotoSelect}
-            style={{ display: 'none' }}
-          />
-        </div>
 
-        {/* 記録ボタン */}
-        <button className="btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? '記録中...' : '記　録　す　る'}
-        </button>
+            <div className="field-wrap">
+              <label className="field-label" htmlFor="visited-on">参拝日</label>
+              <input id="visited-on" type="date" className="field-input" value={form.visitedOn} max={todayStr()}
+                onChange={(e) => update({ visitedOn: e.target.value || todayStr() })} />
+            </div>
+
+            <div className="field-wrap">
+              <label className="field-label">感動の温度</label>
+              <EmotionSlider value={form.emotion} onChange={(emotion) => update({ emotion })} />
+            </div>
+
+            <div className="tab-row">
+              <button className={`tab-btn ${form.tab === 'public' ? 'active' : ''}`} onClick={() => update({ tab: 'public' })}>公開メモ</button>
+              <button className={`tab-btn ${form.tab === 'private' ? 'active' : ''}`} onClick={() => update({ tab: 'private' })}>非公開メモ</button>
+            </div>
+            {form.tab === 'public'
+              ? <textarea className="field-textarea" placeholder="感想・口コミ・穴場情報（記録を公開すると、みんなが読めます）"
+                  value={form.publicMemo} onChange={(e) => update({ publicMemo: e.target.value })} />
+              : <textarea className="field-textarea" placeholder="個人的な気づき・深い内省（自分だけが読めます）"
+                  value={form.privateMemo} onChange={(e) => update({ privateMemo: e.target.value })} />}
+
+            <div className="field-wrap mt16">
+              <label className="field-label" htmlFor="next-memo">次回へのメモ</label>
+              <input id="next-memo" className="field-input" placeholder="次に来るときのために…"
+                value={form.nextMemo} onChange={(e) => update({ nextMemo: e.target.value })} />
+            </div>
+
+            <div className="field-wrap">
+              <label className="field-label">写真（{form.photos.length}/{MAX_PHOTOS}）</label>
+              <div className="photo-row">
+                {form.photos.map((p, i) => (
+                  <div key={p.preview} className="photo-edit">
+                    <img src={p.preview} alt="" className="photo" />
+                    <button className="photo-remove" onClick={() => removePhoto(i)} aria-label="写真を削除">✕</button>
+                  </div>
+                ))}
+                {form.photos.length < MAX_PHOTOS && (
+                  <button type="button" className="photo-add" onClick={() => fileRef.current.click()} aria-label="写真を追加">＋</button>
+                )}
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handlePhotos} />
+            </div>
+
+            <label className="toggle-row">
+              <input type="checkbox" checked={form.isPublic} onChange={(e) => update({ isPublic: e.target.checked })} />
+              <span>この記録を公開する<span className="muted small">（非公開メモは公開されません）</span></span>
+            </label>
+
+            <button className="btn-primary mt16" onClick={handleSave} disabled={saving || !user}>
+              {saving ? '保存中…' : '記録する'}
+            </button>
+
+            <p className="center mt16"><GuideInlineLink context="etiquette" /></p>
+          </>
+        )}
       </div>
-
-      {showOmikuji && <OmikujiModal onClose={() => setShowOmikuji(false)} />}
-      {toast && <div className="toast">{toast}</div>}
     </div>
   )
 }
