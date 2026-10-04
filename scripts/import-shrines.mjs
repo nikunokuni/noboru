@@ -4,6 +4,7 @@
 // 使い方（詳しくは scripts/README.md）:
 //   node scripts/import-shrines.mjs --pref 13            東京都だけ取り込む
 //   node scripts/import-shrines.mjs --pref 13,14 --dry-run   DBに入れず scripts/out/ にJSONを書く
+//   node scripts/import-shrines.mjs --pref 13 --shrines-only   神社の名前と位置だけ（駅・駐車場・Wikipediaなし）
 //   node scripts/import-shrines.mjs --all                全都道府県
 //   node scripts/import-shrines.mjs --index-only         神社一覧ファイルだけ作り直す
 //
@@ -32,6 +33,7 @@ const { values: args } = parseArgs({
     all: { type: 'boolean', default: false },
     'dry-run': { type: 'boolean', default: false },
     'skip-wiki': { type: 'boolean', default: false },
+    'shrines-only': { type: 'boolean', default: false },
     'index-only': { type: 'boolean', default: false },
     'no-index': { type: 'boolean', default: false },
     'no-cache': { type: 'boolean', default: false },
@@ -70,12 +72,13 @@ async function importPrefecture(prefIndex, db) {
       userAgent: USER_AGENT,
       cacheFile: args['no-cache'] ? null : join(HERE, '.cache', `${iso}.json`),
       log,
+      parts: args['shrines-only'] ? ['shrines'] : null,
     })
 
   const { rows, excluded } = processPrefecture(overpass.elements || [], prefecture)
   log(`  神社: ${rows.length}件（境内社として除外: ${excluded}件）`)
 
-  if (!args['skip-wiki']) await enrichWithWiki(rows, { userAgent: USER_AGENT, log })
+  if (!args['skip-wiki'] && !args['shrines-only']) await enrichWithWiki(rows, { userAgent: USER_AGENT, log })
 
   const dbRows = rows.map(({ wikipedia_title, ...r }) => r)
 

@@ -87,14 +87,12 @@ async function fetchPart(iso, body, { endpoints, userAgent, log }) {
   throw lastError
 }
 
-export async function fetchOverpass(iso, { endpoint, cacheFile = null, userAgent, log = () => {} } = {}) {
-  if (cacheFile) {
-    const cached = await readJson(cacheFile)
-    if (cached) return cached
-  }
+// parts: 取得する種類（PARTS の名前）。省略時はすべて
+export async function fetchOverpass(iso, { endpoint, cacheFile = null, userAgent, log = () => {}, parts = null } = {}) {
   const endpoints = [...new Set([endpoint, ...DEFAULT_ENDPOINTS].filter(Boolean))]
   const elements = []
   for (const [key, label, body] of PARTS) {
+    if (parts && !parts.includes(key)) continue
     const partFile = cacheFile && cacheFile.replace(/\.json$/, `.${key}.json`)
     let json = partFile && await readJson(partFile)
     if (json) {
@@ -102,12 +100,10 @@ export async function fetchOverpass(iso, { endpoint, cacheFile = null, userAgent
     } else {
       log(`  ${label}を取得中…`)
       json = await fetchPart(iso, body, { endpoints, userAgent, log })
-      log(`  ${label}: ${json.elements.length}件`)
+      log(`  ${label}: ${json.elements.length}件取得`)
       if (partFile) await writeJson(partFile, json)
     }
     elements.push(...json.elements)
   }
-  const result = { elements }
-  if (cacheFile) await writeJson(cacheFile, result)
-  return result
+  return { elements }
 }
