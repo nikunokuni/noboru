@@ -36,11 +36,12 @@ npm run import:shrines -- --index-only
 | `--skip-wiki` | Wikidata / Wikipedia を使わない（速い） |
 | `--no-index` | 最後の一覧ファイル生成をしない（何回かに分けて取り込むとき） |
 | `--no-cache` | `scripts/.cache/` に保存した Overpass の結果を使わず取り直す |
-| `--endpoint <URL>` | 別の Overpass サーバーを使う |
+| `--endpoint <URL>` | 最初に試す Overpass サーバーを指定する（だめなら標準のサーバーにも切り替える） |
 
 ## 何をしているか
 
 1. Overpass API から神社・祠（`amenity=place_of_worship` / `historic=wayside_shrine` かつ `religion=shinto`）、駅、バス停、駐車場、地名、市区町村の境界を取得
+   （混雑したサーバーに断られにくいよう種類ごとに分けて問い合わせ、失敗したら別のサーバーに切り替える。取れた分は `scripts/.cache/` に保存され、やり直したときは続きから取る）
 2. 別の神社の敷地の中にある社（境内社）を除外
 3. 最寄り駅・バス停（直線距離）、駐車場（敷地内なら「専用」、200m以内なら「近くに」）を計算
 4. Wikidata からご祭神・読み仮名、Wikipedia から冒頭の要約（特徴）を取得

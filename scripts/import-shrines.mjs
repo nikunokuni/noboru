@@ -18,7 +18,7 @@ import { parseArgs } from 'node:util'
 import { createClient } from '@supabase/supabase-js'
 import { PREFECTURES, prefectureIso } from '../src/lib/constants.js'
 import { encodeIndex } from '../src/lib/indexCore.js'
-import { fetchOverpass, DEFAULT_ENDPOINT } from './lib/overpass.mjs'
+import { fetchOverpass } from './lib/overpass.mjs'
 import { processPrefecture } from './lib/process.mjs'
 import { enrichWithWiki } from './lib/wiki.mjs'
 
@@ -36,7 +36,7 @@ const { values: args } = parseArgs({
     'no-index': { type: 'boolean', default: false },
     'no-cache': { type: 'boolean', default: false },
     input: { type: 'string' },
-    endpoint: { type: 'string', default: DEFAULT_ENDPOINT },
+    endpoint: { type: 'string' },
   },
 })
 
@@ -69,6 +69,7 @@ async function importPrefecture(prefIndex, db) {
       endpoint: args.endpoint,
       userAgent: USER_AGENT,
       cacheFile: args['no-cache'] ? null : join(HERE, '.cache', `${iso}.json`),
+      log,
     })
 
   const { rows, excluded } = processPrefecture(overpass.elements || [], prefecture)
