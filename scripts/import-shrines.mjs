@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { createClient } from '@supabase/supabase-js'
 import { PREFECTURES, prefectureIso } from '../src/lib/constants.js'
-import { encodeIndex } from '../src/lib/indexCore.js'
+import { encodeIndex, fetchIndexRows, newIndexVersion } from '../src/lib/indexCore.js'
 import { fetchOverpass } from './lib/overpass.mjs'
 import { processPrefecture } from './lib/process.mjs'
 import { enrichWithWiki } from './lib/wiki.mjs'
@@ -100,23 +100,8 @@ async function importPrefecture(prefIndex, db) {
   return dbRows
 }
 
-async function fetchAllShrines(db) {
-  const rows = []
-  const PAGE = 1000
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await db.from('shrines')
-      .select('id, name, name_kana, prefecture, lat, lng, first_visited_on')
-      .eq('status', 'active').order('id').range(from, from + PAGE - 1)
-    if (error) throw error
-    rows.push(...data)
-    if (data.length < PAGE) return rows
-  }
-}
-
-const newVersion = () => new Date().toISOString().replace(/\D/g, '').slice(0, 14)
-
 async function buildIndex(rows, db) {
-  const version = newVersion()
+  const version = newIndexVersion()
   const json = JSON.stringify(encodeIndex(rows, { version }))
   const gz = gzipSync(json, { level: 9 })
   log(`■ 神社一覧ファイル: ${rows.length}件 / ${(json.length / 1e6).toFixed(2)}MB（gzip後 ${(gz.length / 1e6).toFixed(2)}MB）`)
@@ -161,7 +146,7 @@ async function main() {
     // 試算用：仮の連番IDでファイルサイズを確認
     await buildIndex(dryRows.map((r, i) => ({ ...r, id: i + 1 })), null)
   } else {
-    await buildIndex(await fetchAllShrines(db), db)
+    await buildIndex(await fetchIndexRows(db), db)
   }
 }
 

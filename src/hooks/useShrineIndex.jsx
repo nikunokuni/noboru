@@ -17,29 +17,35 @@ export function ShrineIndexProvider({ children }) {
     setState((s) => ({ status, index, revision: s.revision + 1 }))
   }
 
+  // サーバーの版を確認し、手元と違えば取り直す
+  const checkForUpdate = useCallback(async (isCancelled = () => false) => {
+    const current = indexRef.current
+    try {
+      const version = await fetchIndexVersion()
+      if (isCancelled()) return
+      if (!version || version === '0') {
+        if (!current) setState((s) => ({ ...s, status: 'unavailable' }))
+        return
+      }
+      if (current?.raw.version === version) return
+      if (!current) setState((s) => ({ ...s, status: 'downloading' }))
+      const fresh = await downloadIndex(version)
+      if (!isCancelled()) publish(fresh)
+    } catch {
+      if (!isCancelled() && !current) setState((s) => ({ ...s, status: 'unavailable' }))
+    }
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       const cached = await loadCachedIndex()
       if (cancelled) return
       if (cached) publish(cached)
-      try {
-        const version = await fetchIndexVersion()
-        if (cancelled) return
-        if (!version || version === '0') {
-          if (!cached) setState((s) => ({ ...s, status: 'unavailable' }))
-          return
-        }
-        if (cached?.raw.version === version) return
-        if (!cached) setState((s) => ({ ...s, status: 'downloading' }))
-        const fresh = await downloadIndex(version)
-        if (!cancelled) publish(fresh)
-      } catch {
-        if (!cancelled && !cached) setState((s) => ({ ...s, status: 'unavailable' }))
-      }
+      await checkForUpdate(() => cancelled)
     })()
     return () => { cancelled = true }
-  }, [])
+  }, [checkForUpdate])
 
   // 「誰も行っていない」の最新化。画面を開くたびに呼ばれるので1分に1回まで
   const refreshVisited = useCallback(async () => {
@@ -61,7 +67,7 @@ export function ShrineIndexProvider({ children }) {
   }, [])
 
   return (
-    <ShrineIndexContext.Provider value={{ ...state, refreshVisited, markVisited }}>
+    <ShrineIndexContext.Provider value={{ ...state, refreshVisited, markVisited, refreshIndex: checkForUpdate }}>
       {children}
     </ShrineIndexContext.Provider>
   )

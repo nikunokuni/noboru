@@ -130,7 +130,14 @@ CREATE TABLE shrine_requests (
   lng        DOUBLE PRECISION,
   note       TEXT NOT NULL DEFAULT '',
   status     request_status NOT NULL DEFAULT 'pending',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  reviewed_at TIMESTAMPTZ                                        -- 承認・却下した時刻
+);
+
+-- 管理者（申請の承認・却下と神社一覧ファイルの作り直しができる）
+-- 登録は SQL Editor から: INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<メールアドレス>';
+CREATE TABLE admins (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE
 );
 
 -- ============================================================
@@ -300,6 +307,59 @@ END $$;
 REVOKE EXECUTE ON FUNCTION import_shrines(JSONB) FROM PUBLIC, anon, authenticated;
 
 -- ============================================================
+-- 管理者用（アプリの「申請の確認」画面から呼ぶ）
+-- ============================================================
+CREATE OR REPLACE FUNCTION is_admin() RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM admins WHERE user_id = auth.uid());
+$$;
+
+-- 申請を承認・却下する
+--   add  を承認: shrine の内容（name, name_kana, prefecture, municipality, address, lat, lng）で shrines に追加
+--   hide を承認: 対象の神社を status = 'hidden' にする
+-- 戻り値は追加・非表示にした神社の id（却下は NULL）
+CREATE OR REPLACE FUNCTION review_shrine_request(request_id UUID, approve BOOLEAN, shrine JSONB DEFAULT '{}')
+RETURNS BIGINT
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  req shrine_requests;
+  target BIGINT;
+BEGIN
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION '管理者だけが実行できます' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO req FROM shrine_requests WHERE id = request_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION '申請が見つかりません'; END IF;
+  IF req.status <> 'pending' THEN RAISE EXCEPTION 'この申請は処理済みです'; END IF;
+
+  IF approve AND req.kind = 'add' THEN
+    INSERT INTO shrines (name, name_kana, prefecture, municipality, address, lat, lng)
+    VALUES (
+      COALESCE(NULLIF(btrim(shrine->>'name'), ''), req.name),
+      NULLIF(btrim(shrine->>'name_kana'), ''),
+      shrine->>'prefecture',
+      NULLIF(btrim(shrine->>'municipality'), ''),
+      NULLIF(btrim(shrine->>'address'), ''),
+      COALESCE((shrine->>'lat')::DOUBLE PRECISION, req.lat),
+      COALESCE((shrine->>'lng')::DOUBLE PRECISION, req.lng))
+    RETURNING id INTO target;
+  ELSIF approve AND req.kind = 'hide' THEN
+    UPDATE shrines SET status = 'hidden', updated_at = NOW() WHERE id = req.shrine_id;
+    target := req.shrine_id;
+  END IF;
+
+  UPDATE shrine_requests SET
+    status      = CASE WHEN approve THEN 'approved' ELSE 'rejected' END::request_status,
+    shrine_id   = COALESCE(target, shrine_id),
+    reviewed_at = NOW()
+  WHERE id = request_id;
+  RETURN target;
+END $$;
+
+REVOKE EXECUTE ON FUNCTION review_shrine_request(UUID, BOOLEAN, JSONB) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION review_shrine_request(UUID, BOOLEAN, JSONB) TO authenticated;
+
+-- ============================================================
 -- Row Level Security
 -- ============================================================
 ALTER TABLE shrines              ENABLE ROW LEVEL SECURITY;
@@ -310,6 +370,7 @@ ALTER TABLE shrine_edits         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shrine_requests      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE guide_links          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_meta             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admins               ENABLE ROW LEVEL SECURITY;
 
 -- 神社：誰でも読める。書き込みは取り込み処理（service_role）とトリガーのみ
 CREATE POLICY shrines_read ON shrines FOR SELECT USING (status = 'active');
@@ -335,19 +396,25 @@ CREATE POLICY photos_delete ON photos FOR DELETE USING (auth.uid() = user_id);
 CREATE POLICY edits_read   ON shrine_edits FOR SELECT USING (TRUE);
 CREATE POLICY edits_insert ON shrine_edits FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- 追加申請：本人のみ読める
-CREATE POLICY requests_read   ON shrine_requests FOR SELECT USING (auth.uid() = user_id);
+-- 追加申請：本人と管理者が読める。承認・却下は review_shrine_request() で
+CREATE POLICY requests_read   ON shrine_requests FOR SELECT USING (auth.uid() = user_id OR is_admin());
 CREATE POLICY requests_insert ON shrine_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+-- 管理者：自分が管理者かどうかだけ読める（登録は SQL Editor から）
+CREATE POLICY admins_read_self ON admins FOR SELECT USING (auth.uid() = user_id);
+
 -- 手引きリンク・設定値：誰でも読める（編集はダッシュボードから）
+-- 神社一覧ファイルの版は、管理者がアプリから一覧を作り直したときにも更新する
 CREATE POLICY guide_links_read ON guide_links FOR SELECT USING (is_active);
 CREATE POLICY app_meta_read    ON app_meta    FOR SELECT USING (TRUE);
+CREATE POLICY app_meta_admin_update ON app_meta FOR UPDATE
+  USING (key = 'shrine_index_version' AND is_admin()) WITH CHECK (key = 'shrine_index_version' AND is_admin());
 
 -- ============================================================
 -- Storage
 -- ============================================================
 -- photos      : 非公開バケット。パスは <user_id>/<record_id>/<n>.jpg。署名付きURLで表示
--- public-data : 公開バケット。shrines-index.<version>.json.gz を置く（取り込み処理がアップロード）
+-- public-data : 公開バケット。shrines-index.<version>.json.gz を置く（取り込み処理か、アプリの管理者画面がアップロード）
 INSERT INTO storage.buckets (id, name, public) VALUES ('photos', 'photos', FALSE), ('public-data', 'public-data', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
@@ -364,3 +431,9 @@ CREATE POLICY photos_obj_read ON storage.objects FOR SELECT
     OR EXISTS (SELECT 1 FROM public.photos p JOIN public.records r ON r.id = p.record_id
                WHERE p.path = storage.objects.name AND r.is_public)
   ));
+
+-- 管理者は神社一覧ファイルを置ける（毎回新しい名前なので上書きはしない）
+CREATE POLICY public_data_admin_insert ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'public-data' AND name LIKE 'shrines-index.%' AND public.is_admin());
+CREATE POLICY public_data_admin_read ON storage.objects FOR SELECT TO authenticated
+  USING (bucket_id = 'public-data' AND public.is_admin());

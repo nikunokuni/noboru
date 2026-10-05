@@ -191,6 +191,9 @@ OSM で神社の敷地（way/relation のポリゴン）が登録されている
 - `shrines` はユーザーから直接更新できず、`shrine_edits` の追加時にトリガーが反映する
 - 荒らしが出てきたら承認制に切り替える
 - 神社の追加申請（`kind = 'add'`）と、境内社・重複など一覧から外す報告（`kind = 'hide'`）は `shrine_requests` に入り、管理者が確認して反映する
+  - 管理者は `admins` テーブルに登録したユーザー。マイページの「申請の確認」（`/admin/requests`）で承認・却下する
+  - 承認・却下は `review_shrine_request()` で行う（追加なら `shrines` に1件追加、外す報告なら `status = 'hidden'`）
+  - 承認後、管理者画面の「神社一覧を更新する」で一覧ファイルを作り直し、`app_meta.shrine_index_version` を更新する
 
 ---
 

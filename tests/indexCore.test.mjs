@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { encodeIndex, prepareIndex, searchIndex, nearbyIndex, getById, applyVisited, normalize } from '../src/lib/indexCore.js'
+import { encodeIndex, prepareIndex, searchIndex, nearbyIndex, getById, applyVisited, normalize, newIndexVersion, indexVersionDate } from '../src/lib/indexCore.js'
 import { titleFor } from '../src/lib/constants.js'
 
 const rows = [
@@ -48,4 +48,13 @@ test('称号', () => {
   assert.deepEqual(titleFor(0), { current: '参拝初心者', next: { label: '氏子', remaining: 5 } })
   assert.deepEqual(titleFor(30), { current: '神主', next: { label: '大神主', remaining: 20 } })
   assert.equal(titleFor(150).next, null)
+})
+
+test('一覧ファイルの版は作った時刻（UTC）で、時刻に戻せる', () => {
+  const now = new Date('2026-10-05T12:34:56.789Z')
+  const v = newIndexVersion(now)
+  assert.equal(v, '20261005123456')
+  assert.equal(indexVersionDate(v).toISOString(), '2026-10-05T12:34:56.000Z')
+  assert.equal(indexVersionDate('0'), null)
+  assert.equal(indexVersionDate(undefined), null)
 })

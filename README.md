@@ -17,6 +17,21 @@ npm run dev
 
 5. 神社マスタを取り込む（[`scripts/README.md`](scripts/README.md)）
 6. 参拝の手引き（note 記事）を `guide_links` テーブルに登録する（Supabase の Table Editor から）
+7. 自分を管理者にする（申請の確認ができるようになる）。一度アプリにGoogleログインしてから、SQL Editor で実行する
+
+```sql
+INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログインに使ったメールアドレス>';
+```
+
+すでに以前の `schema.sql` で作ったプロジェクトでは、代わりに [`supabase/upgrade-admin.sql`](supabase/upgrade-admin.sql) の最後のメールアドレスを書き換えて実行する。
+
+### 申請の確認（管理者）
+
+マイページの「申請の確認」から、神社の追加申請・一覧から外す報告を承認・却下できる（管理者にだけ表示）。
+
+- 追加申請の承認: 名前・場所（緯度, 経度）・都道府県を確認して神社を追加する。近くに登録済みの神社があれば重複の注意が出る
+- 外す報告の承認: 対象の神社を一覧から外す（`status = 'hidden'`）
+- 承認した内容は、画面上部の「神社一覧を更新する」を押すとアプリの検索・マップに入る（`npm run import:shrines -- --index-only` と同じ）
 
 | context | 表示場所 |
 |---|---|

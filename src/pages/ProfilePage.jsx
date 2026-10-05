@@ -1,16 +1,19 @@
 // マイページ：参拝の数字・称号・参拝の手引き（note）
 import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { GuideLinkList } from '../components/GuideLinks'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyRecords } from '../lib/records'
+import { fetchIsAdmin, countPendingRequests } from '../lib/admin'
 import { titleFor } from '../lib/constants'
 
 export default function ProfilePage() {
   const { user, loading, signInWithGoogle, signOut } = useAuth()
   const { syncRevision } = usePendingRecords()
   const [stats, setStats] = useState(null)
+  const [pendingRequests, setPendingRequests] = useState(null) // 管理者のときだけ数が入る
 
   useEffect(() => {
     if (!user) return
@@ -20,6 +23,13 @@ export default function ProfilePage() {
       setStats({ records: records.length, shrines, avg })
     }).catch(() => {})
   }, [user, syncRevision])
+
+  useEffect(() => {
+    setPendingRequests(null)
+    if (!user) return
+    fetchIsAdmin(user.id).then((admin) => admin && countPendingRequests().then(setPendingRequests))
+      .catch(() => {})
+  }, [user])
 
   const title = stats && titleFor(stats.shrines)
 
@@ -48,6 +58,12 @@ export default function ProfilePage() {
               <div className="stat"><div className="stat-num">{stats?.avg ?? '—'}</div><div className="stat-label">感動の平均</div></div>
             </div>
           </>
+        )}
+
+        {pendingRequests != null && (
+          <Link to="/admin/requests" className="btn-secondary mt24">
+            申請の確認{pendingRequests > 0 ? `（未確認 ${pendingRequests}件）` : ''}
+          </Link>
         )}
 
         <section className="mt24">

@@ -19,6 +19,30 @@ import { distanceM } from './geo.js'
 export const INDEX_FORMAT = 1
 const SCALE = 1e5
 
+// 一覧ファイルの版。作った時刻（UTC）の YYYYMMDDHHMMSS
+export const newIndexVersion = (now = new Date()) => now.toISOString().replace(/\D/g, '').slice(0, 14)
+
+// 版から作った時刻を戻す。時刻の形でなければ null
+export function indexVersionDate(version) {
+  const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(version || '')
+  return m ? new Date(Date.UTC(m[1], m[2] - 1, m[3], m[4], m[5], m[6])) : null
+}
+
+// 一覧ファイルに入れる神社（status = 'active'）を DB から全件取る。db は supabase-js のクライアント
+export async function fetchIndexRows(db, onProgress = () => {}) {
+  const rows = []
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await db.from('shrines')
+      .select('id, name, name_kana, prefecture, lat, lng, first_visited_on')
+      .eq('status', 'active').order('id').range(from, from + PAGE - 1)
+    if (error) throw error
+    rows.push(...data)
+    onProgress(rows.length)
+    if (data.length < PAGE) return rows
+  }
+}
+
 export function encodeIndex(rows, { version, generatedAt = new Date().toISOString() }) {
   const prefs = []
   const prefPos = new Map()
