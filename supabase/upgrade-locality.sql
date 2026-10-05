@@ -1,7 +1,8 @@
 -- ============================================================
 -- 既存のプロジェクトに「近くの地名」（同じ名前の神社を見分ける用）を追加する
 -- schema.sql を以前に実行したプロジェクトで、SQL Editor から1回実行する（何度実行しても大丈夫）
--- 実行後に取り込みをやり直すと地名が入る（npm run import:shrines -- --all --shrines-only でも入る）
+-- 実行後に取り込みをやり直すと地名が入る（例: npm run import:shrines -- --pref 13 --no-transit --gsi-address）
+-- あわせて、駅・バス停を取らずに取り込んだときに、入っている駅・バス停を消さないようにする
 -- ============================================================
 
 ALTER TABLE shrines ADD COLUMN IF NOT EXISTS locality TEXT;   -- 近くの地名（町・字など）。OSM から取り込み時に計算
@@ -31,10 +32,11 @@ BEGIN
     locality           = EXCLUDED.locality,
     lat                = EXCLUDED.lat,
     lng                = EXCLUDED.lng,
-    nearest_station    = CASE WHEN s.nearest_station_by_user  THEN s.nearest_station    ELSE EXCLUDED.nearest_station END,
-    nearest_station_m  = CASE WHEN s.nearest_station_by_user  THEN s.nearest_station_m  ELSE EXCLUDED.nearest_station_m END,
-    nearest_bus_stop   = CASE WHEN s.nearest_bus_stop_by_user THEN s.nearest_bus_stop   ELSE EXCLUDED.nearest_bus_stop END,
-    nearest_bus_stop_m = CASE WHEN s.nearest_bus_stop_by_user THEN s.nearest_bus_stop_m ELSE EXCLUDED.nearest_bus_stop_m END,
+    -- 駅・バス停を取らずに取り込んだとき（--shrines-only / --no-transit）は、入っている値を消さない
+    nearest_station    = CASE WHEN s.nearest_station_by_user  OR EXCLUDED.nearest_station  IS NULL THEN s.nearest_station    ELSE EXCLUDED.nearest_station END,
+    nearest_station_m  = CASE WHEN s.nearest_station_by_user  OR EXCLUDED.nearest_station  IS NULL THEN s.nearest_station_m  ELSE EXCLUDED.nearest_station_m END,
+    nearest_bus_stop   = CASE WHEN s.nearest_bus_stop_by_user OR EXCLUDED.nearest_bus_stop IS NULL THEN s.nearest_bus_stop   ELSE EXCLUDED.nearest_bus_stop END,
+    nearest_bus_stop_m = CASE WHEN s.nearest_bus_stop_by_user OR EXCLUDED.nearest_bus_stop IS NULL THEN s.nearest_bus_stop_m ELSE EXCLUDED.nearest_bus_stop_m END,
     name_kana          = COALESCE(s.name_kana,   EXCLUDED.name_kana),
     address            = COALESCE(s.address,     EXCLUDED.address),
     deities            = COALESCE(s.deities,     EXCLUDED.deities),

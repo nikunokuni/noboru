@@ -26,6 +26,9 @@ npm run import:shrines -- --pref 26
 # 全国（Overpass への負荷を抑えるため1県ずつ順に取得。数時間かかります）
 npm run import:shrines -- --all
 
+# 駅・バス停は取らずに、市区町村・地名・住所（国土地理院）・駐車場・Wikidata を入れる（例: 東京・神奈川・埼玉）
+npm run import:shrines -- --pref 11,13,14 --no-transit --gsi-address
+
 # 神社一覧ファイルだけ作り直す
 npm run import:shrines -- --index-only
 ```
@@ -34,6 +37,8 @@ npm run import:shrines -- --index-only
 |---|---|
 | `--dry-run` | DBに入れず `scripts/out/` にJSONと一覧ファイルを書く（件数・サイズの確認用） |
 | `--shrines-only` | 神社の名前と位置、市区町村・近くの地名だけを取り込む（駅・バス停・駐車場・Wikipedia を使わない。いちばん軽い）。あとでこれを外して実行し直すと、残りの情報が足される |
+| `--no-transit` | 駅・バス停を取らない（データが多く重いため）。DBにすでに入っている駅・バス停は消さない |
+| `--gsi-address` | 住所が空の神社に、国土地理院の逆ジオコーダーで「都道府県＋市区町村＋町字」の住所を入れる（町字は「近くの地名」にも使う）。1件ずつ問い合わせるので1000件で数分。結果は `scripts/.cache/` に保存し、やり直しでは使い回す |
 | `--skip-wiki` | Wikidata / Wikipedia を使わない（速い） |
 | `--no-index` | 最後の一覧ファイル生成をしない（何回かに分けて取り込むとき） |
 | `--no-cache` | `scripts/.cache/` に保存した Overpass の結果を使わず取り直す |
@@ -54,4 +59,6 @@ npm run import:shrines -- --index-only
 
 - 出典表示: 地図・アクセス情報は「© OpenStreetMap contributors」（ODbL）、特徴の Wikipedia 由来の文章は CC BY-SA 4.0。アプリの画面に表示しています
 - 境内社の除外は、OSM に神社の敷地（面）が登録されている場合だけ効きます。残ったものはアプリの「一覧から外す報告」で拾います
+- 住所（`--gsi-address`）は神社の位置から求めた町字までの住所で、番地は入らない。ユーザーが情報提供した住所や OSM の住所があればそちらを優先する
+- `--gsi-address` を付けずに取り込み直すと、「近くの地名」は OSM の地名に戻る（住所は残る）
 - 県境の近くでは、隣の県の駅の方が近くても同じ県内の駅が選ばれます

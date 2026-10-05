@@ -5,6 +5,7 @@
 //   node scripts/import-shrines.mjs --pref 13            東京都だけ取り込む
 //   node scripts/import-shrines.mjs --pref 13,14 --dry-run   DBに入れず scripts/out/ にJSONを書く
 //   node scripts/import-shrines.mjs --pref 13 --shrines-only   神社の名前と位置・市区町村・地名だけ（駅・駐車場・Wikipediaなし）
+//   node scripts/import-shrines.mjs --pref 13 --no-transit --gsi-address   駅・バス停なしで、住所（国土地理院）も入れる
 //   node scripts/import-shrines.mjs --all                全都道府県
 //   node scripts/import-shrines.mjs --index-only         神社一覧ファイルだけ作り直す
 //
@@ -19,9 +20,10 @@ import { parseArgs } from 'node:util'
 import { createClient } from '@supabase/supabase-js'
 import { PREFECTURES, prefectureIso } from '../src/lib/constants.js'
 import { encodeIndex, fetchIndexRows, newIndexVersion } from '../src/lib/indexCore.js'
-import { fetchOverpass } from './lib/overpass.mjs'
+import { fetchOverpass, PARTS } from './lib/overpass.mjs'
 import { processPrefecture } from './lib/process.mjs'
 import { enrichWithWiki } from './lib/wiki.mjs'
+import { enrichWithGsi } from './lib/gsi.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const USER_AGENT = 'noboru-shrine-import/0.1 (https://github.com/nikunokuni/noboru)'
@@ -34,6 +36,8 @@ const { values: args } = parseArgs({
     'dry-run': { type: 'boolean', default: false },
     'skip-wiki': { type: 'boolean', default: false },
     'shrines-only': { type: 'boolean', default: false },
+    'no-transit': { type: 'boolean', default: false },
+    'gsi-address': { type: 'boolean', default: false },
     'index-only': { type: 'boolean', default: false },
     'no-index': { type: 'boolean', default: false },
     'no-cache': { type: 'boolean', default: false },
@@ -60,6 +64,15 @@ function supabaseAdmin() {
   return createClient(url, key, { auth: { persistSession: false } })
 }
 
+// Overpass から取る種類。省略（null）はすべて
+function overpassParts() {
+  // 名前と位置だけのときも、同じ名前の神社を見分けるための市区町村・地名は取る
+  if (args['shrines-only']) return ['shrines', 'places', 'municipalities']
+  // 駅・バス停はデータが多く重いので省ける（DBに入っている駅・バス停は消さない）
+  if (args['no-transit']) return PARTS.map(([key]) => key).filter((k) => k !== 'stations' && k !== 'bus_stops')
+  return null
+}
+
 async function importPrefecture(prefIndex, db) {
   const prefecture = PREFECTURES[prefIndex]
   const iso = prefectureIso(prefIndex)
@@ -72,14 +85,19 @@ async function importPrefecture(prefIndex, db) {
       userAgent: USER_AGENT,
       cacheFile: args['no-cache'] ? null : join(HERE, '.cache', `${iso}.json`),
       log,
-      // 名前と位置だけのときも、同じ名前の神社を見分けるための市区町村・地名は取る
-      parts: args['shrines-only'] ? ['shrines', 'places', 'municipalities'] : null,
+      parts: overpassParts(),
     })
 
   const { rows, excluded } = processPrefecture(overpass.elements || [], prefecture)
   log(`  神社: ${rows.length}件（境内社として除外: ${excluded}件）`)
 
   if (!args['skip-wiki'] && !args['shrines-only']) await enrichWithWiki(rows, { userAgent: USER_AGENT, log })
+  if (args['gsi-address']) {
+    await enrichWithGsi(rows, {
+      userAgent: USER_AGENT, log,
+      cacheFile: args['no-cache'] ? null : join(HERE, '.cache', `${iso}.gsi.json`),
+    })
+  }
 
   const dbRows = rows.map(({ wikipedia_title, ...r }) => r)
 

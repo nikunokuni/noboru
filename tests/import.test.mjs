@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { processPrefecture, toHiragana, addressOf } from '../scripts/lib/process.mjs'
 import { assembleRings, polygonOf, pointInPolygon } from '../scripts/lib/geometry.mjs'
 import { trimExtract } from '../scripts/lib/wiki.mjs'
+import { parseMuniJs, gsiAddress, cleanTownName } from '../scripts/lib/gsi.mjs'
 
 // 正方形（左下 lat,lon と一辺 d 度）
 const square = (lat, lon, d) => [
@@ -96,4 +97,23 @@ test('要約は文の区切りで切る', () => {
   const s = 'あ'.repeat(300) + '。' + 'い'.repeat(400) + '。'
   assert.equal(trimExtract(s), 'あ'.repeat(300) + '。')
   assert.equal(trimExtract('短い。'), '短い。')
+})
+
+test('国土地理院の逆ジオコーダーの結果から住所を作る', () => {
+  const munis = parseMuniJs(`GSI.MUNI_ARRAY["13112"] = '13,東京都,13112,世田谷区';
+GSI.MUNI_ARRAY["11101"] = '11,埼玉県,11101,さいたま市　西区';
+GSI.MUNI_ARRAY["1100"] = '1,北海道,1100,札幌市';`)
+  assert.equal(munis.get(13112), '世田谷区')
+  assert.equal(munis.get(11101), 'さいたま市西区')
+  assert.deepEqual(gsiAddress({ muniCd: '13112', lv01Nm: '上町' }, '東京都', munis), { address: '東京都世田谷区上町', town: '上町' })
+  assert.deepEqual(gsiAddress({ muniCd: '01100', lv01Nm: '－' }, '北海道', munis), { address: '北海道札幌市', town: null })
+  assert.equal(gsiAddress({ muniCd: '99999', lv01Nm: 'x' }, '東京都', munis), null)
+  assert.equal(gsiAddress(null, '東京都', munis), null)
+  assert.equal(cleanTownName('-'), null)
+})
+
+test('駅・バス停を取らないと、どの神社にも駅・バス停が入らない', () => {
+  const noTransit = elements.filter((e) => !e.tags?.railway && !e.tags?.highway)
+  const { rows } = processPrefecture(noTransit, '東京都')
+  assert.ok(rows.every((r) => r.nearest_station == null && r.nearest_bus_stop == null))
 })
