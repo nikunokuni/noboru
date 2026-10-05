@@ -7,6 +7,7 @@ import { useShrineIndex } from '../hooks/useShrineIndex'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import EmotionSlider from '../components/EmotionSlider'
 import ShrinePicker from '../components/ShrinePicker'
+import { MemoFields, VisibilityPicker } from '../components/MemoFields'
 import { GuideInlineLink } from '../components/GuideLinks'
 import { compressImage } from '../lib/imageCompress'
 import { distanceM, getCurrentPosition } from '../lib/geo'
@@ -26,7 +27,7 @@ function RecentVisitors() {
 }
 
 const emptyForm = () => ({
-  shrine: null, visitedOn: todayStr(), emotion: 50, tab: 'public',
+  shrine: null, visitedOn: todayStr(), emotion: 50,
   publicMemo: '', privateMemo: '', nextMemo: '', isPublic: true, photos: [],
 })
 
@@ -151,17 +152,10 @@ export default function HomePage() {
               <EmotionSlider value={form.emotion} onChange={(emotion) => update({ emotion })} />
             </div>
 
-            <div className="tab-row">
-              <button className={`tab-btn ${form.tab === 'public' ? 'active' : ''}`} onClick={() => update({ tab: 'public' })}>公開メモ</button>
-              <button className={`tab-btn ${form.tab === 'private' ? 'active' : ''}`} onClick={() => update({ tab: 'private' })}>非公開メモ</button>
-            </div>
-            {form.tab === 'public'
-              ? <textarea className="field-textarea" placeholder="感想・口コミ・穴場情報（記録を公開すると、みんなが読めます）"
-                  value={form.publicMemo} onChange={(e) => update({ publicMemo: e.target.value })} />
-              : <textarea className="field-textarea" placeholder="個人的な気づき・深い内省（自分だけが読めます）"
-                  value={form.privateMemo} onChange={(e) => update({ privateMemo: e.target.value })} />}
+            <VisibilityPicker isPublic={form.isPublic} onChange={(isPublic) => update({ isPublic })} />
+            <MemoFields isPublic={form.isPublic} publicMemo={form.publicMemo} privateMemo={form.privateMemo} onChange={update} />
 
-            <div className="field-wrap mt16">
+            <div className="field-wrap">
               <label className="field-label" htmlFor="next-memo">次回へのメモ</label>
               <input id="next-memo" className="field-input" placeholder="次に来るときのために…"
                 value={form.nextMemo} onChange={(e) => update({ nextMemo: e.target.value })} />
@@ -182,11 +176,6 @@ export default function HomePage() {
               </div>
               <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handlePhotos} />
             </div>
-
-            <label className="toggle-row">
-              <input type="checkbox" checked={form.isPublic} onChange={(e) => update({ isPublic: e.target.checked })} />
-              <span>この記録を公開する<span className="muted small">（非公開メモは公開されません）</span></span>
-            </label>
 
             <button className="btn-primary mt16" onClick={handleSave} disabled={saving || !user}>
               {saving ? '保存中…' : '記録する'}

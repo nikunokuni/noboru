@@ -1,11 +1,12 @@
 // 神社を探す ＋ みんなでの達成状況
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { ShrineRow } from '../components/ShrinePicker'
 import { useShrineIndex } from '../hooks/useShrineIndex'
 import { searchIndex } from '../lib/indexCore'
-import { serverSearch } from '../lib/shrineIndex'
+import { serverSearch, serverSearchByDeity } from '../lib/shrineIndex'
+import { matchDeityNames, deityAliases } from '../lib/deities'
 import { fetchAppStats, fetchPrefectureProgress } from '../lib/community'
 import { percent } from '../lib/format'
 import { PREFECTURES } from '../lib/constants'
@@ -48,10 +49,27 @@ function Progress() {
   )
 }
 
+// ご祭神で探すとき、どの神様として探しているかを見せる（「スサノオ」→ 素戔嗚尊）
+function DeityHint({ query }) {
+  const names = query.trim() ? matchDeityNames(query).slice(0, 3) : []
+  if (!names.length) return null
+  return (
+    <p className="muted small mt8">
+      {names.map((n) => {
+        const aliases = deityAliases(n).slice(0, 3)
+        return <span key={n} className="block">「{n}」{aliases.length > 0 && `（${aliases.join('・')} など）`}として探しています</span>
+      })}
+    </p>
+  )
+}
+
 export default function SearchPage() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
   const { index, revision, status, refreshVisited } = useShrineIndex()
-  const [query, setQuery] = useState('')
+  // mode: name（神社名）/ deity（ご祭神）。神社詳細のご祭神から来たときはご祭神で探す
+  const [mode, setMode] = useState(params.get('deity') ? 'deity' : 'name')
+  const [query, setQuery] = useState(params.get('deity') || '')
   const [prefecture, setPrefecture] = useState('')
   const [unvisitedOnly, setUnvisitedOnly] = useState(false)
   const [serverResults, setServerResults] = useState(null)
@@ -62,18 +80,22 @@ export default function SearchPage() {
   const opts = { prefecture: prefecture || null, unvisitedOnly, limit: 100 }
 
   const localResults = useMemo(
-    () => (index && active ? searchIndex(index, query, opts) : null),
-    [index, revision, query, prefecture, unvisitedOnly], // eslint-disable-line react-hooks/exhaustive-deps
+    () => {
+      if (!index || !active) return null
+      return mode === 'deity' ? searchIndex(index, '', { ...opts, deity: query }) : searchIndex(index, query, opts)
+    },
+    [index, revision, mode, query, prefecture, unvisitedOnly], // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   useEffect(() => {
     if (index || !active) { setServerResults(null); return }
     let alive = true
     const t = setTimeout(() => {
-      serverSearch(query, { ...opts, limit: 30 }).then((r) => alive && setServerResults(r)).catch(() => alive && setServerResults([]))
+      const search = mode === 'deity' && query.trim() ? serverSearchByDeity : serverSearch
+      search(query, { ...opts, limit: 30 }).then((r) => alive && setServerResults(r)).catch(() => alive && setServerResults([]))
     }, 400)
     return () => { alive = false; clearTimeout(t) }
-  }, [index, query, prefecture, unvisitedOnly]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [index, mode, query, prefecture, unvisitedOnly]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const results = index ? localResults : serverResults
 
@@ -83,7 +105,13 @@ export default function SearchPage() {
       <div className="page-content">
         <Progress />
 
-        <input className="field-input" placeholder="神社名・よみがなで検索" value={query} onChange={(e) => setQuery(e.target.value)} enterKeyHint="search" />
+        <div className="tab-row">
+          <button className={`tab-btn ${mode === 'name' ? 'active' : ''}`} onClick={() => setMode('name')}>神社名で探す</button>
+          <button className={`tab-btn ${mode === 'deity' ? 'active' : ''}`} onClick={() => setMode('deity')}>ご祭神で探す</button>
+        </div>
+        <input className="field-input" value={query} onChange={(e) => setQuery(e.target.value)} enterKeyHint="search"
+          placeholder={mode === 'deity' ? 'ご祭神の名前（例：スサノオ、稲荷、八幡）' : '神社名・よみがな（例：八幡 世田谷）'} />
+        {mode === 'deity' && <DeityHint query={query} />}
         <div className="filter-row">
           <select className="select" value={prefecture} onChange={(e) => setPrefecture(e.target.value)} aria-label="都道府県">
             <option value="">全国</option>

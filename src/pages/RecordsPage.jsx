@@ -13,8 +13,8 @@ const FILTERS = [
   { key: 'all', label: 'すべて', test: () => true },
   { key: 'high', label: '感動大', test: (r) => r.emotion_level >= 75 },
   { key: 'photo', label: '写真あり', test: (r) => r.photoCount > 0 },
-  { key: 'public', label: '公開', test: (r) => r.is_public },
-  { key: 'private', label: '非公開', test: (r) => !r.is_public },
+  { key: 'public', label: 'みんなに公開', test: (r) => r.is_public },
+  { key: 'private', label: '自分だけ', test: (r) => !r.is_public },
   { key: 'pending', label: '未送信', test: (r) => r.pending },
 ]
 
@@ -77,7 +77,7 @@ export default function RecordsPage() {
               <div className="muted small">
                 {formatDate(r.visited_on)}
                 {r.pending && <span className="tag-pending">未送信</span>}
-                {!r.is_public && <span className="tag-plain">非公開</span>}
+                {!r.is_public && <span className="tag-plain">自分だけ</span>}
                 {r.onsite && <span className="tag-plain">現地で記録</span>}
               </div>
               {r.public_memo && <p className="memo clamp">{r.public_memo}</p>}

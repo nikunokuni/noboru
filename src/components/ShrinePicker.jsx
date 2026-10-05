@@ -5,6 +5,7 @@ import { useShrineIndex } from '../hooks/useShrineIndex'
 import { nearbyIndex, searchIndex } from '../lib/indexCore'
 import { serverSearch } from '../lib/shrineIndex'
 import { formatDistance } from '../lib/geo'
+import { placeLabel } from '../lib/format'
 import { NEARBY_LIMIT, NEARBY_RADIUS_M } from '../lib/constants'
 
 function useDebounced(value, ms) {
@@ -21,7 +22,7 @@ export function ShrineRow({ item, onClick, right }) {
     <button type="button" className="shrine-row" onClick={onClick}>
       <span>
         <span className="shrine-row-name">{item.name}</span>
-        <span className="muted small"> {item.prefecture}</span>
+        <span className="muted small"> {placeLabel(item)}</span>
         {!item.visited && <span className="tag-unvisited">まだ誰も</span>}
       </span>
       <span className="muted small">{right}</span>
@@ -63,7 +64,7 @@ export default function ShrinePicker({ value, onChange, position, locating }) {
       <div className="card picked">
         <div>
           <div className="picked-name">⛩ {value.name}</div>
-          <div className="muted small">{value.prefecture}{value.distance != null && `・${formatDistance(value.distance)}`}</div>
+          <div className="muted small">{placeLabel(value)}{value.distance != null && `・${formatDistance(value.distance)}`}</div>
         </div>
         <button type="button" className="text-btn" onClick={() => onChange(null)}>変更</button>
       </div>
@@ -76,7 +77,7 @@ export default function ShrinePicker({ value, onChange, position, locating }) {
   return (
     <div className="picker">
       <input
-        className="field-input" placeholder="神社名・よみがなで検索" value={query}
+        className="field-input" placeholder="神社名・よみがなで検索（例：八幡 世田谷）" value={query}
         onChange={(e) => setQuery(e.target.value)} enterKeyHint="search"
       />
       {status === 'downloading' && <p className="muted small mt8">神社一覧を準備中…（検索はできます）</p>}

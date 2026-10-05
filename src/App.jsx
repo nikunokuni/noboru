@@ -18,6 +18,7 @@ import ProfilePage from './pages/ProfilePage'
 const MapPage = lazy(() => import('./pages/MapPage'))
 // 管理者しか使わないので、開いたときに読み込む
 const AdminRequestsPage = lazy(() => import('./pages/AdminRequestsPage'))
+const AdminEditsPage = lazy(() => import('./pages/AdminEditsPage'))
 
 // 下部タブのある画面
 function TabLayout() {
@@ -44,6 +45,7 @@ export default function App() {
                 <Route path="/shrine/:id/edit" element={<ShrineEditPage />} />
                 <Route path="/request" element={<ShrineRequestPage />} />
                 <Route path="/admin/requests" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminRequestsPage /></Suspense>} />
+                <Route path="/admin/edits" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminEditsPage /></Suspense>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </BrowserRouter>

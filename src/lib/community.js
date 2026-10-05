@@ -44,6 +44,9 @@ export async function fetchMyRecordsForShrine(shrineId, userId) {
   return data
 }
 
+// 管理者に情報提供・申請を止められている（RLS で追加を断られた）
+export const isBannedError = (e) => e?.code === '42501'
+
 // changes: { 項目名: 値 }。まとめて1回で送る（全部反映されるか、全部失敗するか）
 export async function submitShrineEdits({ shrineId, userId, changes }) {
   const rows = Object.entries(changes).map(([field, value]) => ({ shrine_id: shrineId, user_id: userId, field, value }))

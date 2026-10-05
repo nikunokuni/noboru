@@ -40,6 +40,13 @@ export function titleFor(shrineCount) {
   return { current, next }
 }
 
+// 情報提供の項目名（管理者の「情報提供の確認」で使う）
+export const EDIT_FIELD_LABELS = {
+  name_kana: 'よみがな', address: '住所', deities: 'ご祭神', benefits: 'ご利益', shrine_rank: '社格',
+  nearest_station: '最寄り駅', nearest_bus_stop: 'バス停', parking: '駐車場', access_note: 'アクセス補足',
+  goshuin: '御朱印', goshuin_note: '御朱印のメモ', features: '神話・由緒',
+}
+
 export const PARKING_LABELS = {
   dedicated: '専用駐車場あり',
   nearby: '近くに駐車場あり',

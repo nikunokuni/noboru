@@ -2,6 +2,7 @@
 import { get, set } from 'idb-keyval'
 import { supabase, SUPABASE_URL } from './supabase.js'
 import { prepareIndex, applyVisited, getItem } from './indexCore.js'
+import { matchDeityNames, deityAliases } from './deities.js'
 
 const KEY_INDEX = 'shrine-index'
 const KEY_SYNCED_AT = 'shrine-index-visited-synced-at'
@@ -72,11 +73,32 @@ export async function syncVisited(index) {
   return changed
 }
 
+const ITEM_COLUMNS = 'id, name, name_kana, prefecture, municipality, locality, lat, lng, first_visited_on'
+
 // 一覧がまだないときの代わり：サーバーで名前検索
+//   「八幡 世田谷」のように区切ると、1語目は名前・読み仮名、2語目以降は名前・市区町村・地名に当てはめる
 export async function serverSearch(query, { prefecture = null, unvisitedOnly = false, limit = 30 } = {}) {
-  const q = query.replace(/[,()%*\\]/g, '').trim()
-  let req = supabase.from('shrines').select('id, name, name_kana, prefecture, lat, lng, first_visited_on').limit(limit)
-  if (q) req = req.or(`name.ilike.%${q}%,name_kana.ilike.%${q}%`)
+  const terms = query.replace(/[,()%*\\]/g, ' ').trim().split(/\s+/).filter(Boolean)
+  let req = supabase.from('shrines').select(ITEM_COLUMNS).limit(limit)
+  terms.forEach((q, i) => {
+    req = req.or(i === 0
+      ? `name.ilike.%${q}%,name_kana.ilike.%${q}%`
+      : `name.ilike.%${q}%,name_kana.ilike.%${q}%,municipality.ilike.%${q}%,locality.ilike.%${q}%`)
+  })
+  if (prefecture) req = req.eq('prefecture', prefecture)
+  if (unvisitedOnly) req = req.is('first_visited_on', null)
+  const { data, error } = await req
+  if (error) throw error
+  return data.map(toItem)
+}
+
+// 一覧がまだないときの代わり：サーバーでご祭神から検索（辞書にある神様は別の書き方でも探す）
+export async function serverSearchByDeity(query, { prefecture = null, unvisitedOnly = false, limit = 30 } = {}) {
+  const clean = (s) => s.replace(/[,()%*\\]/g, '').trim()
+  const words = [...new Set([clean(query), ...matchDeityNames(query).flatMap((n) => [n, ...deityAliases(n)]).map(clean)])].filter(Boolean)
+  if (!words.length) return []
+  let req = supabase.from('shrines').select(ITEM_COLUMNS).limit(limit)
+    .or(words.map((w) => `deities.ilike.%${w}%`).join(','))
   if (prefecture) req = req.eq('prefecture', prefecture)
   if (unvisitedOnly) req = req.is('first_visited_on', null)
   const { data, error } = await req
@@ -86,13 +108,14 @@ export async function serverSearch(query, { prefecture = null, unvisitedOnly = f
 
 export async function serverGetShrineItem(id) {
   const { data, error } = await supabase
-    .from('shrines').select('id, name, name_kana, prefecture, lat, lng, first_visited_on').eq('id', id).maybeSingle()
+    .from('shrines').select(ITEM_COLUMNS).eq('id', id).maybeSingle()
   if (error) throw error
   return data ? toItem(data) : null
 }
 
 const toItem = (r) => ({
   id: r.id, name: r.name, kana: r.name_kana || '', prefecture: r.prefecture,
+  municipality: r.municipality || null, locality: r.locality || null,
   lat: r.lat, lng: r.lng, visited: r.first_visited_on != null,
 })
 

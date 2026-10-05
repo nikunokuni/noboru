@@ -25,6 +25,7 @@ CREATE TABLE shrines (
   name_kana           TEXT,
   prefecture          TEXT NOT NULL,
   municipality        TEXT,
+  locality            TEXT,                     -- 近くの地名（町・字など）。同じ名前の神社を見分ける用
   address             TEXT,
   lat                 DOUBLE PRECISION NOT NULL,
   lng                 DOUBLE PRECISION NOT NULL,
@@ -106,7 +107,7 @@ CREATE INDEX idx_photos_record ON photos(record_id);
 
 -- ============================================================
 -- 3. 情報提供（神社情報の追加・訂正）
---    最初は「最後に提供された内容を採用し、履歴を残す」方式
+--    「最後に提供された内容をすぐ採用し、履歴を残す」方式。いたずらは管理者が元に戻す
 -- ============================================================
 CREATE TABLE shrine_edits (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -117,10 +118,14 @@ CREATE TABLE shrine_edits (
                'access_note', 'parking', 'goshuin', 'features', 'name_kana',
                'goshuin_note', 'nearest_station', 'nearest_bus_stop')),
   value      JSONB NOT NULL,                    -- 文字列 / 文字列配列 / 列挙値
+  old_value  JSONB,                             -- 変更前の値（{列名: 値}）。トリガーが入れる。管理者が元に戻すときに使う
+  reverted_at TIMESTAMPTZ,                      -- 管理者が元に戻した時刻
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_shrine_edits_shrine ON shrine_edits(shrine_id, created_at DESC);
+CREATE INDEX idx_shrine_edits_shrine  ON shrine_edits(shrine_id, created_at DESC);
+CREATE INDEX idx_shrine_edits_created ON shrine_edits(created_at DESC);
+CREATE INDEX idx_shrine_edits_user    ON shrine_edits(user_id, created_at DESC);
 
 -- 管理者が確認する申請
 --   add  : リストにない神社の追加（管理者が確認して shrines に追加）
@@ -143,6 +148,12 @@ CREATE TABLE shrine_requests (
 -- 登録は SQL Editor から: INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<メールアドレス>';
 CREATE TABLE admins (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE
+);
+
+-- 情報提供・申請を止めたユーザー（管理者が「情報提供の確認」画面から登録）
+CREATE TABLE banned_editors (
+  user_id    UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
@@ -207,12 +218,28 @@ CREATE TRIGGER trg_records_stats
 AFTER INSERT OR UPDATE OF shrine_id, visited_on, user_id OR DELETE ON records
 FOR EACH ROW EXECUTE FUNCTION on_record_change();
 
--- 情報提供を shrines に反映（最後に提供された内容を採用）
+-- 項目ごとに、変更で書き換わる shrines の列
+CREATE OR REPLACE FUNCTION shrine_edit_columns(field TEXT) RETURNS TEXT[]
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT CASE field
+    WHEN 'features'         THEN ARRAY['features', 'features_source']
+    WHEN 'nearest_station'  THEN ARRAY['nearest_station', 'nearest_station_m', 'nearest_station_by_user']
+    WHEN 'nearest_bus_stop' THEN ARRAY['nearest_bus_stop', 'nearest_bus_stop_m', 'nearest_bus_stop_by_user']
+    ELSE ARRAY[field]
+  END;
+$$;
+
+-- 情報提供を shrines に反映（最後に提供された内容を採用）。変更前の値を old_value に残す
 CREATE OR REPLACE FUNCTION apply_shrine_edit() RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   txt TEXT := NULLIF(btrim(NEW.value #>> '{}'), '');   -- 文字列の項目。空なら NULL に戻す
 BEGIN
+  NEW.reverted_at := NULL;
+  SELECT jsonb_object_agg(e.key, e.value) INTO NEW.old_value
+  FROM shrines s, jsonb_each(to_jsonb(s)) AS e
+  WHERE s.id = NEW.shrine_id AND e.key = ANY(shrine_edit_columns(NEW.field));
+
   UPDATE shrines SET
     address         = CASE WHEN NEW.field = 'address'      THEN txt ELSE address END,
     name_kana       = CASE WHEN NEW.field = 'name_kana'    THEN txt ELSE name_kana END,
@@ -238,8 +265,9 @@ BEGIN
   RETURN NEW;
 END $$;
 
+-- 変更前の値を残すため、追加の前に反映する
 CREATE TRIGGER trg_shrine_edits_apply
-AFTER INSERT ON shrine_edits
+BEFORE INSERT ON shrine_edits
 FOR EACH ROW EXECUTE FUNCTION apply_shrine_edit();
 
 -- ============================================================
@@ -284,15 +312,15 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE n INTEGER;
 BEGIN
   INSERT INTO shrines AS s (
-    osm_ref, wikidata_id, name, name_kana, prefecture, municipality, address, lat, lng,
+    osm_ref, wikidata_id, name, name_kana, prefecture, municipality, locality, address, lat, lng,
     deities, benefits, shrine_rank, nearest_station, nearest_station_m,
     nearest_bus_stop, nearest_bus_stop_m, parking, features, features_source
   )
-  SELECT r.osm_ref, r.wikidata_id, r.name, r.name_kana, r.prefecture, r.municipality, r.address, r.lat, r.lng,
+  SELECT r.osm_ref, r.wikidata_id, r.name, r.name_kana, r.prefecture, r.municipality, r.locality, r.address, r.lat, r.lng,
          r.deities, COALESCE(r.benefits, '{}'), r.shrine_rank, r.nearest_station, r.nearest_station_m,
          r.nearest_bus_stop, r.nearest_bus_stop_m, COALESCE(r.parking, 'unknown'), r.features, r.features_source
   FROM jsonb_to_recordset(rows) AS r(
-    osm_ref TEXT, wikidata_id TEXT, name TEXT, name_kana TEXT, prefecture TEXT, municipality TEXT,
+    osm_ref TEXT, wikidata_id TEXT, name TEXT, name_kana TEXT, prefecture TEXT, municipality TEXT, locality TEXT,
     address TEXT, lat DOUBLE PRECISION, lng DOUBLE PRECISION, deities TEXT, benefits TEXT[],
     shrine_rank TEXT, nearest_station TEXT, nearest_station_m INTEGER, nearest_bus_stop TEXT,
     nearest_bus_stop_m INTEGER, parking parking_status, features TEXT, features_source TEXT)
@@ -301,6 +329,7 @@ BEGIN
     name               = EXCLUDED.name,
     prefecture         = EXCLUDED.prefecture,
     municipality       = EXCLUDED.municipality,
+    locality           = EXCLUDED.locality,
     lat                = EXCLUDED.lat,
     lng                = EXCLUDED.lng,
     nearest_station    = CASE WHEN s.nearest_station_by_user  THEN s.nearest_station    ELSE EXCLUDED.nearest_station END,
@@ -375,6 +404,91 @@ END $$;
 REVOKE EXECUTE ON FUNCTION review_shrine_request(UUID, BOOLEAN, JSONB) FROM PUBLIC, anon;
 GRANT  EXECUTE ON FUNCTION review_shrine_request(UUID, BOOLEAN, JSONB) TO authenticated;
 
+-- 情報提供の確認：いたずらを元に戻す・その人の情報提供と申請を止める
+CREATE OR REPLACE FUNCTION is_edit_banned() RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM banned_editors WHERE user_id = auth.uid());
+$$;
+
+-- 情報提供を1件元に戻す（管理者）
+--   同じ神社・同じ項目に後からの変更があるときは戻さない（新しい変更から順に戻す）
+CREATE OR REPLACE FUNCTION revert_shrine_edit(edit_id UUID) RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  e shrine_edits;
+  s shrines;
+BEGIN
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION '管理者だけが実行できます' USING ERRCODE = '42501';
+  END IF;
+  SELECT * INTO e FROM shrine_edits WHERE id = edit_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION '情報提供が見つかりません'; END IF;
+  IF e.reverted_at IS NOT NULL THEN RAISE EXCEPTION 'すでに元に戻しています'; END IF;
+  IF e.old_value IS NULL THEN RAISE EXCEPTION '変更前の値が残っていないため戻せません（この機能を入れる前の変更です）'; END IF;
+  IF EXISTS (SELECT 1 FROM shrine_edits
+             WHERE shrine_id = e.shrine_id AND field = e.field AND reverted_at IS NULL AND created_at > e.created_at) THEN
+    RAISE EXCEPTION 'この項目は後から変更されています。新しい変更から順に戻してください';
+  END IF;
+
+  -- 今の値に変更前の値を重ねたもの
+  SELECT * INTO s FROM jsonb_populate_record(NULL::shrines,
+    (SELECT to_jsonb(x) FROM shrines x WHERE x.id = e.shrine_id) || e.old_value);
+
+  UPDATE shrines SET
+    address = s.address, name_kana = s.name_kana, deities = s.deities, shrine_rank = s.shrine_rank,
+    access_note = s.access_note, goshuin_note = s.goshuin_note,
+    features = s.features, features_source = s.features_source,
+    benefits = s.benefits, parking = s.parking, goshuin = s.goshuin,
+    nearest_station = s.nearest_station, nearest_station_m = s.nearest_station_m,
+    nearest_station_by_user = s.nearest_station_by_user,
+    nearest_bus_stop = s.nearest_bus_stop, nearest_bus_stop_m = s.nearest_bus_stop_m,
+    nearest_bus_stop_by_user = s.nearest_bus_stop_by_user,
+    updated_at = NOW()
+  WHERE id = e.shrine_id;
+
+  UPDATE shrine_edits SET reverted_at = NOW() WHERE id = edit_id;
+END $$;
+
+-- あるユーザーの情報提供を新しい順にまとめて元に戻す（管理者）
+-- 戻り値: { reverted: 戻した件数, skipped: 後から別の人が変更したなどで戻せなかった件数 }
+CREATE OR REPLACE FUNCTION revert_user_edits(target UUID) RETURNS JSON
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  edit RECORD;
+  reverted INTEGER := 0;
+  skipped  INTEGER := 0;
+BEGIN
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION '管理者だけが実行できます' USING ERRCODE = '42501';
+  END IF;
+  FOR edit IN SELECT id FROM shrine_edits WHERE user_id = target AND reverted_at IS NULL ORDER BY created_at DESC LOOP
+    BEGIN
+      PERFORM revert_shrine_edit(edit.id);
+      reverted := reverted + 1;
+    EXCEPTION WHEN OTHERS THEN
+      skipped := skipped + 1;
+    END;
+  END LOOP;
+  RETURN json_build_object('reverted', reverted, 'skipped', skipped);
+END $$;
+
+-- 情報提供・申請を止める／止めるのをやめる（管理者）
+CREATE OR REPLACE FUNCTION set_editor_banned(target UUID, banned BOOLEAN) RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION '管理者だけが実行できます' USING ERRCODE = '42501';
+  END IF;
+  IF banned THEN
+    INSERT INTO banned_editors (user_id) VALUES (target) ON CONFLICT DO NOTHING;
+  ELSE
+    DELETE FROM banned_editors WHERE user_id = target;
+  END IF;
+END $$;
+
+REVOKE EXECUTE ON FUNCTION revert_shrine_edit(UUID), revert_user_edits(UUID), set_editor_banned(UUID, BOOLEAN) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION revert_shrine_edit(UUID), revert_user_edits(UUID), set_editor_banned(UUID, BOOLEAN) TO authenticated;
+
 -- ============================================================
 -- Row Level Security
 -- ============================================================
@@ -387,6 +501,7 @@ ALTER TABLE shrine_requests      ENABLE ROW LEVEL SECURITY;
 ALTER TABLE guide_links          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_meta             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admins               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE banned_editors       ENABLE ROW LEVEL SECURITY;
 
 -- 神社：誰でも読める。書き込みは取り込み処理（service_role）とトリガーのみ
 CREATE POLICY shrines_read ON shrines FOR SELECT USING (status = 'active');
@@ -408,16 +523,17 @@ CREATE POLICY photos_read ON photos FOR SELECT USING (
 CREATE POLICY photos_insert ON photos FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY photos_delete ON photos FOR DELETE USING (auth.uid() = user_id);
 
--- 情報提供：履歴は誰でも読める。ログインユーザーが追加できる
+-- 情報提供：履歴は誰でも読める。ログインユーザーが追加できる（止められたユーザーを除く）
 CREATE POLICY edits_read   ON shrine_edits FOR SELECT USING (TRUE);
-CREATE POLICY edits_insert ON shrine_edits FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY edits_insert ON shrine_edits FOR INSERT WITH CHECK (auth.uid() = user_id AND NOT is_edit_banned());
 
 -- 追加申請：本人と管理者が読める。承認・却下は review_shrine_request() で
 CREATE POLICY requests_read   ON shrine_requests FOR SELECT USING (auth.uid() = user_id OR is_admin());
-CREATE POLICY requests_insert ON shrine_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY requests_insert ON shrine_requests FOR INSERT WITH CHECK (auth.uid() = user_id AND NOT is_edit_banned());
 
 -- 管理者：自分が管理者かどうかだけ読める（登録は SQL Editor から）
 CREATE POLICY admins_read_self ON admins FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY banned_editors_admin_read ON banned_editors FOR SELECT USING (is_admin());
 
 -- 手引きリンク・設定値：誰でも読める（編集はダッシュボードから）
 -- 神社一覧ファイルの版は、管理者がアプリから一覧を作り直したときにも更新する

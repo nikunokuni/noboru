@@ -33,7 +33,7 @@ npm run import:shrines -- --index-only
 | オプション | 内容 |
 |---|---|
 | `--dry-run` | DBに入れず `scripts/out/` にJSONと一覧ファイルを書く（件数・サイズの確認用） |
-| `--shrines-only` | 神社の名前と位置だけを取り込む（駅・バス停・駐車場・Wikipedia を使わない。いちばん軽い）。あとでこれを外して実行し直すと、残りの情報が足される |
+| `--shrines-only` | 神社の名前と位置、市区町村・近くの地名だけを取り込む（駅・バス停・駐車場・Wikipedia を使わない。いちばん軽い）。あとでこれを外して実行し直すと、残りの情報が足される |
 | `--skip-wiki` | Wikidata / Wikipedia を使わない（速い） |
 | `--no-index` | 最後の一覧ファイル生成をしない（何回かに分けて取り込むとき） |
 | `--no-cache` | `scripts/.cache/` に保存した Overpass の結果を使わず取り直す |
@@ -44,8 +44,8 @@ npm run import:shrines -- --index-only
 1. Overpass API から神社・祠（`amenity=place_of_worship` / `historic=wayside_shrine` かつ `religion=shinto`）、駅、バス停、駐車場、地名、市区町村の境界を取得
    （混雑したサーバーに断られにくいよう種類ごとに分けて問い合わせ、失敗したら別のサーバーに切り替える。取れた分は `scripts/.cache/` に保存され、やり直したときは続きから取る）
 2. 別の神社の敷地の中にある社（境内社）を除外
-3. 最寄り駅・バス停（直線距離）、駐車場（敷地内なら「専用」、200m以内なら「近くに」）を計算
-4. Wikidata からご祭神・読み仮名、Wikipedia から冒頭の要約（特徴）を取得
+3. 最寄り駅・バス停（直線距離）、駐車場（敷地内なら「専用」、200m以内なら「近くに」）、市区町村と近くの地名（同じ名前の神社を見分ける用）を計算
+4. Wikidata からご祭神（表記をそろえる。`src/lib/deities.js`）・読み仮名、Wikipedia から冒頭の要約（特徴）を取得
 5. `import_shrines()` で DB に反映。**ユーザーが情報提供した項目は上書きしない**
 6. 軽い一覧ファイル `shrines-index.<版>.json.gz` を Storage の `public-data` に置き、`app_meta` の版を更新
    （アプリは起動時に版を確認し、変わっていれば裏で取り直す）

@@ -9,10 +9,11 @@ DROP POLICY IF EXISTS public_data_admin_insert ON storage.objects;
 DROP POLICY IF EXISTS public_data_admin_read   ON storage.objects;
 
 DROP TABLE IF EXISTS photos, record_private_notes, records, shrine_edits, shrine_requests,
-  guide_links, app_meta, admins, shrines CASCADE;
+  guide_links, app_meta, admins, banned_editors, shrines CASCADE;
 
 DROP FUNCTION IF EXISTS import_shrines(JSONB), refresh_shrine_stats(BIGINT), refresh_shrine_stats(UUID),
   on_record_change(), apply_shrine_edit(), get_app_stats(), get_prefecture_progress(),
-  review_shrine_request(UUID, BOOLEAN, JSONB), is_admin() CASCADE;
+  review_shrine_request(UUID, BOOLEAN, JSONB), is_admin(), is_edit_banned(),
+  shrine_edit_columns(TEXT), revert_shrine_edit(UUID), revert_user_edits(UUID), set_editor_banned(UUID, BOOLEAN) CASCADE;
 
 DROP TYPE IF EXISTS parking_status, goshuin_status, shrine_status, request_status CASCADE;

@@ -33,6 +33,8 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 |---|---|
 | [`supabase/upgrade-admin.sql`](supabase/upgrade-admin.sql) | 申請の確認（管理者） |
 | [`supabase/upgrade-shrine-info.sql`](supabase/upgrade-shrine-info.sql) | 情報提供の新項目（御朱印の直書き・書き置き・メモ、最寄り駅・バス停） |
+| [`supabase/upgrade-edit-revert.sql`](supabase/upgrade-edit-revert.sql) | 情報提供の確認（管理者が元に戻す・止める） |
+| [`supabase/upgrade-locality.sql`](supabase/upgrade-locality.sql) | 近くの地名（同じ名前の神社を見分ける）。実行後に取り込みをやり直し、一覧ファイルを作り直す |
 
 ### 申請の確認（管理者）
 
@@ -41,6 +43,13 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 - 追加申請の承認: 名前・場所（緯度, 経度）・都道府県を確認して神社を追加する。近くに登録済みの神社があれば重複の注意が出る
 - 外す報告の承認: 対象の神社を一覧から外す（`status = 'hidden'`）
 - 承認した内容は、画面上部の「神社一覧を更新する」を押すとアプリの検索・マップに入る（`npm run import:shrines -- --index-only` と同じ）
+
+### 情報提供の確認（管理者）
+
+ご祭神・住所などの情報提供は承認なしですぐ反映される。マイページの「情報提供の確認」で最近の変更を「変更前 → 変更後」で見て、明らかないたずらだけ戻す（内容の真偽まで確かめる必要はない）。
+
+- 「元に戻す」: その変更の前の値に戻す。同じ項目に後から別の変更があるときは、新しい方から戻す
+- 「提供者 #xxxxxx」を押すとその人の変更だけ表示。「すべて元に戻す」「情報提供を止める」（止めた人は情報提供・申請を送れない）
 
 | context | 表示場所 |
 |---|---|

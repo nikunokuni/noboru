@@ -70,3 +70,39 @@ export async function rebuildShrineIndex(onProgress = () => {}) {
   if (!data?.length) throw new Error('版を更新できませんでした（管理者の権限を確認してください）')
   return { version, count: rows.length }
 }
+
+// ─── 情報提供の確認（すぐ反映された変更を見て、いたずらなら元に戻す） ───
+
+const EDIT_COLUMNS = 'id, shrine_id, user_id, field, value, old_value, created_at, reverted_at, shrines(name, prefecture, municipality)'
+
+// 新しい順。userId を指定するとその人の変更だけ
+export async function fetchRecentEdits({ userId = null, limit = 100 } = {}) {
+  let q = supabase.from('shrine_edits').select(EDIT_COLUMNS).order('created_at', { ascending: false }).limit(limit)
+  if (userId) q = q.eq('user_id', userId)
+  const { data, error } = await q
+  if (error) throw error
+  return data
+}
+
+export async function revertShrineEdit(editId) {
+  const { error } = await supabase.rpc('revert_shrine_edit', { edit_id: editId })
+  if (error) throw error
+}
+
+// 戻り値: { reverted, skipped }
+export async function revertUserEdits(userId) {
+  const { data, error } = await supabase.rpc('revert_user_edits', { target: userId })
+  if (error) throw error
+  return data
+}
+
+export async function setEditorBanned(userId, banned) {
+  const { error } = await supabase.rpc('set_editor_banned', { target: userId, banned })
+  if (error) throw error
+}
+
+export async function fetchBannedEditors() {
+  const { data, error } = await supabase.from('banned_editors').select('user_id')
+  if (error) throw error
+  return new Set(data.map((r) => r.user_id))
+}

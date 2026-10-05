@@ -1,4 +1,6 @@
 // Wikidata（ご祭神・読み仮名・Wikipedia記事名）と Wikipedia（特徴の要約）で補う
+import { normalizeDeities } from '../../src/lib/deities.js'
+
 const WIKIDATA_API = 'https://www.wikidata.org/w/api.php'
 const WIKIPEDIA_API = 'https://ja.wikipedia.org/w/api.php'
 const FEATURES_MAX = 600
@@ -65,7 +67,7 @@ export async function enrichWithWiki(rows, { userAgent, log = () => {} }) {
     const e = entities.get(r.wikidata_id)
     if (!e) continue
     const deities = itemIds(e.claims, 'P825').map((id) => labels.get(id)).filter(Boolean)
-    if (deities.length) r.deities = deities.join('、')
+    if (deities.length) r.deities = normalizeDeities(deities.join('、')).text || null
     const kana = stringValue(e.claims, 'P1814')
     if (kana && !r.name_kana) r.name_kana = kana.normalize('NFKC').replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60))
     const title = e.sitelinks?.jawiki?.title

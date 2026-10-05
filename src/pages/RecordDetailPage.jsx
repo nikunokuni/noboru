@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import Photos from '../components/Photos'
 import EmotionSlider from '../components/EmotionSlider'
+import { MemoFields, VisibilityPicker } from '../components/MemoFields'
 import { useToast } from '../hooks/useToast'
 import { deleteRecord, fetchRecord, updateRecord } from '../lib/records'
 import { formatDate, todayStr } from '../lib/format'
@@ -67,15 +68,15 @@ export default function RecordDetailPage() {
           <>
             <p className="muted small">
               {formatDate(record.visited_on)}
-              {!record.is_public && <span className="tag-plain">非公開</span>}
+              <span className="tag-plain">{record.is_public ? 'みんなに公開' : '自分だけ'}</span>
               {record.onsite && <span className="tag-plain">現地で記録</span>}
             </p>
             <p className="emotion-label mt16" style={{ color: emotionColor(record.emotion_level) }}>
               {emotionLabel(record.emotion_level)}<span className="muted small">　{record.emotion_level}</span>
             </p>
             <Photos paths={(record.photos || []).map((p) => p.path)} size={96} />
-            {record.public_memo && <><div className="section-mini">公開メモ</div><p className="memo">{record.public_memo}</p></>}
-            {record.private_memo && <><div className="section-mini">非公開メモ</div><p className="memo">{record.private_memo}</p></>}
+            {record.public_memo && <><div className="section-mini">みんなへのメモ{!record.is_public && '（記録が自分だけなので、いまは誰にも見えません）'}</div><p className="memo">{record.public_memo}</p></>}
+            {record.private_memo && <><div className="section-mini">自分だけのメモ</div><p className="memo">{record.private_memo}</p></>}
             {record.next_memo && <><div className="section-mini">次回へのメモ</div><p className="memo">{record.next_memo}</p></>}
           </>
         ) : (
@@ -88,22 +89,16 @@ export default function RecordDetailPage() {
               <label className="field-label">感動の温度</label>
               <EmotionSlider value={e.emotion_level} onChange={(v) => set({ emotion_level: v })} />
             </div>
-            <div className="field-wrap">
-              <label className="field-label">公開メモ</label>
-              <textarea className="field-textarea" value={e.public_memo} onChange={(ev) => set({ public_memo: ev.target.value })} />
-            </div>
-            <div className="field-wrap">
-              <label className="field-label">非公開メモ</label>
-              <textarea className="field-textarea" value={e.private_memo} onChange={(ev) => set({ private_memo: ev.target.value })} />
-            </div>
+            <VisibilityPicker isPublic={e.is_public} onChange={(v) => set({ is_public: v })} />
+            <MemoFields isPublic={e.is_public} publicMemo={e.public_memo} privateMemo={e.private_memo}
+              onChange={(p) => set({
+                ...('publicMemo' in p && { public_memo: p.publicMemo }),
+                ...('privateMemo' in p && { private_memo: p.privateMemo }),
+              })} />
             <div className="field-wrap">
               <label className="field-label">次回へのメモ</label>
               <input className="field-input" value={e.next_memo} onChange={(ev) => set({ next_memo: ev.target.value })} />
             </div>
-            <label className="toggle-row">
-              <input type="checkbox" checked={e.is_public} onChange={(ev) => set({ is_public: ev.target.checked })} />
-              <span>この記録を公開する</span>
-            </label>
             <button className="btn-primary mt16" onClick={save} disabled={busy}>保存する</button>
             <button className="text-btn mt16 block" onClick={() => setEditing(null)}>やめる</button>
           </>

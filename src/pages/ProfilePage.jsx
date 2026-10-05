@@ -61,9 +61,12 @@ export default function ProfilePage() {
         )}
 
         {pendingRequests != null && (
-          <Link to="/admin/requests" className="btn-secondary mt24">
-            申請の確認{pendingRequests > 0 ? `（未確認 ${pendingRequests}件）` : ''}
-          </Link>
+          <>
+            <Link to="/admin/requests" className="btn-secondary mt24">
+              申請の確認{pendingRequests > 0 ? `（未確認 ${pendingRequests}件）` : ''}
+            </Link>
+            <Link to="/admin/edits" className="btn-secondary mt8">情報提供の確認</Link>
+          </>
         )}
 
         <section className="mt24">

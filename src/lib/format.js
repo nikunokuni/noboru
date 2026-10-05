@@ -14,6 +14,9 @@ export function formatDate(s) {
   return `${y}年${m}月${d}日`
 }
 
+// 神社の場所「東京都 世田谷区 上町」。同じ名前の神社を見分けるのに使う
+export const placeLabel = (s) => [s.prefecture, s.municipality, s.locality].filter(Boolean).join(' ')
+
 export function percent(part, total) {
   if (!total) return '0'
   const v = (part / total) * 100

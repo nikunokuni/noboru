@@ -4,7 +4,7 @@
 // 使い方（詳しくは scripts/README.md）:
 //   node scripts/import-shrines.mjs --pref 13            東京都だけ取り込む
 //   node scripts/import-shrines.mjs --pref 13,14 --dry-run   DBに入れず scripts/out/ にJSONを書く
-//   node scripts/import-shrines.mjs --pref 13 --shrines-only   神社の名前と位置だけ（駅・駐車場・Wikipediaなし）
+//   node scripts/import-shrines.mjs --pref 13 --shrines-only   神社の名前と位置・市区町村・地名だけ（駅・駐車場・Wikipediaなし）
 //   node scripts/import-shrines.mjs --all                全都道府県
 //   node scripts/import-shrines.mjs --index-only         神社一覧ファイルだけ作り直す
 //
@@ -72,7 +72,8 @@ async function importPrefecture(prefIndex, db) {
       userAgent: USER_AGENT,
       cacheFile: args['no-cache'] ? null : join(HERE, '.cache', `${iso}.json`),
       log,
-      parts: args['shrines-only'] ? ['shrines'] : null,
+      // 名前と位置だけのときも、同じ名前の神社を見分けるための市区町村・地名は取る
+      parts: args['shrines-only'] ? ['shrines', 'places', 'municipalities'] : null,
     })
 
   const { rows, excluded } = processPrefecture(overpass.elements || [], prefecture)

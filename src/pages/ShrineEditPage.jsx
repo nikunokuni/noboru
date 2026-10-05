@@ -5,15 +5,16 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
-import { fetchShrine, submitShrineEdits } from '../lib/community'
+import { fetchShrine, submitShrineEdits, isBannedError } from '../lib/community'
+import { normalizeDeities } from '../lib/deities'
 import { formatDistance } from '../lib/geo'
 import { GOSHUIN_LABELS, PARKING_LABELS, goshuinKinds, goshuinFromKinds } from '../lib/constants'
 
-// type: text / textarea / tags（読点区切り）/ choice / goshuin
+// type: text / textarea / tags（読点区切り）/ choice / goshuin / deities（表記をそろえる）
 const FIELDS = {
   name_kana: { label: 'よみがな', type: 'text', placeholder: 'ひらがなで' },
   address: { label: '住所', type: 'text' },
-  deities: { label: 'ご祭神', type: 'text', placeholder: '例：素戔嗚尊、櫛稲田姫命' },
+  deities: { label: 'ご祭神', type: 'deities', placeholder: '読点（、）で区切る　例：素戔嗚尊、櫛稲田姫命' },
   benefits: { label: 'ご利益', type: 'tags', placeholder: '読点（、）で区切る　例：縁結び、厄除け' },
   shrine_rank: { label: '社格', type: 'text', placeholder: '例：式内社、旧郷社' },
   nearest_station: { label: '最寄り駅', type: 'text', placeholder: '例：〇〇駅 徒歩10分' },
@@ -39,6 +40,7 @@ const toInput = (field, value) => {
 }
 
 const toValue = (field, input) => {
+  if (field.type === 'deities') return normalizeDeities(input).text
   if (field.type === 'tags') return input.split(/[、,，\n]/).map((s) => s.trim()).filter(Boolean)
   return field.type === 'choice' || field.type === 'goshuin' ? input : input.trim()
 }
@@ -73,7 +75,23 @@ function GoshuinInput({ value, onChange }) {
   )
 }
 
+// 同じ神様の書き方の違い（須佐之男命・スサノオ など）は代表の表記にそろえて送る
+function DeitiesInput({ field, value, onChange }) {
+  const { changed } = normalizeDeities(value)
+  return (
+    <>
+      <input className="field-input edit-input" placeholder={field.placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+      {changed.length > 0 && (
+        <p className="muted small">
+          表記をそろえて送ります：{changed.map((c) => `${c.from} → ${c.to}`).join('、')}
+        </p>
+      )}
+    </>
+  )
+}
+
 function FieldInput({ field, value, onChange }) {
+  if (field.type === 'deities') return <DeitiesInput field={field} value={value} onChange={onChange} />
   if (field.type === 'goshuin') return <GoshuinInput value={value} onChange={onChange} />
   if (field.type === 'choice') {
     return (
@@ -120,8 +138,8 @@ export default function ShrineEditPage() {
       await submitShrineEdits({ shrineId: shrine.id, userId: user.id, changes })
       showToast('ありがとうございます。反映しました')
       navigate(`/shrine/${shrine.id}`, { replace: true })
-    } catch {
-      showToast('送信に失敗しました。電波の届く場所でお試しください')
+    } catch (e) {
+      showToast(isBannedError(e) ? 'このアカウントからの情報提供は受け付けていません' : '送信に失敗しました。電波の届く場所でお試しください')
       setSaving(false)
     }
   }
@@ -161,7 +179,7 @@ export default function ShrineEditPage() {
                   </section>
                 ))}
 
-                <p className="muted small mt16">変えた項目だけが送られ、すぐに反映されます。変更の履歴が残ります。</p>
+                <p className="muted small mt16">変えた項目だけが送られ、すぐに反映されます。変更の履歴が残り、いたずらと判断した変更は管理者が元に戻します。</p>
                 <div className="action-row">
                   <button className="btn-primary" onClick={submit} disabled={saving || !changedCount}>
                     {saving ? '送信中…' : changedCount ? `${changedCount}項目をまとめて送信する` : '変更はまだありません'}

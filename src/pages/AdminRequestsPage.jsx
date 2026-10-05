@@ -89,13 +89,20 @@ export default function AdminRequestsPage() {
 
         {isAdmin && (
           <>
-            {unpublished > 0 && (
+            {unpublished > 0 ? (
               <div className="card">
                 <p className="small">承認した{unpublished}件が、まだアプリの神社一覧（検索・マップ）に入っていません。</p>
                 <button className="btn-primary mt8" onClick={rebuild} disabled={rebuilding != null}>
                   {rebuilding != null ? `作り直し中… ${rebuilding.toLocaleString()}社` : '神社一覧を更新する'}
                 </button>
               </div>
+            ) : (
+              // 情報提供されたご祭神・よみがなを検索に反映したいときなど
+              <p className="small">
+                <button className="text-btn" onClick={rebuild} disabled={rebuilding != null}>
+                  {rebuilding != null ? `作り直し中… ${rebuilding.toLocaleString()}社` : '神社一覧を作り直す（情報提供されたご祭神・よみがなを検索に反映）'}
+                </button>
+              </p>
             )}
 
             <div className="chip-row mt8">

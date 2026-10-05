@@ -71,11 +71,12 @@ export function processPrefecture(elements, prefecture) {
     const lng = pt.lon
     const municipality = t['addr:city'] || municipalities.find((m) => pointInPolygon(lat, lng, m.poly))?.name || null
 
+    // 近くの地名（町・字など）。同じ名前の神社を見分けるのに使う
+    const nearPlace = placeGrid.nearest(lat, lng, PLACE_MAX_M)?.point.name || null
+    const locality = t['addr:quarter'] || t['addr:suburb'] || t['addr:neighbourhood'] || nearPlace
+
     let name = nameOf(t)
-    if (!name) {
-      const place = placeGrid.nearest(lat, lng, PLACE_MAX_M)?.point.name || municipality || prefecture
-      name = `名称不明の社（${place}）`
-    }
+    if (!name) name = `名称不明の社（${nearPlace || municipality || prefecture}）`
 
     const station = stationGrid.nearest(lat, lng, STATION_MAX_M)
     const bus = busGrid.nearest(lat, lng, BUS_STOP_MAX_M)
@@ -95,6 +96,7 @@ export function processPrefecture(elements, prefecture) {
       name_kana: toHiragana(t['name:ja-Hira'] || t['name:ja-Kana'] || t['name:ja_kana']),
       prefecture,
       municipality,
+      locality: locality && locality !== municipality ? locality : null,
       address: addressOf(t),
       lat: Math.round(lat * 1e6) / 1e6,
       lng: Math.round(lng * 1e6) / 1e6,

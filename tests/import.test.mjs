@@ -57,6 +57,8 @@ test('境内社を除外し、アクセス情報を計算する', () => {
   assert.ok(Math.abs(c.nearest_station_m - 1112) < 5)
   assert.equal(c.nearest_bus_stop, '山田口')
   assert.equal(c.parking, 'unknown')
+  assert.equal(c.locality, '山田')     // 近くの地名（同じ名前の神社の区別用）
+  assert.equal(a.locality, null)       // 3km 以内に地名がない
 
   const p = byName['駐車場前神社']
   assert.equal(p.parking, 'nearby')

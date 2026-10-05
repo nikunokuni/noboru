@@ -8,7 +8,8 @@ import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyRecordsForShrine, fetchPublicRecords, fetchShrine } from '../lib/community'
 import { formatDistance, walkMinutes } from '../lib/geo'
-import { formatDate } from '../lib/format'
+import { formatDate, placeLabel } from '../lib/format'
+import { normalizeDeities } from '../lib/deities'
 import { GOSHUIN_LABELS, PARKING_LABELS, emotionColor, emotionMarks } from '../lib/constants'
 
 function Row({ label, children }) {
@@ -21,6 +22,18 @@ function Row({ label, children }) {
 }
 
 const Unknown = () => <span className="muted">不明</span>
+
+// ご祭神は表記をそろえて表示し、それぞれ同じ神様を祀る神社の検索へつなぐ
+function Deities({ text }) {
+  const { names } = normalizeDeities(text)
+  if (!names.length) return <Unknown />
+  return names.map((n, i) => (
+    <React.Fragment key={n}>
+      {i > 0 && '、'}
+      <Link to={`/search?deity=${encodeURIComponent(n)}`} className="inline-link">{n}</Link>
+    </React.Fragment>
+  ))
+}
 
 // meters がないのは情報提供された駅・バス停（「〇〇駅 徒歩10分」のように書かれている）
 function Access({ name, meters }) {
@@ -87,7 +100,7 @@ export default function ShrinePage() {
         <div className="shrine-head">
           <h2 className="shrine-name">⛩ {shrine.name}</h2>
           {shrine.name_kana && <div className="muted small">{shrine.name_kana}</div>}
-          <div className="muted small">{shrine.prefecture}{shrine.municipality && `・${shrine.municipality}`}</div>
+          <div className="muted small">{placeLabel(shrine)}</div>
           {!shrine.first_visited_on && <div className="pill mt8">まだ誰も参拝を記録していません</div>}
         </div>
 
@@ -104,7 +117,7 @@ export default function ShrinePage() {
           <div className="section-mini">基本情報</div>
           <dl className="info">
             <Row label="住所">{shrine.address || <Unknown />}</Row>
-            <Row label="ご祭神">{shrine.deities || <Unknown />}</Row>
+            <Row label="ご祭神"><Deities text={shrine.deities} /></Row>
             <Row label="ご利益">{shrine.benefits?.length ? shrine.benefits.join('・') : <Unknown />}</Row>
             {shrine.shrine_rank && <Row label="社格">{shrine.shrine_rank}</Row>}
           </dl>

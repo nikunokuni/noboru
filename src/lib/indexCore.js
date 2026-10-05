@@ -12,9 +12,14 @@
 //   lng:  [13976543, ...],
 //   pref: [12, ...],                  // prefs の位置
 //   vis:  [0, 1, ...],                // 誰かが参拝済みなら 1
+//   munis: ['世田谷区', ...], muni: [3, -1, ...],   // 市区町村（同じ名前の神社の区別用）。-1 は不明
+//   locs:  ['上町', ...],     loc:  [0, -1, ...],   // 近くの地名（町・字など）。-1 は不明
+//   deis:  ['素戔嗚尊', ...], dei:  [[0, 4], [], ...], // ご祭神（表記をそろえたもの）
 // }
+// munis 以降は後から足した項目。古い一覧ファイルにはないので、ないときは空として扱う
 
 import { distanceM } from './geo.js'
+import { normalizeDeities, deityKey, matchDeityNames } from './deities.js'
 
 export const INDEX_FORMAT = 1
 const SCALE = 1e5
@@ -34,7 +39,7 @@ export async function fetchIndexRows(db, onProgress = () => {}) {
   const PAGE = 1000
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await db.from('shrines')
-      .select('id, name, name_kana, prefecture, lat, lng, first_visited_on')
+      .select('id, name, name_kana, prefecture, municipality, locality, deities, lat, lng, first_visited_on')
       .eq('status', 'active').order('id').range(from, from + PAGE - 1)
     if (error) throw error
     rows.push(...data)
@@ -43,19 +48,41 @@ export async function fetchIndexRows(db, onProgress = () => {}) {
   }
 }
 
+// 同じ文字を何度も持たないよう、文字の表（list）の位置で表す。空なら -1
+function stringTable() {
+  const list = []
+  const pos = new Map()
+  const at = (s) => {
+    if (!s) return -1
+    if (!pos.has(s)) { pos.set(s, list.length); list.push(s) }
+    return pos.get(s)
+  }
+  return { list, at }
+}
+
 export function encodeIndex(rows, { version, generatedAt = new Date().toISOString() }) {
-  const prefs = []
-  const prefPos = new Map()
-  const out = { format: INDEX_FORMAT, version, generated_at: generatedAt, prefs, id: [], name: [], kana: [], lat: [], lng: [], pref: [], vis: [] }
+  const prefs = stringTable()
+  const munis = stringTable()
+  const locs = stringTable()
+  const deis = stringTable()
+  const out = {
+    format: INDEX_FORMAT, version, generated_at: generatedAt, prefs: prefs.list,
+    id: [], name: [], kana: [], lat: [], lng: [], pref: [], vis: [],
+    munis: munis.list, muni: [], locs: locs.list, loc: [], deis: deis.list, dei: [],
+  }
   for (const r of rows) {
-    if (!prefPos.has(r.prefecture)) { prefPos.set(r.prefecture, prefs.length); prefs.push(r.prefecture) }
     out.id.push(Number(r.id))
     out.name.push(r.name)
     out.kana.push(r.name_kana || '')
     out.lat.push(Math.round(r.lat * SCALE))
     out.lng.push(Math.round(r.lng * SCALE))
-    out.pref.push(prefPos.get(r.prefecture))
+    out.pref.push(prefs.at(r.prefecture))
     out.vis.push(r.first_visited_on ? 1 : 0)
+    out.muni.push(munis.at(r.municipality))
+    // 地名が市区町村と同じなら区別の役に立たないので入れない
+    out.loc.push(r.locality && r.locality !== r.municipality ? locs.at(r.locality) : -1)
+    // 古い表記で入っているご祭神も、そろえた表記で探せるようにする
+    out.dei.push(normalizeDeities(r.deities).names.map(deis.at))
   }
   return out
 }
@@ -69,16 +96,21 @@ export function normalize(s) {
     .replace(/[\s・･]/g, '')
 }
 
+const fromTable = (list, i) => (list && i != null && i >= 0 ? list[i] : null)
+
 // 保存用の生データに検索用の索引を付ける
 export function prepareIndex(raw) {
   if (!raw || raw.format !== INDEX_FORMAT) return null
   const byId = new Map()
   const keys = new Array(raw.id.length)
+  const placeKeys = new Array(raw.id.length)
   for (let i = 0; i < raw.id.length; i++) {
     byId.set(raw.id[i], i)
     keys[i] = normalize(raw.name[i]) + '\u0000' + normalize(raw.kana[i])
+    placeKeys[i] = [fromTable(raw.munis, raw.muni?.[i]), fromTable(raw.locs, raw.loc?.[i]), raw.prefs[raw.pref[i]]]
+      .map(normalize).join('\u0000')
   }
-  return { raw, byId, keys, size: raw.id.length }
+  return { raw, byId, keys, placeKeys, size: raw.id.length }
 }
 
 export function getItem(index, i) {
@@ -88,6 +120,8 @@ export function getItem(index, i) {
     name: r.name[i],
     kana: r.kana[i],
     prefecture: r.prefs[r.pref[i]],
+    municipality: fromTable(r.munis, r.muni?.[i]),
+    locality: fromTable(r.locs, r.loc?.[i]),
     lat: r.lat[i] / SCALE,
     lng: r.lng[i] / SCALE,
     visited: r.vis[i] === 1,
@@ -99,25 +133,49 @@ export function getById(index, id) {
   return i == null ? null : getItem(index, i)
 }
 
+// ご祭神の検索語に当てはまる、一覧ファイルのご祭神の表（deis）の位置
+//   辞書にある神様は別の書き方（「スサノオ」→ 素戔嗚尊）でも、辞書にない神様は名前の一部でも当てはまる
+export function matchingDeities(index, query) {
+  const list = index.raw.deis || []
+  const k = deityKey(query)
+  if (!k) return new Set()
+  const known = new Set(matchDeityNames(query))
+  const out = new Set()
+  list.forEach((name, j) => { if (known.has(name) || deityKey(name).includes(k)) out.add(j) })
+  return out
+}
+
 // 名前・読み仮名で検索。前方一致を先に並べる
-export function searchIndex(index, query, { prefecture = null, unvisitedOnly = false, limit = 50 } = {}) {
-  const q = normalize(query)
+//   「八幡 世田谷」のように空白で区切ると、2語目以降は市区町村・地名・都道府県にも当てはめる（どれか1語は名前に当たること）
+//   deity: ご祭神で絞り込む（検索語）
+export function searchIndex(index, query, { prefecture = null, unvisitedOnly = false, deity = null, limit = 50 } = {}) {
+  const terms = (query || '').normalize('NFKC').split(/\s+/).map(normalize).filter(Boolean)
   const r = index.raw
   const prefPos = prefecture ? r.prefs.indexOf(prefecture) : -1
   if (prefecture && prefPos < 0) return []
+  const deities = deity && deity.trim() ? matchingDeities(index, deity) : null
+  if (deities && !deities.size) return []
   const head = []
   const rest = []
   for (let i = 0; i < index.size; i++) {
     if (prefPos >= 0 && r.pref[i] !== prefPos) continue
     if (unvisitedOnly && r.vis[i] === 1) continue
-    if (q) {
+    if (deities && !(r.dei?.[i] || []).some((j) => deities.has(j))) continue
+    if (terms.length) {
       const key = index.keys[i]
-      const pos = key.indexOf(q)
-      if (pos < 0) continue
-      if (pos === 0 || key.indexOf('\u0000' + q) >= 0) { head.push(i); if (head.length >= limit) break; continue }
+      const place = index.placeKeys[i]
+      let inName = false
+      let ok = true
+      for (const t of terms) {
+        if (key.includes(t)) inName = true
+        else if (!place.includes(t)) { ok = false; break }
+      }
+      if (!ok || !inName) continue
+      const q = terms[0]
+      if (key.startsWith(q) || key.includes('\u0000' + q)) { head.push(i); if (head.length >= limit) break; continue }
     }
     if (rest.length < limit) rest.push(i)
-    if (!q && rest.length >= limit) break
+    if (!terms.length && rest.length >= limit) break
   }
   return head.concat(rest).slice(0, limit).map((i) => getItem(index, i))
 }

@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
-import { fetchShrine, submitShrineRequest } from '../lib/community'
+import { fetchShrine, submitShrineRequest, isBannedError } from '../lib/community'
 import { getCurrentPosition } from '../lib/geo'
 
 const HIDE_REASONS = ['境内社です', '同じ神社が重複しています', '現存しません', '神社ではありません']
@@ -42,8 +42,8 @@ export default function ShrineRequestPage() {
         : { user_id: user.id, kind: 'add', name: name.trim(), note: note.trim(), lat: position?.lat ?? null, lng: position?.lng ?? null })
       showToast('ありがとうございます。確認して反映します', 3500)
       navigate(-1)
-    } catch {
-      showToast('送信に失敗しました。電波の届く場所でお試しください')
+    } catch (e) {
+      showToast(isBannedError(e) ? 'このアカウントからの申請は受け付けていません' : '送信に失敗しました。電波の届く場所でお試しください')
     } finally {
       setSaving(false)
     }

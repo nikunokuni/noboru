@@ -2,18 +2,22 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { encodeIndex, prepareIndex, searchIndex, nearbyIndex, getById, applyVisited, normalize, newIndexVersion, indexVersionDate } from '../src/lib/indexCore.js'
 import { titleFor } from '../src/lib/constants.js'
+import { canonicalDeity, normalizeDeities, deityKey, DEITIES } from '../src/lib/deities.js'
 
 const rows = [
   { id: 1, name: '八坂神社', name_kana: 'やさかじんじゃ', prefecture: '京都府', lat: 35.003674, lng: 135.778514, first_visited_on: '2026-01-01' },
   { id: 2, name: '伏見稲荷大社', name_kana: 'ふしみいなりたいしゃ', prefecture: '京都府', lat: 34.967146, lng: 135.772695, first_visited_on: null },
   { id: 3, name: '明治神宮', name_kana: 'めいじじんぐう', prefecture: '東京都', lat: 35.676398, lng: 139.699326, first_visited_on: null },
   { id: 4, name: '弥栄八坂社', name_kana: '', prefecture: '京都府', lat: 35.0040, lng: 135.7790, first_visited_on: null },
+  { id: 5, name: '八幡神社', name_kana: 'はちまんじんじゃ', prefecture: '東京都', municipality: '世田谷区', locality: '上町', deities: '応神天皇', lat: 35.64, lng: 139.64, first_visited_on: null },
+  { id: 6, name: '八幡神社', name_kana: 'はちまんじんじゃ', prefecture: '東京都', municipality: '練馬区', locality: '練馬区', deities: '誉田別命（応神天皇）、比売神', lat: 35.73, lng: 139.65, first_visited_on: null },
+  { id: 7, name: '須賀神社', name_kana: 'すがじんじゃ', prefecture: '東京都', municipality: '世田谷区', deities: '須佐之男命、宇迦之御魂神', lat: 35.65, lng: 139.65, first_visited_on: null },
 ]
 const index = () => prepareIndex(JSON.parse(JSON.stringify(encodeIndex(rows, { version: 'v1' }))))
 
 test('エンコードして元に戻せる', () => {
   const idx = index()
-  assert.equal(idx.size, 4)
+  assert.equal(idx.size, 7)
   const item = getById(idx, 1)
   assert.equal(item.name, '八坂神社')
   assert.equal(item.prefecture, '京都府')
@@ -26,7 +30,7 @@ test('名前・読み仮名で検索し、前方一致を先に出す', () => {
   assert.deepEqual(searchIndex(idx, '八坂').map((r) => r.id), [1, 4])
   assert.deepEqual(searchIndex(idx, 'ヤサカ').map((r) => r.id), [1])
   assert.deepEqual(searchIndex(idx, 'いなり').map((r) => r.id), [2])
-  assert.deepEqual(searchIndex(idx, '', { prefecture: '東京都' }).map((r) => r.id), [3])
+  assert.deepEqual(searchIndex(idx, '', { prefecture: '東京都' }).map((r) => r.id), [3, 5, 6, 7])
   assert.deepEqual(searchIndex(idx, '', { prefecture: '京都府', unvisitedOnly: true }).map((r) => r.id), [2, 4])
   assert.equal(normalize('ﾔｻｶ 神社'), 'やさか神社')
 })
@@ -57,4 +61,67 @@ test('一覧ファイルの版は作った時刻（UTC）で、時刻に戻せ�
   assert.equal(indexVersionDate(v).toISOString(), '2026-10-05T12:34:56.000Z')
   assert.equal(indexVersionDate('0'), null)
   assert.equal(indexVersionDate(undefined), null)
+})
+
+test('同じ名前の神社は市区町村・地名で見分けられる', () => {
+  const idx = index()
+  assert.deepEqual(searchIndex(idx, '八幡').map((r) => r.id), [5, 6])
+  assert.deepEqual(searchIndex(idx, '八幡 世田谷').map((r) => r.id), [5])
+  assert.deepEqual(searchIndex(idx, 'はちまん　上町').map((r) => r.id), [5])
+  assert.deepEqual(searchIndex(idx, '世田谷').map((r) => r.id), [])   // 地名だけでは探さない
+  const item = getById(idx, 5)
+  assert.equal(item.municipality, '世田谷区')
+  assert.equal(item.locality, '上町')
+  assert.equal(getById(idx, 6).locality, null)   // 市区町村と同じ地名は入れない
+})
+
+test('ご祭神で探す（書き方が違っても同じ神様）', () => {
+  const idx = index()
+  const ids = (q, opts) => searchIndex(idx, '', { deity: q, ...opts }).map((r) => r.id)
+  assert.deepEqual(ids('スサノオ'), [7])
+  assert.deepEqual(ids('素戔嗚尊'), [7])
+  assert.deepEqual(ids('八幡神'), [5, 6])
+  assert.deepEqual(ids('応神'), [5, 6])
+  assert.deepEqual(ids('稲荷'), [7])
+  assert.deepEqual(ids('比売'), [6])
+  assert.deepEqual(ids('天照'), [])
+})
+
+test('古い一覧ファイル（市区町村・ご祭神なし）も読める', () => {
+  const raw = encodeIndex(rows, { version: 'v1' })
+  for (const k of ['munis', 'muni', 'locs', 'loc', 'deis', 'dei']) delete raw[k]
+  const idx = prepareIndex(raw)
+  assert.equal(getById(idx, 5).municipality, null)
+  assert.deepEqual(searchIndex(idx, '八幡').map((r) => r.id), [5, 6])
+  assert.deepEqual(searchIndex(idx, '', { deity: 'スサノオ' }), [])
+})
+
+test('ご祭神の表記をそろえる', () => {
+  assert.equal(canonicalDeity('須佐之男命'), '素戔嗚尊')
+  assert.equal(canonicalDeity('スサノヲ'), '素戔嗚尊')
+  assert.equal(canonicalDeity('大國主神'), '大国主命')
+  assert.equal(canonicalDeity('瓊々杵尊'), '瓊瓊杵尊')
+  assert.equal(canonicalDeity('宇迦御魂命'), '宇迦之御魂神')
+  assert.equal(canonicalDeity('天照大神'), '天照大御神')
+  assert.equal(canonicalDeity('櫛稲田姫命'), '櫛稲田姫命')
+  assert.equal(canonicalDeity('知らない神'), '知らない神')   // 辞書にない神様はそのまま
+  assert.equal(canonicalDeity('天神'), '天神')
+
+  const n = normalizeDeities('誉田別命（応神天皇）、須佐之男命・ 大己貴命')
+  assert.deepEqual(n.names, ['誉田別命', '素戔嗚尊', '大国主命'])
+  assert.equal(n.text, '誉田別命、素戔嗚尊、大国主命')
+  assert.deepEqual(n.changed, [{ from: '応神天皇', to: '誉田別命' }, { from: '須佐之男命', to: '素戔嗚尊' }, { from: '大己貴命', to: '大国主命' }])
+  assert.deepEqual(normalizeDeities('').names, [])
+  assert.deepEqual(normalizeDeities(null).names, [])
+})
+
+test('辞書の別の神様どうしが同じ書き方にならない', () => {
+  const owner = new Map()
+  for (const names of DEITIES) {
+    for (const n of names) {
+      const k = deityKey(n)
+      assert.ok(!owner.has(k) || owner.get(k) === names[0], `${n} が ${owner.get(k)} と ${names[0]} の両方に当たる`)
+      owner.set(k, names[0])
+    }
+  }
 })
