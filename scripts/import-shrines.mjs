@@ -167,5 +167,6 @@ async function main() {
 
 main().catch((e) => {
   console.error(e.message || e)
-  process.exit(1)
+  // process.exit() だと Windows で通信の後始末中に Assertion failed が出るため、終了コードだけ設定する
+  process.exitCode = 1
 })
