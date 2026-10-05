@@ -5,6 +5,7 @@
 //   node scripts/import-shrines.mjs --pref 13            東京都だけ取り込む
 //   node scripts/import-shrines.mjs --pref 13,14 --dry-run   DBに入れず scripts/out/ にJSONを書く
 //   node scripts/import-shrines.mjs --pref 13 --shrines-only   神社の名前と位置だけ（駅・駐車場・Wikipediaなし）
+//   node scripts/import-shrines.mjs --pref 13 --print-query   神社の問い合わせ文を表示（overpass-turbo で手作業で取る用）
 //   node scripts/import-shrines.mjs --all                全都道府県
 //   node scripts/import-shrines.mjs --index-only         神社一覧ファイルだけ作り直す
 //
@@ -19,7 +20,7 @@ import { parseArgs } from 'node:util'
 import { createClient } from '@supabase/supabase-js'
 import { PREFECTURES, prefectureIso } from '../src/lib/constants.js'
 import { encodeIndex } from '../src/lib/indexCore.js'
-import { fetchOverpass } from './lib/overpass.mjs'
+import { fetchOverpass, buildQuery, SHRINES_QUERY } from './lib/overpass.mjs'
 import { processPrefecture } from './lib/process.mjs'
 import { enrichWithWiki } from './lib/wiki.mjs'
 
@@ -37,6 +38,7 @@ const { values: args } = parseArgs({
     'index-only': { type: 'boolean', default: false },
     'no-index': { type: 'boolean', default: false },
     'no-cache': { type: 'boolean', default: false },
+    'print-query': { type: 'boolean', default: false },
     input: { type: 'string' },
     endpoint: { type: 'string' },
   },
@@ -141,6 +143,11 @@ async function buildIndex(rows, db) {
 
 async function main() {
   const prefs = targetPrefectures()
+  if (args['print-query']) {
+    if (prefs.length !== 1) throw new Error('--print-query は --pref で1つの都道府県を指定してください')
+    log(buildQuery(prefectureIso(prefs[0]), SHRINES_QUERY))
+    return
+  }
   if (!prefs.length && !args['index-only']) {
     log('--pref <番号> / --all / --index-only のいずれかを指定してください（例: --pref 13 は東京都）')
     process.exit(1)

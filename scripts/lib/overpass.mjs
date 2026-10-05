@@ -12,13 +12,26 @@ export const DEFAULT_ENDPOINTS = [
 ]
 export const DEFAULT_ENDPOINT = DEFAULT_ENDPOINTS[0]
 
-// [名前, 表示名, 問い合わせ本体（.a = 都道府県の範囲）]
-export const PARTS = [
-  ['shrines', '神社', `(
+// 神社だけを1回で取る問い合わせ（--print-query で表示し、overpass-turbo などで手作業で取るとき用）
+export const SHRINES_QUERY = `(
   nwr["amenity"="place_of_worship"]["religion"="shinto"](area.a);
   nwr["historic"="wayside_shrine"]["religion"="shinto"](area.a);
 );
-out geom;`],
+out geom;`
+
+// [名前, 表示名, 問い合わせ本体（.a = 都道府県の範囲）, まとめ名（parts で指定する名前）]
+// 神社は点（ノード）と敷地（ウェイ・リレーション）に分けて、1回あたりの量を小さくする
+export const PARTS = [
+  ['shrine_points', '神社（点）', `(
+  node["amenity"="place_of_worship"]["religion"="shinto"](area.a);
+  node["historic"="wayside_shrine"]["religion"="shinto"](area.a);
+);
+out body;`, 'shrines'],
+  ['shrine_areas', '神社（敷地）', `(
+  wr["amenity"="place_of_worship"]["religion"="shinto"](area.a);
+  wr["historic"="wayside_shrine"]["religion"="shinto"](area.a);
+);
+out geom;`, 'shrines'],
   ['stations', '駅', 'node["railway"="station"](area.a);\nout body;'],
   ['bus_stops', 'バス停', 'node["highway"="bus_stop"](area.a);\nout body;'],
   ['parking', '駐車場', 'nwr["amenity"="parking"](area.a);\nout center;'],
@@ -91,8 +104,8 @@ async function fetchPart(iso, body, { endpoints, userAgent, log }) {
 export async function fetchOverpass(iso, { endpoint, cacheFile = null, userAgent, log = () => {}, parts = null } = {}) {
   const endpoints = [...new Set([endpoint, ...DEFAULT_ENDPOINTS].filter(Boolean))]
   const elements = []
-  for (const [key, label, body] of PARTS) {
-    if (parts && !parts.includes(key)) continue
+  for (const [key, label, body, group = key] of PARTS) {
+    if (parts && !parts.includes(key) && !parts.includes(group)) continue
     const partFile = cacheFile && cacheFile.replace(/\.json$/, `.${key}.json`)
     let json = partFile && await readJson(partFile)
     if (json) {

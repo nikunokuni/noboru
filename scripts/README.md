@@ -37,11 +37,28 @@ npm run import:shrines -- --index-only
 | `--skip-wiki` | Wikidata / Wikipedia を使わない（速い） |
 | `--no-index` | 最後の一覧ファイル生成をしない（何回かに分けて取り込むとき） |
 | `--no-cache` | `scripts/.cache/` に保存した Overpass の結果を使わず取り直す |
+| `--print-query` | 神社の問い合わせ文を表示するだけ（下の「Overpass でつまずくとき」用） |
+| `--input <file>` | Overpass に問い合わせず、手元の JSON を使う（`--pref` で1県だけ指定） |
 | `--endpoint <URL>` | 最初に試す Overpass サーバーを指定する（だめなら標準のサーバーにも切り替える） |
+
+## Overpass でつまずくとき
+
+何度やっても Overpass のエラーで止まる場合は、ブラウザで神社のデータだけ取ってきて取り込めます（名前と位置だけ）。
+
+1. 問い合わせ文を表示する
+   ```sh
+   npm run import:shrines -- --pref 26 --print-query
+   ```
+2. https://overpass-turbo.eu/ を開き、表示された文を左側に貼り付けて「実行」
+3. 「エクスポート」→「データ」→「生データ（raw OSM data）」で JSON を保存（例: `kyoto.json`）
+4. 保存したファイルを使って取り込む
+   ```sh
+   npm run import:shrines -- --pref 26 --shrines-only --input kyoto.json
+   ```
 
 ## 何をしているか
 
-1. Overpass API から神社・祠（`amenity=place_of_worship` / `historic=wayside_shrine` かつ `religion=shinto`）、駅、バス停、駐車場、地名、市区町村の境界を取得
+1. Overpass API から神社・祠（点と敷地を別々に）（`amenity=place_of_worship` / `historic=wayside_shrine` かつ `religion=shinto`）、駅、バス停、駐車場、地名、市区町村の境界を取得
    （混雑したサーバーに断られにくいよう種類ごとに分けて問い合わせ、失敗したら別のサーバーに切り替える。取れた分は `scripts/.cache/` に保存され、やり直したときは続きから取る）
 2. 別の神社の敷地の中にある社（境内社）を除外
 3. 最寄り駅・バス停（直線距離）、駐車場（敷地内なら「専用」、200m以内なら「近くに」）を計算
