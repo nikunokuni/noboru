@@ -48,10 +48,24 @@ export const PARKING_LABELS = {
 }
 
 export const GOSHUIN_LABELS = {
+  direct_only: '直書き',
+  written_only: '書き置き',
+  both: '直書き・書き置き',
   available: 'あり',
-  written_only: '書き置きのみ',
   none: 'なし',
   unknown: '不明',
+}
+
+// 御朱印の値 ⇔ 直書き・書き置きの選択（両方選べる）
+export function goshuinKinds(value) {
+  return { direct: value === 'direct_only' || value === 'both', written: value === 'written_only' || value === 'both' }
+}
+
+export function goshuinFromKinds({ direct, written }) {
+  if (direct && written) return 'both'
+  if (direct) return 'direct_only'
+  if (written) return 'written_only'
+  return null
 }
 
 export function emotionLabel(value) {

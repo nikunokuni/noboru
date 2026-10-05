@@ -22,9 +22,11 @@ function Row({ label, children }) {
 
 const Unknown = () => <span className="muted">不明</span>
 
-function Access({ name, meters, suffix = '' }) {
+// meters がないのは情報提供された駅・バス停（「〇〇駅 徒歩10分」のように書かれている）
+function Access({ name, meters }) {
   if (!name) return <Unknown />
-  return <>{name}{suffix}<span className="muted small">　{formatDistance(meters)}・徒歩約{walkMinutes(meters)}分（直線距離から）</span></>
+  if (meters == null) return name
+  return <>{name}<span className="muted small">　{formatDistance(meters)}・徒歩約{walkMinutes(meters)}分（直線距離から）</span></>
 }
 
 function FeaturesSource({ source }) {
@@ -126,6 +128,7 @@ export default function ShrinePage() {
           <div className="section-mini">御朱印</div>
           <dl className="info">
             <Row label="御朱印">{GOSHUIN_LABELS[shrine.goshuin]} <GuideInlineLink context="goshuin" /></Row>
+            {shrine.goshuin_note && <Row label="メモ"><span className="pre-wrap">{shrine.goshuin_note}</span></Row>}
           </dl>
         </section>
 

@@ -44,8 +44,10 @@ export async function fetchMyRecordsForShrine(shrineId, userId) {
   return data
 }
 
-export async function submitShrineEdit({ shrineId, userId, field, value }) {
-  const { error } = await supabase.from('shrine_edits').insert({ shrine_id: shrineId, user_id: userId, field, value })
+// changes: { 項目名: 値 }。まとめて1回で送る（全部反映されるか、全部失敗するか）
+export async function submitShrineEdits({ shrineId, userId, changes }) {
+  const rows = Object.entries(changes).map(([field, value]) => ({ shrine_id: shrineId, user_id: userId, field, value }))
+  const { error } = await supabase.from('shrine_edits').insert(rows)
   if (error) throw error
 }
 

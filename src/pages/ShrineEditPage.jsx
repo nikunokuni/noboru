@@ -1,30 +1,99 @@
 // 神社情報の追加・訂正（情報提供）
-import React, { useEffect, useState } from 'react'
+// 神社詳細と同じ並びで全項目を表示し、変えた項目だけをまとめて送る
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
-import { fetchShrine, submitShrineEdit } from '../lib/community'
-import { GOSHUIN_LABELS, PARKING_LABELS } from '../lib/constants'
+import { fetchShrine, submitShrineEdits } from '../lib/community'
+import { formatDistance } from '../lib/geo'
+import { GOSHUIN_LABELS, PARKING_LABELS, goshuinKinds, goshuinFromKinds } from '../lib/constants'
 
-// type: text / textarea / tags（読点区切り）/ choice
-const FIELDS = [
-  { key: 'goshuin', label: '御朱印', type: 'choice', options: GOSHUIN_LABELS },
-  { key: 'parking', label: '駐車場', type: 'choice', options: PARKING_LABELS },
-  { key: 'access_note', label: 'アクセス補足', type: 'textarea', placeholder: '例：〇〇駅から徒歩15分。最後に長い石段あり' },
-  { key: 'deities', label: 'ご祭神', type: 'text', placeholder: '例：素戔嗚尊、櫛稲田姫命' },
-  { key: 'benefits', label: 'ご利益', type: 'tags', placeholder: '読点（、）で区切って入力　例：縁結び、厄除け' },
-  { key: 'features', label: '特徴（神話・由緒など）', type: 'textarea', placeholder: '関連する神話、創建の背景、見どころなど' },
-  { key: 'address', label: '住所', type: 'text' },
-  { key: 'name_kana', label: 'よみがな', type: 'text', placeholder: 'ひらがなで' },
-  { key: 'shrine_rank', label: '社格', type: 'text', placeholder: '例：式内社、旧郷社' },
+// type: text / textarea / tags（読点区切り）/ choice / goshuin
+const FIELDS = {
+  name_kana: { label: 'よみがな', type: 'text', placeholder: 'ひらがなで' },
+  address: { label: '住所', type: 'text' },
+  deities: { label: 'ご祭神', type: 'text', placeholder: '例：素戔嗚尊、櫛稲田姫命' },
+  benefits: { label: 'ご利益', type: 'tags', placeholder: '読点（、）で区切る　例：縁結び、厄除け' },
+  shrine_rank: { label: '社格', type: 'text', placeholder: '例：式内社、旧郷社' },
+  nearest_station: { label: '最寄り駅', type: 'text', placeholder: '例：〇〇駅 徒歩10分' },
+  nearest_bus_stop: { label: 'バス停', type: 'text', placeholder: '例：〇〇神社前 徒歩2分' },
+  parking: { label: '駐車場', type: 'choice', options: PARKING_LABELS },
+  access_note: { label: '補足', type: 'textarea', placeholder: '例：〇〇駅から徒歩15分。最後に長い石段あり' },
+  goshuin: { label: '御朱印', type: 'goshuin' },
+  goshuin_note: { label: 'メモ', type: 'textarea', placeholder: '例：授与は9時〜16時。季節の限定御朱印あり' },
+  features: { label: '神話・由緒', type: 'textarea', placeholder: '関連する神話、創建の背景、見どころなど' },
+}
+
+const SECTIONS = [
+  ['基本情報', ['name_kana', 'address', 'deities', 'benefits', 'shrine_rank']],
+  ['アクセス', ['nearest_station', 'nearest_bus_stop', 'parking', 'access_note']],
+  ['御朱印', ['goshuin', 'goshuin_note']],
+  ['特徴', ['features']],
 ]
 
-const toInput = (field, value) => (field.type === 'tags' ? (value || []).join('、') : value ?? (field.type === 'choice' ? 'unknown' : ''))
+const toInput = (field, value) => {
+  if (field.type === 'tags') return (value || []).join('、')
+  if (field.type === 'choice' || field.type === 'goshuin') return value || 'unknown'
+  return value ?? ''
+}
 
 const toValue = (field, input) => {
   if (field.type === 'tags') return input.split(/[、,，\n]/).map((s) => s.trim()).filter(Boolean)
-  return field.type === 'choice' ? input : input.trim()
+  return field.type === 'choice' || field.type === 'goshuin' ? input : input.trim()
+}
+
+const initialInputs = (shrine) => Object.fromEntries(Object.entries(FIELDS).map(([k, f]) => [k, toInput(f, shrine[k])]))
+
+// 変えた項目だけ { 項目名: 値 }
+function diff(shrine, inputs) {
+  const base = initialInputs(shrine)
+  const changes = {}
+  for (const [k, f] of Object.entries(FIELDS)) {
+    const v = toValue(f, inputs[k])
+    if (JSON.stringify(v) !== JSON.stringify(toValue(f, base[k]))) changes[k] = v
+  }
+  return changes
+}
+
+function GoshuinInput({ value, onChange }) {
+  const kinds = goshuinKinds(value)
+  const toggle = (key) => onChange(goshuinFromKinds({ ...kinds, [key]: !kinds[key] }) || 'unknown')
+  return (
+    <>
+      <div className="chip-row">
+        <button type="button" className={`chip ${kinds.direct ? 'active' : ''}`} onClick={() => toggle('direct')}>直書き</button>
+        <button type="button" className={`chip ${kinds.written ? 'active' : ''}`} onClick={() => toggle('written')}>書き置き</button>
+        <button type="button" className={`chip ${value === 'none' ? 'active' : ''}`} onClick={() => onChange('none')}>なし</button>
+        <button type="button" className={`chip ${value === 'unknown' ? 'active' : ''}`} onClick={() => onChange('unknown')}>不明</button>
+      </div>
+      {value === 'available' && <p className="muted small">いまは「あり」（種類は不明）です。わかれば直書き・書き置きを選んでください</p>}
+      {(kinds.direct || kinds.written) && <p className="muted small">直書きと書き置きは両方選べます</p>}
+    </>
+  )
+}
+
+function FieldInput({ field, value, onChange }) {
+  if (field.type === 'goshuin') return <GoshuinInput value={value} onChange={onChange} />
+  if (field.type === 'choice') {
+    return (
+      <div className="chip-row">
+        {Object.entries(field.options).map(([v, label]) => (
+          <button key={v} type="button" className={`chip ${value === v ? 'active' : ''}`} onClick={() => onChange(v)}>{label}</button>
+        ))}
+      </div>
+    )
+  }
+  if (field.type === 'textarea') {
+    return <textarea className="field-textarea edit-textarea" rows={3} placeholder={field.placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+  }
+  return <input className="field-input edit-input" placeholder={field.placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+}
+
+// 地図データから自動で入れた駅・バス停は、その旨と距離を添える
+function AccessHint({ shrine, prefix }) {
+  if (shrine[`${prefix}_by_user`] || !shrine[prefix] || shrine[`${prefix}_m`] == null) return null
+  return <p className="muted small">地図データから自動で入れた値です（直線で{formatDistance(shrine[`${prefix}_m`])}）。徒歩の分数などを書き足せます</p>
 }
 
 export default function ShrineEditPage() {
@@ -33,27 +102,26 @@ export default function ShrineEditPage() {
   const { user, signInWithGoogle } = useAuth()
   const { showToast } = useToast()
   const [shrine, setShrine] = useState(null)
-  const [fieldKey, setFieldKey] = useState(FIELDS[0].key)
-  const [input, setInput] = useState('')
+  const [inputs, setInputs] = useState(null)
   const [saving, setSaving] = useState(false)
-  const field = FIELDS.find((f) => f.key === fieldKey)
 
-  useEffect(() => { fetchShrine(id).then(setShrine).catch(() => {}) }, [id])
-  useEffect(() => { if (shrine) setInput(toInput(field, shrine[field.key])) }, [shrine, field])
+  useEffect(() => {
+    fetchShrine(id).then((s) => { setShrine(s); if (s) setInputs(initialInputs(s)) }).catch(() => {})
+  }, [id])
+
+  const changes = useMemo(() => (shrine && inputs ? diff(shrine, inputs) : {}), [shrine, inputs])
+  const changedCount = Object.keys(changes).length
+  const set = (key) => (value) => setInputs((s) => ({ ...s, [key]: value }))
 
   const submit = async () => {
-    const value = toValue(field, input)
-    if (JSON.stringify(value) === JSON.stringify(toValue(field, toInput(field, shrine[field.key])))) {
-      showToast('内容が変わっていません'); return
-    }
+    if (!changedCount) { showToast('内容が変わっていません'); return }
     setSaving(true)
     try {
-      await submitShrineEdit({ shrineId: shrine.id, userId: user.id, field: field.key, value })
+      await submitShrineEdits({ shrineId: shrine.id, userId: user.id, changes })
       showToast('ありがとうございます。反映しました')
       navigate(`/shrine/${shrine.id}`, { replace: true })
     } catch {
       showToast('送信に失敗しました。電波の届く場所でお試しください')
-    } finally {
       setSaving(false)
     }
   }
@@ -62,9 +130,13 @@ export default function ShrineEditPage() {
     <div className="app-shell">
       <TopBar back title="情報の追加・訂正" />
       <div className="page-content">
-        {!shrine ? <div className="spinner" /> : (
+        {!shrine || !inputs ? <div className="spinner" /> : (
           <>
-            <p className="shrine-name small-title">⛩ {shrine.name}</p>
+            <div className="shrine-head">
+              <h2 className="shrine-name">⛩ {shrine.name}</h2>
+              <div className="muted small">{shrine.prefecture}{shrine.municipality && `・${shrine.municipality}`}</div>
+            </div>
+
             {!user ? (
               <div className="login-panel">
                 <p>情報の提供にはログインが必要です</p>
@@ -72,32 +144,29 @@ export default function ShrineEditPage() {
               </div>
             ) : (
               <>
-                <div className="field-wrap">
-                  <label className="field-label" htmlFor="field">項目</label>
-                  <select id="field" className="field-input" value={fieldKey} onChange={(e) => setFieldKey(e.target.value)}>
-                    {FIELDS.map((f) => <option key={f.key} value={f.key}>{f.label}</option>)}
-                  </select>
-                </div>
-
-                <div className="field-wrap">
-                  <label className="field-label">{field.label}</label>
-                  {field.type === 'choice' && (
-                    <div className="chip-row">
-                      {Object.entries(field.options).map(([v, label]) => (
-                        <button key={v} type="button" className={`chip ${input === v ? 'active' : ''}`} onClick={() => setInput(v)}>{label}</button>
+                {SECTIONS.map(([title, keys]) => (
+                  <section key={title}>
+                    <div className="section-mini">{title}</div>
+                    <dl className="info">
+                      {keys.map((k) => (
+                        <div key={k} className={`info-row edit-row ${k in changes ? 'changed' : ''}`}>
+                          <dt>{FIELDS[k].label}</dt>
+                          <dd>
+                            <FieldInput field={FIELDS[k]} value={inputs[k]} onChange={set(k)} />
+                            {(k === 'nearest_station' || k === 'nearest_bus_stop') && !(k in changes) && <AccessHint shrine={shrine} prefix={k} />}
+                          </dd>
+                        </div>
                       ))}
-                    </div>
-                  )}
-                  {field.type === 'textarea' && (
-                    <textarea className="field-textarea" rows={6} placeholder={field.placeholder} value={input} onChange={(e) => setInput(e.target.value)} />
-                  )}
-                  {(field.type === 'text' || field.type === 'tags') && (
-                    <input className="field-input" placeholder={field.placeholder} value={input} onChange={(e) => setInput(e.target.value)} />
-                  )}
-                </div>
+                    </dl>
+                  </section>
+                ))}
 
-                <p className="muted small">提供された内容はすぐに反映され、変更の履歴が残ります。</p>
-                <button className="btn-primary mt16" onClick={submit} disabled={saving}>{saving ? '送信中…' : '送信する'}</button>
+                <p className="muted small mt16">変えた項目だけが送られ、すぐに反映されます。変更の履歴が残ります。</p>
+                <div className="action-row">
+                  <button className="btn-primary" onClick={submit} disabled={saving || !changedCount}>
+                    {saving ? '送信中…' : changedCount ? `${changedCount}項目をまとめて送信する` : '変更はまだありません'}
+                  </button>
+                </div>
 
                 <p className="mt24 small">
                   境内社・重複・現存しない神社など、一覧から外すべき場合は

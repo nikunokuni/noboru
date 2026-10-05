@@ -7,7 +7,8 @@
 
 -- ─── 列挙型 ─────────────────────────────────────────────────
 CREATE TYPE parking_status AS ENUM ('dedicated', 'nearby', 'none', 'unknown');
-CREATE TYPE goshuin_status AS ENUM ('available', 'written_only', 'none', 'unknown');
+-- 御朱印: direct_only=直書きのみ / written_only=書き置きのみ / both=直書き・書き置き / available=あり（種類は不明。旧データ）
+CREATE TYPE goshuin_status AS ENUM ('available', 'written_only', 'none', 'unknown', 'direct_only', 'both');
 CREATE TYPE shrine_status  AS ENUM ('active', 'hidden');
 CREATE TYPE request_status AS ENUM ('pending', 'approved', 'rejected');
 
@@ -33,14 +34,17 @@ CREATE TABLE shrines (
   benefits            TEXT[] NOT NULL DEFAULT '{}',  -- ご利益
   shrine_rank         TEXT,                     -- 社格
 
-  -- アクセス（駅・バス停は取り込み時に OSM から自動計算）
+  -- アクセス（駅・バス停は取り込み時に OSM から自動計算。情報提供されたら *_by_user = TRUE にして以後は上書きしない）
   nearest_station          TEXT,
-  nearest_station_m        INTEGER,             -- 直線距離（m）
+  nearest_station_m        INTEGER,             -- 直線距離（m）。情報提供された駅は NULL
+  nearest_station_by_user  BOOLEAN NOT NULL DEFAULT FALSE,
   nearest_bus_stop         TEXT,
   nearest_bus_stop_m       INTEGER,
+  nearest_bus_stop_by_user BOOLEAN NOT NULL DEFAULT FALSE,
   access_note              TEXT,                -- 「〇〇駅から徒歩15分、石段あり」など補足
   parking             parking_status NOT NULL DEFAULT 'unknown',
   goshuin             goshuin_status NOT NULL DEFAULT 'unknown',
+  goshuin_note        TEXT,                     -- 「授与は9時〜16時」「限定御朱印あり」など
 
   -- 特徴（神話・創建の背景など）
   features            TEXT,
@@ -110,7 +114,8 @@ CREATE TABLE shrine_edits (
   user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   field      TEXT NOT NULL CHECK (field IN (
                'address', 'deities', 'benefits', 'shrine_rank',
-               'access_note', 'parking', 'goshuin', 'features', 'name_kana')),
+               'access_note', 'parking', 'goshuin', 'features', 'name_kana',
+               'goshuin_note', 'nearest_station', 'nearest_bus_stop')),
   value      JSONB NOT NULL,                    -- 文字列 / 文字列配列 / 列挙値
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -205,19 +210,29 @@ FOR EACH ROW EXECUTE FUNCTION on_record_change();
 -- 情報提供を shrines に反映（最後に提供された内容を採用）
 CREATE OR REPLACE FUNCTION apply_shrine_edit() RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  txt TEXT := NULLIF(btrim(NEW.value #>> '{}'), '');   -- 文字列の項目。空なら NULL に戻す
 BEGIN
   UPDATE shrines SET
-    address         = CASE WHEN NEW.field = 'address'     THEN NEW.value #>> '{}' ELSE address END,
-    name_kana       = CASE WHEN NEW.field = 'name_kana'   THEN NEW.value #>> '{}' ELSE name_kana END,
-    deities         = CASE WHEN NEW.field = 'deities'     THEN NEW.value #>> '{}' ELSE deities END,
-    shrine_rank     = CASE WHEN NEW.field = 'shrine_rank' THEN NEW.value #>> '{}' ELSE shrine_rank END,
-    access_note     = CASE WHEN NEW.field = 'access_note' THEN NEW.value #>> '{}' ELSE access_note END,
-    features        = CASE WHEN NEW.field = 'features'    THEN NEW.value #>> '{}' ELSE features END,
-    features_source = CASE WHEN NEW.field = 'features'    THEN 'user' ELSE features_source END,
+    address         = CASE WHEN NEW.field = 'address'      THEN txt ELSE address END,
+    name_kana       = CASE WHEN NEW.field = 'name_kana'    THEN txt ELSE name_kana END,
+    deities         = CASE WHEN NEW.field = 'deities'      THEN txt ELSE deities END,
+    shrine_rank     = CASE WHEN NEW.field = 'shrine_rank'  THEN txt ELSE shrine_rank END,
+    access_note     = CASE WHEN NEW.field = 'access_note'  THEN txt ELSE access_note END,
+    goshuin_note    = CASE WHEN NEW.field = 'goshuin_note' THEN txt ELSE goshuin_note END,
+    features        = CASE WHEN NEW.field = 'features'     THEN txt ELSE features END,
+    features_source = CASE WHEN NEW.field = 'features'     THEN 'user' ELSE features_source END,
     benefits        = CASE WHEN NEW.field = 'benefits'
                         THEN ARRAY(SELECT jsonb_array_elements_text(NEW.value)) ELSE benefits END,
     parking         = CASE WHEN NEW.field = 'parking' THEN (NEW.value #>> '{}')::parking_status ELSE parking END,
     goshuin         = CASE WHEN NEW.field = 'goshuin' THEN (NEW.value #>> '{}')::goshuin_status ELSE goshuin END,
+    -- 駅・バス停：提供された文字（「〇〇駅 徒歩10分」など）をそのまま表示する。空にしたら次の取り込みで OSM の値に戻る
+    nearest_station         = CASE WHEN NEW.field = 'nearest_station' THEN txt ELSE nearest_station END,
+    nearest_station_m       = CASE WHEN NEW.field = 'nearest_station' THEN NULL ELSE nearest_station_m END,
+    nearest_station_by_user = CASE WHEN NEW.field = 'nearest_station' THEN txt IS NOT NULL ELSE nearest_station_by_user END,
+    nearest_bus_stop         = CASE WHEN NEW.field = 'nearest_bus_stop' THEN txt ELSE nearest_bus_stop END,
+    nearest_bus_stop_m       = CASE WHEN NEW.field = 'nearest_bus_stop' THEN NULL ELSE nearest_bus_stop_m END,
+    nearest_bus_stop_by_user = CASE WHEN NEW.field = 'nearest_bus_stop' THEN txt IS NOT NULL ELSE nearest_bus_stop_by_user END,
     updated_at      = NOW()
   WHERE id = NEW.shrine_id;
   RETURN NEW;
@@ -262,6 +277,7 @@ REVOKE EXECUTE ON FUNCTION refresh_shrine_stats(BIGINT) FROM PUBLIC, anon, authe
 -- ============================================================
 -- 取り込み処理用（scripts/import-shrines.mjs から service_role で呼ぶ）
 --   OSM 由来の列は毎回上書き。ユーザーが情報提供できる列は「空のときだけ」埋める
+--   駅・バス停は情報提供されたもの（*_by_user）を上書きしない
 -- ============================================================
 CREATE OR REPLACE FUNCTION import_shrines(rows JSONB) RETURNS INTEGER
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -287,10 +303,10 @@ BEGIN
     municipality       = EXCLUDED.municipality,
     lat                = EXCLUDED.lat,
     lng                = EXCLUDED.lng,
-    nearest_station    = EXCLUDED.nearest_station,
-    nearest_station_m  = EXCLUDED.nearest_station_m,
-    nearest_bus_stop   = EXCLUDED.nearest_bus_stop,
-    nearest_bus_stop_m = EXCLUDED.nearest_bus_stop_m,
+    nearest_station    = CASE WHEN s.nearest_station_by_user  THEN s.nearest_station    ELSE EXCLUDED.nearest_station END,
+    nearest_station_m  = CASE WHEN s.nearest_station_by_user  THEN s.nearest_station_m  ELSE EXCLUDED.nearest_station_m END,
+    nearest_bus_stop   = CASE WHEN s.nearest_bus_stop_by_user THEN s.nearest_bus_stop   ELSE EXCLUDED.nearest_bus_stop END,
+    nearest_bus_stop_m = CASE WHEN s.nearest_bus_stop_by_user THEN s.nearest_bus_stop_m ELSE EXCLUDED.nearest_bus_stop_m END,
     name_kana          = COALESCE(s.name_kana,   EXCLUDED.name_kana),
     address            = COALESCE(s.address,     EXCLUDED.address),
     deities            = COALESCE(s.deities,     EXCLUDED.deities),

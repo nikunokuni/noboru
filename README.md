@@ -25,6 +25,15 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 
 すでに以前の `schema.sql` で作ったプロジェクトでは、代わりに [`supabase/upgrade-admin.sql`](supabase/upgrade-admin.sql) の最後のメールアドレスを書き換えて実行する。
 
+### 既存プロジェクトの更新
+
+以前の `schema.sql` で作ったプロジェクトには、追加された機能の SQL を SQL Editor で実行する（どれも何度実行しても大丈夫）。
+
+| ファイル | 内容 |
+|---|---|
+| [`supabase/upgrade-admin.sql`](supabase/upgrade-admin.sql) | 申請の確認（管理者） |
+| [`supabase/upgrade-shrine-info.sql`](supabase/upgrade-shrine-info.sql) | 情報提供の新項目（御朱印の直書き・書き置き・メモ、最寄り駅・バス停） |
+
 ### 申請の確認（管理者）
 
 マイページの「申請の確認」から、神社の追加申請・一覧から外す報告を承認・却下できる（管理者にだけ表示）。

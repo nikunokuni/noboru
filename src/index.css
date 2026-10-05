@@ -151,6 +151,15 @@ a { color: inherit; }
 .info-row { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid rgba(26, 18, 8, 0.06); font-size: 13px; line-height: 1.7; }
 .info-row dt { width: 64px; flex-shrink: 0; font-size: 11px; color: var(--mist); padding-top: 2px; }
 .info-row dd { flex: 1; min-width: 0; }
+.pre-wrap { white-space: pre-wrap; }
+/* 情報の追加・訂正：神社詳細と同じ並びで入力欄を置く */
+.edit-row { align-items: flex-start; }
+.edit-row dt { padding-top: 9px; }
+.edit-row .chip-row { margin: 4px 0 4px; }
+.edit-row .edit-input { padding: 6px 0; font-size: 14px; font-family: var(--font-body); }
+.edit-row .edit-textarea { min-height: 64px; padding: 6px 0; line-height: 1.8; }
+.edit-row.changed dt { color: var(--vermillion); }
+.edit-row.changed dt::after { content: ' ●'; font-size: 8px; }
 .features { font-size: 13px; line-height: 2; white-space: pre-wrap; }
 .record-line { border-left: 3px solid; padding: 8px 0 8px 12px; margin-bottom: 10px; }
 .record-line-head { display: flex; gap: 10px; align-items: baseline; }
