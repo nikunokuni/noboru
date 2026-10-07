@@ -32,6 +32,27 @@ export async function countPendingRequests() {
   return count ?? 0
 }
 
+// ご意見・ご要望（新しい順）。done: true で対応済み、false で未対応
+export async function fetchFeedback({ done, limit = 200 }) {
+  let q = supabase.from('feedback').select('id, user_id, screen, body, done_at, created_at')
+  q = done ? q.not('done_at', 'is', null) : q.is('done_at', null)
+  const { data, error } = await q.order('created_at', { ascending: false }).limit(limit)
+  if (error) throw error
+  return data
+}
+
+export async function countOpenFeedback() {
+  const { count, error } = await supabase.from('feedback')
+    .select('id', { count: 'exact', head: true }).is('done_at', null)
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function setFeedbackDone(id, done) {
+  const { error } = await supabase.from('feedback').update({ done_at: done ? new Date().toISOString() : null }).eq('id', id)
+  if (error) throw error
+}
+
 // shrine: add を承認するときの内容 { name, name_kana, prefecture, address, lat, lng }
 export async function reviewShrineRequest(requestId, approve, shrine = {}) {
   const { data, error } = await supabase.rpc('review_shrine_request', { request_id: requestId, approve, shrine })

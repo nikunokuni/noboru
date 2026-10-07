@@ -14,12 +14,14 @@ import ShrinePage from './pages/ShrinePage'
 import ShrineEditPage from './pages/ShrineEditPage'
 import ShrineRequestPage from './pages/ShrineRequestPage'
 import ProfilePage from './pages/ProfilePage'
+import FeedbackPage from './pages/FeedbackPage'
 
 // 地図ライブラリは大きいので、マップを開いたときに読み込む
 const MapPage = lazy(() => import('./pages/MapPage'))
 // 管理者しか使わないので、開いたときに読み込む
 const AdminRequestsPage = lazy(() => import('./pages/AdminRequestsPage'))
 const AdminEditsPage = lazy(() => import('./pages/AdminEditsPage'))
+const AdminFeedbackPage = lazy(() => import('./pages/AdminFeedbackPage'))
 
 // 下部タブのある画面
 function TabLayout() {
@@ -47,6 +49,8 @@ export default function App() {
                 <Route path="/shrine/:id/edit" element={<ShrineEditPage />} />
                 <Route path="/request" element={<ShrineRequestPage />} />
                 <Route path="/admin/requests" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminRequestsPage /></Suspense>} />
+                <Route path="/feedback" element={<FeedbackPage />} />
+                <Route path="/admin/feedback" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminFeedbackPage /></Suspense>} />
                 <Route path="/admin/edits" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminEditsPage /></Suspense>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>

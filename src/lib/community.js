@@ -68,3 +68,8 @@ export async function submitShrineRequest(request) {
   const { error } = await supabase.from('shrine_requests').insert(request)
   if (error) throw error
 }
+
+export async function submitFeedback({ userId, screen, body }) {
+  const { error } = await supabase.from('feedback').insert({ user_id: userId, screen, body })
+  if (error) throw error
+}

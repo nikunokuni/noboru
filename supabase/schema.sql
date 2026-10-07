@@ -163,6 +163,18 @@ CREATE TABLE banned_editors (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- アプリへのご意見・ご要望（管理者だけが読める）
+CREATE TABLE feedback (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  screen     TEXT NOT NULL CHECK (screen IN ('nearby', 'record', 'shrine', 'map', 'search', 'records', 'profile', 'other')),  -- どの画面について
+  body       TEXT NOT NULL CHECK (char_length(btrim(body)) BETWEEN 1 AND 2000),
+  done_at    TIMESTAMPTZ,                       -- 管理者が「対応済み」にした時刻
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_feedback_created ON feedback(created_at DESC);
+
 -- ============================================================
 -- 4. 参拝の手引き（note 記事へのリンク）
 --    context: 'general'=マイページ一覧 / 'etiquette'=記録画面 / 'goshuin'=御朱印欄 など
@@ -515,6 +527,7 @@ ALTER TABLE guide_links          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE app_meta             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admins               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE banned_editors       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE feedback             ENABLE ROW LEVEL SECURITY;
 
 -- 神社：誰でも読める。書き込みは取り込み処理（service_role）とトリガーのみ
 CREATE POLICY shrines_read ON shrines FOR SELECT USING (status = 'active');
@@ -551,6 +564,11 @@ CREATE POLICY requests_insert ON shrine_requests FOR INSERT WITH CHECK (auth.uid
 -- 管理者：自分が管理者かどうかだけ読める（登録は SQL Editor から）
 CREATE POLICY admins_read_self ON admins FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY banned_editors_admin_read ON banned_editors FOR SELECT USING (is_admin());
+
+-- ご意見・ご要望：ログインユーザーが送れる（止められたユーザーを除く）。読む・対応済みにするのは管理者だけ
+CREATE POLICY feedback_insert ON feedback FOR INSERT WITH CHECK (auth.uid() = user_id AND NOT is_edit_banned());
+CREATE POLICY feedback_admin_read   ON feedback FOR SELECT USING (is_admin());
+CREATE POLICY feedback_admin_update ON feedback FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
 
 -- 手引きリンク・設定値：誰でも読める（編集はダッシュボードから）
 -- 神社一覧ファイルの版は、管理者がアプリから一覧を作り直したときにも更新する

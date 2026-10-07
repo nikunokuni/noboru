@@ -6,7 +6,7 @@ import { GuideLinkList } from '../components/GuideLinks'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyRecords } from '../lib/records'
-import { fetchIsAdmin, countPendingRequests } from '../lib/admin'
+import { fetchIsAdmin, countPendingRequests, countOpenFeedback } from '../lib/admin'
 import { titleFor } from '../lib/constants'
 
 export default function ProfilePage() {
@@ -14,6 +14,7 @@ export default function ProfilePage() {
   const { syncRevision } = usePendingRecords()
   const [stats, setStats] = useState(null)
   const [pendingRequests, setPendingRequests] = useState(null) // 管理者のときだけ数が入る
+  const [openFeedback, setOpenFeedback] = useState(0)
 
   useEffect(() => {
     if (!user) return
@@ -27,8 +28,11 @@ export default function ProfilePage() {
   useEffect(() => {
     setPendingRequests(null)
     if (!user) return
-    fetchIsAdmin(user.id).then((admin) => admin && countPendingRequests().then(setPendingRequests))
-      .catch(() => {})
+    fetchIsAdmin(user.id).then((admin) => {
+      if (!admin) return
+      countPendingRequests().then(setPendingRequests).catch(() => {})
+      countOpenFeedback().then(setOpenFeedback).catch(() => {})
+    }).catch(() => {})
   }, [user])
 
   const title = stats && titleFor(stats.shrines)
@@ -66,6 +70,9 @@ export default function ProfilePage() {
               申請の確認{pendingRequests > 0 ? `（未確認 ${pendingRequests}件）` : ''}
             </Link>
             <Link to="/admin/edits" className="btn-secondary mt8">情報提供の確認</Link>
+            <Link to="/admin/feedback" className="btn-secondary mt8">
+              ご意見・ご要望の確認{openFeedback > 0 ? `（未対応 ${openFeedback}件）` : ''}
+            </Link>
           </>
         )}
 
@@ -73,6 +80,8 @@ export default function ProfilePage() {
           <div className="section-mini">参拝の手引き</div>
           <GuideLinkList context="general" />
         </section>
+
+        <Link to="/feedback" className="btn-secondary mt24">アプリへのご意見・ご要望</Link>
 
         {user && (
           <div className="logout">

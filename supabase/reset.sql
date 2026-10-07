@@ -9,7 +9,7 @@ DROP POLICY IF EXISTS public_data_admin_insert ON storage.objects;
 DROP POLICY IF EXISTS public_data_admin_read   ON storage.objects;
 
 DROP TABLE IF EXISTS photos, record_private_notes, records, shrine_edits, shrine_requests,
-  guide_links, app_meta, admins, banned_editors, shrines CASCADE;
+  guide_links, app_meta, admins, banned_editors, feedback, shrines CASCADE;
 
 DROP FUNCTION IF EXISTS import_shrines(JSONB), refresh_shrine_stats(BIGINT), refresh_shrine_stats(UUID),
   on_record_change(), apply_shrine_edit(), get_app_stats(), get_prefecture_progress(),

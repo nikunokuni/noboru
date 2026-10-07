@@ -234,3 +234,4 @@ a { color: inherit; }
 .photo-grid .photo { width: 100%; height: auto; aspect-ratio: 1; cursor: zoom-in; }
 .lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); display: flex; align-items: center; justify-content: center; z-index: 3000; cursor: zoom-out; }
 .lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.feedback-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
