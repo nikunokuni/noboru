@@ -44,7 +44,7 @@ export default function NicknameSettings({ userId }) {
   if (!saved) return null
 
   return (
-    <section className="mt24">
+    <section>
       <div className="section-mini">ニックネーム</div>
       <input className="field-input" placeholder={`${NICKNAME_MAX_LENGTH}文字まで`} maxLength={NICKNAME_MAX_LENGTH}
         value={nickname} onChange={(e) => setNickname(e.target.value)} aria-label="ニックネーム" />

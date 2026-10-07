@@ -95,3 +95,18 @@ export async function saveMyProfile({ userId, nickname, showName }) {
 }
 
 export const isDuplicateNicknameError = (e) => e?.code === '23505'
+
+// ─── 神社でお祈りしたいこと（本人だけが読める） ─────────────
+export const PRAYER_MAX_LENGTH = 1000
+
+export async function fetchMyPrayer(userId) {
+  const { data, error } = await supabase.from('prayers').select('body').eq('user_id', userId).maybeSingle()
+  if (error) throw error
+  return data?.body || ''
+}
+
+export async function saveMyPrayer({ userId, body }) {
+  const { error } = await supabase.from('prayers')
+    .upsert({ user_id: userId, body, updated_at: new Date().toISOString() })
+  if (error) throw error
+}

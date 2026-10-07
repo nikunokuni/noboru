@@ -188,6 +188,13 @@ CREATE TABLE profiles (
 -- 同じニックネーム（大文字・小文字の違いを含む）は1人だけ
 CREATE UNIQUE INDEX idx_profiles_nickname ON profiles (lower(nickname)) WHERE nickname IS NOT NULL;
 
+-- 神社でお祈りしたいこと（マイページの自由記述。本人だけが読み書きできる。管理者も読めない）
+CREATE TABLE prayers (
+  user_id    UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  body       TEXT NOT NULL DEFAULT '' CHECK (char_length(body) <= 1000),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- ============================================================
 -- 4. 参拝の手引き（note 記事へのリンク）
 --    context: 'general'=マイページ一覧 / 'etiquette'=記録画面 / 'goshuin'=御朱印欄 など
@@ -623,6 +630,7 @@ ALTER TABLE admins               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE banned_editors       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE prayers              ENABLE ROW LEVEL SECURITY;
 
 -- 神社：誰でも読める。書き込みは取り込み処理（service_role）とトリガーのみ
 CREATE POLICY shrines_read ON shrines FOR SELECT USING (status = 'active');
@@ -666,6 +674,10 @@ CREATE POLICY banned_editors_admin_read ON banned_editors FOR SELECT USING (is_a
 CREATE POLICY profiles_read   ON profiles FOR SELECT USING (auth.uid() = user_id OR is_admin());
 CREATE POLICY profiles_insert ON profiles FOR INSERT WITH CHECK (auth.uid() = user_id AND NOT is_edit_banned());
 CREATE POLICY profiles_update ON profiles FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id AND NOT is_edit_banned());
+
+-- 神社でお祈りしたいこと：本人のみ
+CREATE POLICY prayers_owner ON prayers FOR ALL
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- ご意見・ご要望：ログインユーザーが送れる（止められたユーザーを除く）。読む・対応済みにするのは管理者だけ
 CREATE POLICY feedback_insert ON feedback FOR INSERT WITH CHECK (auth.uid() = user_id AND NOT is_edit_banned());

@@ -1,9 +1,10 @@
-// マイページ：参拝の数字・称号・参拝の手引き（note）
+// マイページ：ニックネーム・称号・参拝の数字・お祈りしたいこと・参拝の手引き（note）
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { GuideLinkList } from '../components/GuideLinks'
 import NicknameSettings from '../components/NicknameSettings'
+import PrayerBox from '../components/PrayerBox'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyRecords } from '../lib/records'
@@ -52,8 +53,8 @@ export default function ProfilePage() {
 
         {user && (
           <>
-            <div className="center">
-              <div className="profile-name">{user.user_metadata?.name || user.email?.split('@')[0]}</div>
+            <NicknameSettings userId={user.id} />
+            <div className="center mt24">
               {title && <div className="title-badge">⛩ {title.current}</div>}
               {title?.next && <p className="muted small mt8">「{title.next.label}」まで あと{title.next.remaining}社</p>}
             </div>
@@ -62,7 +63,7 @@ export default function ProfilePage() {
               <div className="stat"><div className="stat-num">{stats?.records ?? '—'}</div><div className="stat-label">記録</div></div>
               <div className="stat"><div className="stat-num">{stats?.avg ?? '—'}</div><div className="stat-label">感動の平均</div></div>
             </div>
-            <NicknameSettings userId={user.id} />
+            <PrayerBox userId={user.id} />
           </>
         )}
 
