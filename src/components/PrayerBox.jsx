@@ -39,7 +39,7 @@ export default function PrayerBox({ userId }) {
   return (
     <section className="prayer-box mt24">
       <div className="section-mini">神社でお祈りしたいこと</div>
-      <textarea className="field-textarea" placeholder="参拝のときに伝えたいことを自由に（自分だけが見られます）"
+      <textarea className="field-textarea" placeholder="具体的に○○ありがとうという感謝や、これから○○やっていきますという報告などがよいとされています"
         maxLength={PRAYER_MAX_LENGTH} value={body} onChange={(e) => setBody(e.target.value)}
         disabled={saved == null} aria-label="神社でお祈りしたいこと" />
       {changed && <button className="btn-primary mt8" onClick={save} disabled={saving}>{saving ? '保存中…' : '保存する'}</button>}
