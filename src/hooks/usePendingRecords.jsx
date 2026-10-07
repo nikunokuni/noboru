@@ -17,17 +17,23 @@ export function PendingRecordsProvider({ children }) {
     setPending(user ? await listPending(user.id) : [])
   }, [user])
 
-  const syncNow = useCallback(async () => {
+  // 送るだけ（お知らせは出さない）
+  const send = useCallback(async () => {
     if (!user || !navigator.onLine) return []
     const { sent } = await syncPending(user.id)
     await reload()
+    if (sent.length) setSyncRevision((n) => n + 1)
+    return sent
+  }, [user, reload])
+
+  const syncNow = useCallback(async () => {
+    const sent = await send()
     if (!sent.length) return sent
-    setSyncRevision((n) => n + 1)
     const first = sent.find((s) => s.firstVisitor)
     if (first) showToast(`あなたが「${first.shrineName}」の最初の参拝者です　⛩`, 5000)
     else showToast(sent.length === 1 ? '記録を送信しました　⛩' : `${sent.length}件の記録を送信しました`)
     return sent
-  }, [user, reload, showToast])
+  }, [send, showToast])
 
   useEffect(() => {
     reload().then(syncNow)
@@ -42,12 +48,15 @@ export function PendingRecordsProvider({ children }) {
     return () => clearInterval(t)
   }, [pending, syncNow])
 
+  // 記録の保存。お知らせは「記録完了！」の1つにまとめる（3秒ほどで消える）
   const addRecord = useCallback(async (record) => {
     await enqueueRecord(record)
     await reload()
-    const sent = await syncNow()
-    if (!sent.some((s) => s.id === record.id)) showToast('端末に保存しました。電波が戻ったら送信します', 3500)
-  }, [reload, syncNow, showToast])
+    const mine = (await send()).find((s) => s.id === record.id)
+    if (!mine) showToast('記録完了！　電波が戻ったら送信します', 4000)
+    else if (mine.firstVisitor) showToast(`記録完了！　あなたが「${mine.shrineName}」の最初の参拝者です　⛩`, 5000)
+    else showToast('記録完了！', 3000)
+  }, [reload, send, showToast])
 
   const discard = useCallback(async (id) => {
     await removePending(id)

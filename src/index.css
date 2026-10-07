@@ -223,9 +223,6 @@ a { color: inherit; }
 .tagger-question { font-family: var(--font-mincho); font-size: 15px; letter-spacing: 0.12em; margin: 18px 0 12px; }
 .tagger-tags { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
 .tagger-tags .chip { font-size: 14px; padding: 12px 4px; }
-.record-done { text-align: center; padding: 56px 0 0; }
-.record-done-mark { font-size: 44px; color: var(--vermillion); }
-.record-done-title { font-family: var(--font-mincho); font-size: 26px; letter-spacing: 0.2em; margin: 14px 0 8px; }
 .tagged-photo { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .photo-tag { font-size: 10px; color: rgba(26, 18, 8, 0.55); letter-spacing: 0.08em; }
 .tag-select { font-size: 11px; padding: 2px; border: 1px solid rgba(26, 18, 8, 0.2); border-radius: 4px; background: var(--paper); width: 72px; }

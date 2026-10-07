@@ -49,7 +49,7 @@ export default function RecordPage() {
   const [form, setForm] = useState(emptyForm)
   const [position, setPosition] = useState(null)
   const [saving, setSaving] = useState(false)
-  // form: 入力 → tagging: 写真のタグを1枚ずつ → done: 記録完了
+  // form: 入力 → tagging: 写真のタグを1枚ずつ
   const [step, setStep] = useState('form')
   const [tagIndex, setTagIndex] = useState(0)
   const fileRef = useRef(null)
@@ -130,34 +130,16 @@ export default function RecordPage() {
         created_at: new Date().toISOString(),
       })
       markVisited(shrine.id)
-      setStep('done')
-      window.scrollTo(0, 0)
+      leave()
     } catch {
       showToast('端末への保存に失敗しました')
       setStep('form')
-    } finally {
       setSaving(false)
     }
   }
 
   if (shrine === undefined) return <div className="app-shell"><TopBar back title="参拝を記録" /><div className="page-content"><div className="spinner" /></div></div>
   if (shrine === null) return <div className="app-shell"><TopBar back title="参拝を記録" /><div className="page-content"><p className="muted center">神社が見つかりませんでした（電波の届く場所で開き直してください）</p></div></div>
-
-  if (step === 'done') {
-    return (
-      <div className="app-shell">
-        <TopBar title="" />
-        <div className="page-content">
-          <div className="record-done">
-            <div className="record-done-mark">⛩</div>
-            <p className="record-done-title">記録完了！</p>
-            <p className="muted small">{shrine.name}</p>
-            <button className="btn-primary mt24" onClick={leave}>戻る</button>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   if (step === 'tagging') {
     return (
