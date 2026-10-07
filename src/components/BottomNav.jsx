@@ -8,7 +8,7 @@ const Icon = ({ d }) => (
 )
 
 const ITEMS = [
-  { to: '/', label: '記録', end: true, icon: <path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" strokeLinecap="round" strokeLinejoin="round" /> },
+  { to: '/', label: '近くの神社', end: true, icon: <path d="M3 5c3 1 15 1 18 0M5 9h14M7 5.5V21M17 5.5V21M12 9v-3" strokeLinecap="round" strokeLinejoin="round" /> },
   { to: '/map', label: 'マップ', icon: <><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" strokeLinejoin="round" /><path d="M9 4v14M15 6v14" /></> },
   { to: '/search', label: '探す', icon: <><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" strokeLinecap="round" /></> },
   { to: '/records', label: '一覧', icon: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" strokeLinecap="round" /> },

@@ -6,6 +6,7 @@ import { ShrineIndexProvider } from './hooks/useShrineIndex'
 import { PendingRecordsProvider } from './hooks/usePendingRecords'
 import BottomNav from './components/BottomNav'
 import HomePage from './pages/HomePage'
+import RecordPage from './pages/RecordPage'
 import SearchPage from './pages/SearchPage'
 import RecordsPage from './pages/RecordsPage'
 import RecordDetailPage from './pages/RecordDetailPage'
@@ -40,6 +41,7 @@ export default function App() {
                   <Route path="/records" element={<RecordsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                 </Route>
+                <Route path="/record/:shrineId" element={<RecordPage />} />
                 <Route path="/records/:id" element={<RecordDetailPage />} />
                 <Route path="/shrine/:id" element={<ShrinePage />} />
                 <Route path="/shrine/:id/edit" element={<ShrineEditPage />} />

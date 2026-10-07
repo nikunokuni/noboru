@@ -129,6 +129,9 @@ a { color: inherit; }
 /* 神社選択 */
 .shrine-row { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 8px; text-align: left; padding: 11px 2px; background: none; border: none; border-bottom: 1px solid rgba(26, 18, 8, 0.07); cursor: pointer; }
 .shrine-row-name { font-family: var(--font-mincho); font-size: 15px; letter-spacing: 0.06em; }
+.finder-row { display: flex; align-items: center; border-bottom: 1px solid rgba(26, 18, 8, 0.07); }
+.finder-row .shrine-row { flex: 1; min-width: 0; border-bottom: none; }
+.detail-btn { flex-shrink: 0; margin-left: 8px; padding: 6px 10px; background: none; border: 1px solid rgba(26, 18, 8, 0.15); border-radius: 14px; color: rgba(26, 18, 8, 0.6); font-family: var(--font-mincho); font-size: 11px; letter-spacing: 0.08em; cursor: pointer; }
 .picked { display: flex; justify-content: space-between; align-items: center; }
 .picked-name { font-family: var(--font-mincho); font-size: 17px; letter-spacing: 0.08em; margin-bottom: 2px; }
 

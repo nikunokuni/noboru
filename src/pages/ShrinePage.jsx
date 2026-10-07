@@ -110,7 +110,7 @@ export default function ShrinePage() {
         </div>
 
         <div className="action-row">
-          <button className="btn-primary" onClick={() => navigate(`/?shrine=${shrine.id}`)}>ここを記録する</button>
+          <button className="btn-primary" onClick={() => navigate(`/record/${shrine.id}`)}>ここを記録する</button>
         </div>
 
         <section>
