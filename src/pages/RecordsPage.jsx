@@ -48,10 +48,24 @@ export default function RecordsPage() {
     })),
   ].filter(FILTERS.find((f) => f.key === filter).test)
 
+  // 参拝の数字（送信済みの記録から）
+  const stats = records && {
+    shrines: new Set(records.map((r) => r.shrine_id)).size,
+    records: records.length,
+    avg: records.length ? Math.round(records.reduce((s, r) => s + r.emotion_level, 0) / records.length) : 0,
+  }
+
   return (
     <div className="app-shell">
-      <TopBar title="記録の一覧" />
+      <TopBar title="自分の記録" />
       <div className="page-content">
+        {user && (
+          <div className="stat-row mb16">
+            <div className="stat"><div className="stat-num">{stats?.shrines ?? '—'}</div><div className="stat-label">参拝した神社</div></div>
+            <div className="stat"><div className="stat-num">{stats?.records ?? '—'}</div><div className="stat-label">記録</div></div>
+            <div className="stat"><div className="stat-num">{stats?.avg ?? '—'}</div><div className="stat-label">感動の平均</div></div>
+          </div>
+        )}
         <div className="chip-row">
           {FILTERS.map((f) => (
             <button key={f.key} className={`chip ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>{f.label}</button>

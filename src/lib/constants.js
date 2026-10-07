@@ -107,7 +107,7 @@ export function emotionMarks(value) {
 // ご意見・ご要望：どの画面についてか
 export const FEEDBACK_SCREENS = [
   ['nearby', '近くの神社'], ['record', '記録画面'], ['shrine', '神社詳細'], ['map', 'マップ'],
-  ['search', '探す'], ['records', '一覧'], ['profile', 'マイページ'], ['other', 'その他'],
+  ['search', '探す'], ['records', '自分の記録'], ['profile', 'マイページ'], ['other', 'その他'],
 ]
 export const FEEDBACK_SCREEN_LABELS = Object.fromEntries(FEEDBACK_SCREENS)
 export const FEEDBACK_MAX_LENGTH = 2000

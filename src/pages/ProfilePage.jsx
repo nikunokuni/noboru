@@ -1,4 +1,4 @@
-// マイページ：ニックネーム・称号・参拝の数字・お祈りしたいこと・参拝の手引き（note）
+// マイページ：ニックネーム・称号・お祈りしたいこと・参拝の手引き（note）
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
@@ -14,16 +14,14 @@ import { titleFor } from '../lib/constants'
 export default function ProfilePage() {
   const { user, loading, signInWithGoogle, signOut } = useAuth()
   const { syncRevision } = usePendingRecords()
-  const [stats, setStats] = useState(null)
+  const [shrineCount, setShrineCount] = useState(null)
   const [pendingRequests, setPendingRequests] = useState(null) // 管理者のときだけ数が入る
   const [openFeedback, setOpenFeedback] = useState(0)
 
   useEffect(() => {
     if (!user) return
     fetchMyRecords(user.id).then((records) => {
-      const shrines = new Set(records.map((r) => r.shrine_id)).size
-      const avg = records.length ? Math.round(records.reduce((s, r) => s + r.emotion_level, 0) / records.length) : 0
-      setStats({ records: records.length, shrines, avg })
+      setShrineCount(new Set(records.map((r) => r.shrine_id)).size)
     }).catch(() => {})
   }, [user, syncRevision])
 
@@ -37,7 +35,7 @@ export default function ProfilePage() {
     }).catch(() => {})
   }, [user])
 
-  const title = stats && titleFor(stats.shrines)
+  const title = shrineCount != null && titleFor(shrineCount)
 
   return (
     <div className="app-shell">
@@ -57,11 +55,6 @@ export default function ProfilePage() {
             <div className="center mt24">
               {title && <div className="title-badge">⛩ {title.current}</div>}
               {title?.next && <p className="muted small mt8">「{title.next.label}」まで あと{title.next.remaining}社</p>}
-            </div>
-            <div className="stat-row mt16">
-              <div className="stat"><div className="stat-num">{stats?.shrines ?? '—'}</div><div className="stat-label">参拝した神社</div></div>
-              <div className="stat"><div className="stat-num">{stats?.records ?? '—'}</div><div className="stat-label">記録</div></div>
-              <div className="stat"><div className="stat-num">{stats?.avg ?? '—'}</div><div className="stat-label">感動の平均</div></div>
             </div>
             <PrayerBox userId={user.id} />
           </>
