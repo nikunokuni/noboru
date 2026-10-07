@@ -9,12 +9,13 @@ import { usePendingRecords } from '../hooks/usePendingRecords'
 import EmotionSlider from '../components/EmotionSlider'
 import { MemoFields, VisibilityPicker } from '../components/MemoFields'
 import { GuideInlineLink } from '../components/GuideLinks'
+import PhotoTagger from '../components/PhotoTagger'
 import { compressImage } from '../lib/imageCompress'
 import { distanceM, formatDistance, getCurrentPosition } from '../lib/geo'
 import { getById } from '../lib/indexCore'
 import { serverGetShrineItem } from '../lib/shrineIndex'
 import { placeLabel, todayStr } from '../lib/format'
-import { MAX_PHOTOS, ONSITE_RADIUS_M } from '../lib/constants'
+import { DEFAULT_PHOTO_TAG, MAX_PHOTOS, ONSITE_RADIUS_M } from '../lib/constants'
 
 const emptyForm = () => ({
   visitedOn: todayStr(), emotion: 50,
@@ -48,6 +49,9 @@ export default function RecordPage() {
   const [form, setForm] = useState(emptyForm)
   const [position, setPosition] = useState(null)
   const [saving, setSaving] = useState(false)
+  // form: 入力 → tagging: 写真のタグを1枚ずつ → done: 記録完了
+  const [step, setStep] = useState('form')
+  const [tagIndex, setTagIndex] = useState(0)
   const fileRef = useRef(null)
   const update = (patch) => setForm((f) => ({ ...f, ...patch }))
 
@@ -76,7 +80,7 @@ export default function RecordPage() {
     for (const file of files) {
       try {
         const blob = await compressImage(file)
-        const photo = { blob, preview: URL.createObjectURL(blob) }
+        const photo = { blob, preview: URL.createObjectURL(blob), tag: DEFAULT_PHOTO_TAG }
         setForm((f) => ({ ...f, photos: [...f.photos, photo] }))
       } catch {
         showToast('画像の処理に失敗しました')
@@ -89,8 +93,21 @@ export default function RecordPage() {
     update({ photos: form.photos.filter((_, j) => j !== i) })
   }
 
-  const handleSave = async () => {
+  // 「記録する」：写真があれば先にタグを選んでもらう
+  const handleSave = () => {
     if (form.visitedOn > todayStr()) { showToast('参拝日が未来になっています'); return }
+    if (form.photos.length) { setTagIndex(0); setStep('tagging'); window.scrollTo(0, 0); return }
+    save(form.photos)
+  }
+
+  const handleTag = (tag) => {
+    const photos = form.photos.map((p, i) => (i === tagIndex ? { ...p, tag } : p))
+    setForm((f) => ({ ...f, photos }))
+    if (tagIndex + 1 < photos.length) setTagIndex(tagIndex + 1)
+    else save(photos)
+  }
+
+  const save = async (photos) => {
     setSaving(true)
     try {
       const dist = position ? distanceM(position.lat, position.lng, shrine.lat, shrine.lng) : null
@@ -108,21 +125,51 @@ export default function RecordPage() {
         is_public: form.isPublic,
         onsite,
         location_accuracy_m: onsite ? position.accuracy : null,
-        photos: form.photos.map((p) => p.blob),
+        photos: photos.map((p) => p.blob),
+        photo_tags: photos.map((p) => p.tag),
         created_at: new Date().toISOString(),
       })
       markVisited(shrine.id)
-      form.photos.forEach((p) => URL.revokeObjectURL(p.preview))
-      photosRef.current = []
-      leave()
+      setStep('done')
+      window.scrollTo(0, 0)
     } catch {
       showToast('端末への保存に失敗しました')
+      setStep('form')
+    } finally {
       setSaving(false)
     }
   }
 
   if (shrine === undefined) return <div className="app-shell"><TopBar back title="参拝を記録" /><div className="page-content"><div className="spinner" /></div></div>
   if (shrine === null) return <div className="app-shell"><TopBar back title="参拝を記録" /><div className="page-content"><p className="muted center">神社が見つかりませんでした（電波の届く場所で開き直してください）</p></div></div>
+
+  if (step === 'done') {
+    return (
+      <div className="app-shell">
+        <TopBar title="" />
+        <div className="page-content">
+          <div className="record-done">
+            <div className="record-done-mark">⛩</div>
+            <p className="record-done-title">記録完了！</p>
+            <p className="muted small">{shrine.name}</p>
+            <button className="btn-primary mt24" onClick={leave}>戻る</button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (step === 'tagging') {
+    return (
+      <div className="app-shell">
+        <TopBar title="写真のタグ" />
+        <div className="page-content">
+          <PhotoTagger photos={form.photos} index={tagIndex} saving={saving} onTag={handleTag}
+            onBack={() => (tagIndex > 0 ? setTagIndex(tagIndex - 1) : setStep('form'))} />
+        </div>
+      </div>
+    )
+  }
 
   const distance = position ? distanceM(position.lat, position.lng, shrine.lat, shrine.lng) : null
 

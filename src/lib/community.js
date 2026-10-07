@@ -35,6 +35,16 @@ export async function fetchPublicRecords(shrineId, limit = 20) {
   return data
 }
 
+// 神社の写真（公開記録のものだけ・新しい順）
+export async function fetchShrinePhotos(shrineId, limit = 200) {
+  const { data, error } = await supabase.from('photos')
+    .select('path, tag, created_at, records!inner(shrine_id, is_public)')
+    .eq('records.shrine_id', shrineId).eq('records.is_public', true)
+    .order('created_at', { ascending: false }).limit(limit)
+  if (error) throw error
+  return data.map(({ path, tag }) => ({ path, tag }))
+}
+
 export async function fetchMyRecordsForShrine(shrineId, userId) {
   const { data, error } = await supabase.from('records')
     .select('id, user_id, visited_on, emotion_level, public_memo, is_public, photos(path)')

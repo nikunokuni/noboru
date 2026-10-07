@@ -44,8 +44,19 @@ export function titleFor(shrineCount) {
 export const EDIT_FIELD_LABELS = {
   name_kana: 'よみがな', address: '住所', deities: 'ご祭神', benefits: 'ご利益', shrine_rank: '社格',
   nearest_station: '最寄り駅', nearest_bus_stop: 'バス停', parking: '駐車場', access_note: 'アクセス補足',
-  goshuin: '御朱印', goshuin_note: '御朱印のメモ', features: '神話・由緒',
+  goshuin: '御朱印', goshuin_note: '御朱印のメモ', features: '由緒',
+  founded: '創建', annual_festival: '例祭', visiting_hours: '拝観時間', highlights: '見どころ',
 }
+
+// 写真のタグ（1枚に1つ）。並びは選ぶ画面・神社詳細の表示順
+export const PHOTO_TAGS = [
+  ['torii', '鳥居'], ['komainu', '狛犬'], ['honden', '本殿'],
+  ['goshuin', '御朱印'], ['signboard', '案内板'], ['other', 'その他'],
+]
+export const PHOTO_TAG_LABELS = Object.fromEntries(PHOTO_TAGS)
+export const DEFAULT_PHOTO_TAG = 'other'
+// 神社詳細で大きく出す写真のタグ
+export const MAIN_PHOTO_TAG = 'honden'
 
 export const PARKING_LABELS = {
   dedicated: '専用駐車場あり',

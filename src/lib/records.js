@@ -1,13 +1,14 @@
 // 参拝記録：端末への一時保存（オフライン対応）とサーバーとのやりとり
 import { get, set } from 'idb-keyval'
 import { supabase, isNetworkError } from './supabase.js'
+import { DEFAULT_PHOTO_TAG } from './constants.js'
 
 const KEY_PENDING = 'pending-records'
 
 // ─── 未送信の記録（IndexedDB） ───────────────────────────────
 // 1件の形: { id, user_id, shrine_id, shrine_name, visited_on, emotion_level, public_memo,
 //           private_memo, next_memo, is_public, onsite, location_accuracy_m, photos: Blob[],
-//           created_at, last_error }
+//           photo_tags: string[]（photos と同じ並び。以前の版で保存した記録にはない）, created_at, last_error }
 
 export async function listPending(userId) {
   const all = (await get(KEY_PENDING)) || []
@@ -55,7 +56,7 @@ async function uploadRecord(r) {
     const { error: upErr } = await supabase.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' })
     if (upErr && !/exists|Duplicate/i.test(upErr.message)) throw upErr
     const { error } = await supabase.from('photos')
-      .upsert({ record_id: r.id, user_id: r.user_id, path }, { onConflict: 'path', ignoreDuplicates: true })
+      .upsert({ record_id: r.id, user_id: r.user_id, path, tag: r.photo_tags?.[n] || DEFAULT_PHOTO_TAG }, { onConflict: 'path', ignoreDuplicates: true })
     if (error) throw error
   }
 
@@ -88,7 +89,7 @@ export function syncPending(userId) {
 }
 
 // ─── サーバー上の記録 ─────────────────────────────────────────
-const RECORD_FIELDS = 'id, shrine_id, visited_on, emotion_level, public_memo, next_memo, is_public, onsite, created_at, shrines(id, name, prefecture), photos(path)'
+const RECORD_FIELDS = 'id, shrine_id, visited_on, emotion_level, public_memo, next_memo, is_public, onsite, created_at, shrines(id, name, prefecture), photos(path, tag)'
 
 export async function fetchMyRecords(userId) {
   const { data, error } = await supabase.from('records').select(RECORD_FIELDS)
@@ -114,6 +115,14 @@ export async function updateRecord(record, changes) {
     const { error: e2 } = await supabase.from('record_private_notes')
       .upsert({ record_id: record.id, user_id: record.user_id, private_memo })
     if (e2) throw e2
+  }
+}
+
+// 写真のタグを付け直す。tags: { path: tag }
+export async function updatePhotoTags(tags) {
+  for (const [path, tag] of Object.entries(tags)) {
+    const { error } = await supabase.from('photos').update({ tag }).eq('path', path)
+    if (error) throw error
   }
 }
 

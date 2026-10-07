@@ -215,3 +215,25 @@ a { color: inherit; }
 .map-popup-name { font-family: var(--font-mincho); font-size: 14px; margin-bottom: 2px; }
 .map-popup-sub { font-size: 11px; color: var(--mist); margin-bottom: 8px; }
 .map-popup-btn { background: var(--ink); color: var(--paper); border: none; border-radius: 4px; padding: 6px 12px; font-size: 11px; cursor: pointer; font-family: var(--font-mincho); letter-spacing: 0.1em; }
+
+/* 写真のタグ */
+.tagger { text-align: center; }
+.tagger-step { font-size: 11px; letter-spacing: 0.2em; color: rgba(26, 18, 8, 0.45); margin: 4px 0 12px; }
+.tagger-photo { width: 100%; max-height: 52vh; object-fit: contain; border-radius: 8px; background: var(--paper2); display: block; }
+.tagger-question { font-family: var(--font-mincho); font-size: 15px; letter-spacing: 0.12em; margin: 18px 0 12px; }
+.tagger-tags { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.tagger-tags .chip { font-size: 14px; padding: 12px 4px; }
+.record-done { text-align: center; padding: 56px 0 0; }
+.record-done-mark { font-size: 44px; color: var(--vermillion); }
+.record-done-title { font-family: var(--font-mincho); font-size: 26px; letter-spacing: 0.2em; margin: 14px 0 8px; }
+.tagged-photo { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.photo-tag { font-size: 10px; color: rgba(26, 18, 8, 0.55); letter-spacing: 0.08em; }
+.tag-select { font-size: 11px; padding: 2px; border: 1px solid rgba(26, 18, 8, 0.2); border-radius: 4px; background: var(--paper); width: 72px; }
+.shrine-photos { margin-bottom: 8px; }
+.main-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; margin-bottom: 12px; cursor: zoom-in; }
+.main-photo.placeholder { background: var(--paper3); }
+.photo-tags { justify-content: center; }
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+.photo-grid .photo { width: 100%; height: auto; aspect-ratio: 1; cursor: zoom-in; }
+.lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); display: flex; align-items: center; justify-content: center; z-index: 3000; cursor: zoom-out; }
+.lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }

@@ -2,13 +2,33 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
-import Photos from '../components/Photos'
+import { useSignedUrls } from '../components/Photos'
 import EmotionSlider from '../components/EmotionSlider'
 import { MemoFields, VisibilityPicker } from '../components/MemoFields'
 import { useToast } from '../hooks/useToast'
-import { deleteRecord, fetchRecord, updateRecord } from '../lib/records'
+import { deleteRecord, fetchRecord, updatePhotoTags, updateRecord } from '../lib/records'
 import { formatDate, todayStr } from '../lib/format'
-import { emotionColor, emotionLabel } from '../lib/constants'
+import { DEFAULT_PHOTO_TAG, PHOTO_TAGS, PHOTO_TAG_LABELS, emotionColor, emotionLabel } from '../lib/constants'
+
+// 写真とタグ。onChange があればタグを選べる
+function TaggedPhotos({ photos, tags, onChange }) {
+  const urls = useSignedUrls(photos.map((p) => p.path))
+  if (!photos.length) return null
+  return (
+    <div className="photo-row">
+      {photos.map(({ path }) => (
+        <div key={path} className="tagged-photo">
+          {urls[path] ? <img src={urls[path]} alt="" loading="lazy" className="photo" /> : <div className="photo placeholder" />}
+          {onChange
+            ? <select className="tag-select" value={tags[path]} onChange={(ev) => onChange(path, ev.target.value)}>
+                {PHOTO_TAGS.map(([t, label]) => <option key={t} value={t}>{label}</option>)}
+              </select>
+            : <span className="photo-tag">{PHOTO_TAG_LABELS[tags[path]]}</span>}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function RecordDetailPage() {
   const { id } = useParams()
@@ -23,13 +43,19 @@ export default function RecordDetailPage() {
   const startEdit = () => setEditing({
     visited_on: record.visited_on, emotion_level: record.emotion_level, public_memo: record.public_memo,
     private_memo: record.private_memo, next_memo: record.next_memo, is_public: record.is_public,
+    tags: photoTags(record),
   })
+
+  const photoTags = (r) => Object.fromEntries((r.photos || []).map((p) => [p.path, p.tag || DEFAULT_PHOTO_TAG]))
 
   const save = async () => {
     setBusy(true)
     try {
-      await updateRecord(record, editing)
-      setRecord({ ...record, ...editing })
+      const { tags, ...fields } = editing
+      const before = photoTags(record)
+      await updateRecord(record, fields)
+      await updatePhotoTags(Object.fromEntries(Object.entries(tags).filter(([path, tag]) => before[path] !== tag)))
+      setRecord({ ...record, ...fields, photos: record.photos.map((p) => ({ ...p, tag: tags[p.path] })) })
       setEditing(null)
       showToast('更新しました')
     } catch {
@@ -74,7 +100,7 @@ export default function RecordDetailPage() {
             <p className="emotion-label mt16" style={{ color: emotionColor(record.emotion_level) }}>
               {emotionLabel(record.emotion_level)}<span className="muted small">　{record.emotion_level}</span>
             </p>
-            <Photos paths={(record.photos || []).map((p) => p.path)} size={96} />
+            <TaggedPhotos photos={record.photos || []} tags={photoTags(record)} />
             {record.public_memo && <><div className="section-mini">みんなへのメモ{!record.is_public && '（記録が自分だけなので、いまは誰にも見えません）'}</div><p className="memo">{record.public_memo}</p></>}
             {record.private_memo && <><div className="section-mini">自分だけのメモ</div><p className="memo">{record.private_memo}</p></>}
             {record.next_memo && <><div className="section-mini">次回へのメモ</div><p className="memo">{record.next_memo}</p></>}
@@ -99,6 +125,12 @@ export default function RecordDetailPage() {
               <label className="field-label">次回へのメモ</label>
               <input className="field-input" value={e.next_memo} onChange={(ev) => set({ next_memo: ev.target.value })} />
             </div>
+            {record.photos?.length > 0 && (
+              <div className="field-wrap">
+                <label className="field-label">写真のタグ</label>
+                <TaggedPhotos photos={record.photos} tags={e.tags} onChange={(path, tag) => set({ tags: { ...e.tags, [path]: tag } })} />
+              </div>
+            )}
             <button className="btn-primary mt16" onClick={save} disabled={busy}>保存する</button>
             <button className="text-btn mt16 block" onClick={() => setEditing(null)}>やめる</button>
           </>

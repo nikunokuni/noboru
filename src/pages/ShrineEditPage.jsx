@@ -17,20 +17,25 @@ const FIELDS = {
   deities: { label: 'ご祭神', type: 'deities', placeholder: '読点（、）で区切る　例：素戔嗚尊、櫛稲田姫命' },
   benefits: { label: 'ご利益', type: 'tags', placeholder: '読点（、）で区切る　例：縁結び、厄除け' },
   shrine_rank: { label: '社格', type: 'text', placeholder: '例：式内社、旧郷社' },
+  founded: { label: '創建', type: 'text', placeholder: '例：伝・景行天皇の御代、明治33年' },
+  annual_festival: { label: '例祭', type: 'text', placeholder: '例：毎年9月15日' },
+  visiting_hours: { label: '拝観時間', type: 'textarea', placeholder: '例：6:00〜17:00（冬は16:30まで）。境内は終日参拝可' },
+  highlights: { label: '見どころ', type: 'textarea', placeholder: '例：樹齢800年の御神木、朱塗りの楼門' },
   nearest_station: { label: '最寄り駅', type: 'text', placeholder: '例：〇〇駅 徒歩10分' },
   nearest_bus_stop: { label: 'バス停', type: 'text', placeholder: '例：〇〇神社前 徒歩2分' },
   parking: { label: '駐車場', type: 'choice', options: PARKING_LABELS },
   access_note: { label: '補足', type: 'textarea', placeholder: '例：〇〇駅から徒歩15分。最後に長い石段あり' },
   goshuin: { label: '御朱印', type: 'goshuin' },
-  goshuin_note: { label: 'メモ', type: 'textarea', placeholder: '例：授与は9時〜16時。季節の限定御朱印あり' },
-  features: { label: '神話・由緒', type: 'textarea', placeholder: '関連する神話、創建の背景、見どころなど' },
+  goshuin_note: { label: '御朱印メモ', type: 'textarea', placeholder: '例：授与は9時〜16時。季節の限定御朱印あり' },
+  features: { label: '由緒', type: 'textarea', placeholder: '創建の背景、関連する神話など' },
 }
 
 const SECTIONS = [
-  ['基本情報', ['name_kana', 'address', 'deities', 'benefits', 'shrine_rank']],
+  ['参拝の情報', ['visiting_hours', 'goshuin', 'goshuin_note']],
+  ['見どころ', ['highlights']],
+  ['基本情報', ['name_kana', 'address', 'deities', 'benefits', 'shrine_rank', 'founded', 'annual_festival']],
+  ['由緒', ['features']],
   ['アクセス', ['nearest_station', 'nearest_bus_stop', 'parking', 'access_note']],
-  ['御朱印', ['goshuin', 'goshuin_note']],
-  ['特徴', ['features']],
 ]
 
 const toInput = (field, value) => {

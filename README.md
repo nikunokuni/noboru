@@ -35,6 +35,7 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 | [`supabase/upgrade-shrine-info.sql`](supabase/upgrade-shrine-info.sql) | 情報提供の新項目（御朱印の直書き・書き置き・メモ、最寄り駅・バス停） |
 | [`supabase/upgrade-edit-revert.sql`](supabase/upgrade-edit-revert.sql) | 情報提供の確認（管理者が元に戻す・止める） |
 | [`supabase/upgrade-locality.sql`](supabase/upgrade-locality.sql) | 近くの地名（同じ名前の神社を見分ける）。実行後に取り込みをやり直す（例: `npm run import:shrines -- --pref 11,13,14 --no-transit --gsi-address`） |
+| [`supabase/upgrade-shrine-details.sql`](supabase/upgrade-shrine-details.sql) | 神社詳細の新項目（創建・例祭・拝観時間・見どころ）と写真のタグ。`upgrade-edit-revert.sql` を先に実行しておく |
 
 ### 申請の確認（管理者）
 

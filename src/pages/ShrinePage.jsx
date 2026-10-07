@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import Photos from '../components/Photos'
+import ShrinePhotos from '../components/ShrinePhotos'
 import { GuideInlineLink } from '../components/GuideLinks'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
@@ -104,6 +105,8 @@ export default function ShrinePage() {
           {!shrine.first_visited_on && <div className="pill mt8">まだ誰も参拝を記録していません</div>}
         </div>
 
+        <ShrinePhotos shrineId={shrine.id} revision={syncRevision} />
+
         <div className="stat-row">
           <div className="stat"><div className="stat-num">{shrine.visitor_count}</div><div className="stat-label">訪れた人</div></div>
           <div className="stat"><div className="stat-num">{shrine.record_count}</div><div className="stat-label">記録</div></div>
@@ -114,13 +117,38 @@ export default function ShrinePage() {
         </div>
 
         <section>
+          <div className="section-mini">参拝の情報</div>
+          <dl className="info">
+            <Row label="拝観時間">{shrine.visiting_hours ? <span className="pre-wrap">{shrine.visiting_hours}</span> : <Unknown />}</Row>
+            <Row label="御朱印">{GOSHUIN_LABELS[shrine.goshuin]} <GuideInlineLink context="goshuin" /></Row>
+            {shrine.goshuin_note && <Row label="御朱印メモ"><span className="pre-wrap">{shrine.goshuin_note}</span></Row>}
+          </dl>
+        </section>
+
+        <section>
+          <div className="section-mini">見どころ</div>
+          {shrine.highlights
+            ? <p className="features">{shrine.highlights}</p>
+            : <p className="muted small">まだ情報がありません。おすすめの見どころを教えてください。</p>}
+        </section>
+
+        <section>
           <div className="section-mini">基本情報</div>
           <dl className="info">
             <Row label="住所">{shrine.address || <Unknown />}</Row>
             <Row label="ご祭神"><Deities text={shrine.deities} /></Row>
             <Row label="ご利益">{shrine.benefits?.length ? shrine.benefits.join('・') : <Unknown />}</Row>
-            {shrine.shrine_rank && <Row label="社格">{shrine.shrine_rank}</Row>}
+            <Row label="社格">{shrine.shrine_rank || <Unknown />}</Row>
+            <Row label="創建">{shrine.founded || <Unknown />}</Row>
+            <Row label="例祭">{shrine.annual_festival || <Unknown />}</Row>
           </dl>
+        </section>
+
+        <section>
+          <div className="section-mini">由緒</div>
+          {shrine.features
+            ? <><p className="features">{shrine.features}</p><FeaturesSource source={shrine.features_source} /></>
+            : <p className="muted small">まだ情報がありません。由緒や神話をご存じでしたら教えてください。</p>}
         </section>
 
         <section>
@@ -135,21 +163,6 @@ export default function ShrinePage() {
             href={`https://www.google.com/maps/dir/?api=1&destination=${shrine.lat},${shrine.lng}`}>
             経路を調べる ↗
           </a>
-        </section>
-
-        <section>
-          <div className="section-mini">御朱印</div>
-          <dl className="info">
-            <Row label="御朱印">{GOSHUIN_LABELS[shrine.goshuin]} <GuideInlineLink context="goshuin" /></Row>
-            {shrine.goshuin_note && <Row label="メモ"><span className="pre-wrap">{shrine.goshuin_note}</span></Row>}
-          </dl>
-        </section>
-
-        <section>
-          <div className="section-mini">特徴</div>
-          {shrine.features
-            ? <><p className="features">{shrine.features}</p><FeaturesSource source={shrine.features_source} /></>
-            : <p className="muted small">まだ情報がありません。神話や由緒をご存じでしたら教えてください。</p>}
         </section>
 
         <div className="action-row">

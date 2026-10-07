@@ -34,6 +34,10 @@ CREATE TABLE shrines (
   deities             TEXT,                     -- ご祭神
   benefits            TEXT[] NOT NULL DEFAULT '{}',  -- ご利益
   shrine_rank         TEXT,                     -- 社格
+  founded             TEXT,                     -- 創建（「伝・景行天皇の御代」のように書くことが多いので文字で）
+  annual_festival     TEXT,                     -- 例祭（「毎年9月15日」など）
+  visiting_hours      TEXT,                     -- 拝観時間
+  highlights          TEXT,                     -- 見どころ
 
   -- アクセス（駅・バス停は取り込み時に OSM から自動計算。情報提供されたら *_by_user = TRUE にして以後は上書きしない）
   nearest_station          TEXT,
@@ -47,7 +51,7 @@ CREATE TABLE shrines (
   goshuin             goshuin_status NOT NULL DEFAULT 'unknown',
   goshuin_note        TEXT,                     -- 「授与は9時〜16時」「限定御朱印あり」など
 
-  -- 特徴（神話・創建の背景など）
+  -- 由緒（神話・創建の背景など。画面では「由緒」）
   features            TEXT,
   features_source     TEXT,                     -- 'wikipedia:<記事名>' / 'user' / 'editor'
 
@@ -100,6 +104,8 @@ CREATE TABLE photos (
   record_id  UUID NOT NULL REFERENCES records(id) ON DELETE CASCADE,
   user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   path       TEXT NOT NULL UNIQUE,
+  tag        TEXT NOT NULL DEFAULT 'other'      -- 写っているもの。神社詳細でタグごとに見られる
+             CHECK (tag IN ('torii', 'komainu', 'honden', 'goshuin', 'signboard', 'other')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -116,7 +122,8 @@ CREATE TABLE shrine_edits (
   field      TEXT NOT NULL CHECK (field IN (
                'address', 'deities', 'benefits', 'shrine_rank',
                'access_note', 'parking', 'goshuin', 'features', 'name_kana',
-               'goshuin_note', 'nearest_station', 'nearest_bus_stop')),
+               'goshuin_note', 'nearest_station', 'nearest_bus_stop',
+               'founded', 'annual_festival', 'visiting_hours', 'highlights')),
   value      JSONB NOT NULL,                    -- 文字列 / 文字列配列 / 列挙値
   old_value  JSONB,                             -- 変更前の値（{列名: 値}）。トリガーが入れる。管理者が元に戻すときに使う
   reverted_at TIMESTAMPTZ,                      -- 管理者が元に戻した時刻
@@ -247,6 +254,10 @@ BEGIN
     shrine_rank     = CASE WHEN NEW.field = 'shrine_rank'  THEN txt ELSE shrine_rank END,
     access_note     = CASE WHEN NEW.field = 'access_note'  THEN txt ELSE access_note END,
     goshuin_note    = CASE WHEN NEW.field = 'goshuin_note' THEN txt ELSE goshuin_note END,
+    founded         = CASE WHEN NEW.field = 'founded'         THEN txt ELSE founded END,
+    annual_festival = CASE WHEN NEW.field = 'annual_festival' THEN txt ELSE annual_festival END,
+    visiting_hours  = CASE WHEN NEW.field = 'visiting_hours'  THEN txt ELSE visiting_hours END,
+    highlights      = CASE WHEN NEW.field = 'highlights'      THEN txt ELSE highlights END,
     features        = CASE WHEN NEW.field = 'features'     THEN txt ELSE features END,
     features_source = CASE WHEN NEW.field = 'features'     THEN 'user' ELSE features_source END,
     benefits        = CASE WHEN NEW.field = 'benefits'
@@ -438,6 +449,7 @@ BEGIN
   UPDATE shrines SET
     address = s.address, name_kana = s.name_kana, deities = s.deities, shrine_rank = s.shrine_rank,
     access_note = s.access_note, goshuin_note = s.goshuin_note,
+    founded = s.founded, annual_festival = s.annual_festival, visiting_hours = s.visiting_hours, highlights = s.highlights,
     features = s.features, features_source = s.features_source,
     benefits = s.benefits, parking = s.parking, goshuin = s.goshuin,
     nearest_station = s.nearest_station, nearest_station_m = s.nearest_station_m,
@@ -523,6 +535,10 @@ CREATE POLICY photos_read ON photos FOR SELECT USING (
 );
 CREATE POLICY photos_insert ON photos FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY photos_delete ON photos FOR DELETE USING (auth.uid() = user_id);
+-- 本人はタグだけ付け直せる（ほかの列は変えられない）
+CREATE POLICY photos_update ON photos FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+REVOKE UPDATE ON photos FROM anon, authenticated;
+GRANT UPDATE (tag) ON photos TO authenticated;
 
 -- 情報提供：履歴は誰でも読める。ログインユーザーが追加できる（止められたユーザーを除く）
 CREATE POLICY edits_read   ON shrine_edits FOR SELECT USING (TRUE);
