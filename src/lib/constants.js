@@ -23,7 +23,7 @@ export const NEARBY_LIMIT = 8
 // 徒歩の目安（m/分）
 export const WALK_M_PER_MIN = 80
 
-export const MAX_PHOTOS = 5
+export const MAX_PHOTOS = 10
 
 // 称号：参拝した神社の数（重複なし）
 export const TITLES = [
