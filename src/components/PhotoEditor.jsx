@@ -22,7 +22,8 @@ function rotate(src, dir) {
   return c
 }
 
-function crop(src, r) {
+function crop(src, box) {
+  const r = { x: Math.round(box.x), y: Math.round(box.y), w: Math.round(box.w), h: Math.round(box.h) }
   const c = newCanvas(r.w, r.h)
   c.getContext('2d').drawImage(src, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h)
   return c
@@ -45,9 +46,25 @@ function toRect(d, cv) {
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
 }
 
+const clamp = (v, min, max) => Math.min(Math.max(v, min), max)
+
+// 切り取り枠を動かす。handle は四隅・各辺（n/s/e/w の組み合わせ）か 'move'。d はつかんでからの移動量
+function moveBox(b, handle, d, W, H, min) {
+  if (handle === 'move') return { ...b, x: clamp(b.x + d.x, 0, W - b.w), y: clamp(b.y + d.y, 0, H - b.h) }
+  let x0 = b.x, y0 = b.y, x1 = b.x + b.w, y1 = b.y + b.h
+  if (handle.includes('w')) x0 = clamp(x0 + d.x, 0, x1 - min)
+  if (handle.includes('e')) x1 = clamp(x1 + d.x, x0 + min, W)
+  if (handle.includes('n')) y0 = clamp(y0 + d.y, 0, y1 - min)
+  if (handle.includes('s')) y1 = clamp(y1 + d.y, y0 + min, H)
+  return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }
+}
+
+const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
+const MIN_CROP_PX = 48 // 画面上でこれより小さい枠にはしない
+
 const HINTS = {
-  mask: '隠したいところを指でなぞって囲むと、黒く塗りつぶします',
-  crop: '残したい範囲を指でなぞって囲んでください',
+  mask: '隠したいところを、斜めに指を動かして四角で囲むと黒く塗りつぶします',
+  crop: '四隅と各辺の白いバーで範囲を決めます。枠の中を動かすと位置を変えられます',
 }
 
 export default function PhotoEditor({ path, onSave, onClose }) {
@@ -55,6 +72,7 @@ export default function PhotoEditor({ path, onSave, onClose }) {
   const [error, setError] = useState('')
   const [mode, setMode] = useState('mask')
   const [drag, setDrag] = useState(null)
+  const [cropBox, setCropBox] = useState(null)
   const [saving, setSaving] = useState(false)
   const viewRef = useRef(null)
   const current = history[history.length - 1]
@@ -81,6 +99,11 @@ export default function PhotoEditor({ path, onSave, onClose }) {
     view.getContext('2d').drawImage(current, 0, 0)
   }, [current])
 
+  // 切り取り枠は写真全体から始める（回転や元に戻すで写真が変わったときも）
+  useEffect(() => {
+    setCropBox(mode === 'crop' && current ? { x: 0, y: 0, w: current.width, h: current.height } : null)
+  }, [mode, current])
+
   const push = (c) => { setHistory((h) => [...h, c]); setDrag(null) }
 
   // 画面上の位置 → 画像のピクセル
@@ -91,21 +114,33 @@ export default function PhotoEditor({ path, onSave, onClose }) {
 
   const onPointerDown = (ev) => {
     if (!current || saving) return
-    ev.currentTarget.setPointerCapture(ev.pointerId)
     const p = toImage(ev)
-    setDrag({ x0: p.x, y0: p.y, x1: p.x, y1: p.y, active: true })
+    if (mode === 'crop') {
+      const handle = ev.target.closest('[data-handle]')?.dataset.handle
+      if (!handle || !cropBox) return
+      ev.currentTarget.setPointerCapture(ev.pointerId)
+      const scale = current.width / viewRef.current.getBoundingClientRect().width
+      setDrag({ handle, start: p, box: cropBox, min: Math.min(MIN_CROP_PX * scale, current.width, current.height) })
+      return
+    }
+    ev.currentTarget.setPointerCapture(ev.pointerId)
+    setDrag({ x0: p.x, y0: p.y, x1: p.x, y1: p.y })
   }
   const onPointerMove = (ev) => {
-    if (!drag?.active) return
+    if (!drag) return
     const p = toImage(ev)
+    if (drag.handle) {
+      setCropBox(moveBox(drag.box, drag.handle, { x: p.x - drag.start.x, y: p.y - drag.start.y }, current.width, current.height, drag.min))
+      return
+    }
     setDrag({ ...drag, x1: p.x, y1: p.y })
   }
   const onPointerUp = () => {
-    if (!drag?.active) return
+    if (!drag) return
+    if (drag.handle) return setDrag(null)
     const r = toRect(drag, current)
     if (r.w < MIN_SIZE || r.h < MIN_SIZE) return setDrag(null)
-    if (mode === 'mask') push(mask(current, r))
-    else setDrag({ ...drag, active: false }) // 切り取りは範囲を見てから決める
+    push(mask(current, r))
   }
 
   const changeMode = (m) => { setMode(m); setDrag(null) }
@@ -120,11 +155,12 @@ export default function PhotoEditor({ path, onSave, onClose }) {
     }
   }
 
-  const sel = drag && current && toRect(drag, current)
-  const selStyle = sel && {
-    left: `${(sel.x / current.width) * 100}%`, top: `${(sel.y / current.height) * 100}%`,
-    width: `${(sel.w / current.width) * 100}%`, height: `${(sel.h / current.height) * 100}%`,
-  }
+  const pct = (r) => ({
+    left: `${(r.x / current.width) * 100}%`, top: `${(r.y / current.height) * 100}%`,
+    width: `${(r.w / current.width) * 100}%`, height: `${(r.h / current.height) * 100}%`,
+  })
+  const sel = mode === 'mask' && drag && current && toRect(drag, current)
+  const cropped = cropBox && (Math.round(cropBox.w) < current.width || Math.round(cropBox.h) < current.height)
 
   return (
     <div className="editor" role="dialog" aria-label="写真の編集">
@@ -141,7 +177,13 @@ export default function PhotoEditor({ path, onSave, onClose }) {
             <div className="editor-canvas-wrap" onPointerDown={onPointerDown} onPointerMove={onPointerMove}
               onPointerUp={onPointerUp} onPointerCancel={() => setDrag(null)}>
               <canvas ref={viewRef} className="editor-canvas" />
-              {sel && <div className={`editor-sel ${mode}`} style={selStyle} />}
+              {sel && <div className="editor-sel mask" style={pct(sel)} />}
+              {cropBox && <div className="editor-clip"><div className="editor-crop-dim" style={pct(cropBox)} /></div>}
+              {cropBox && (
+                <div className="editor-crop" style={pct(cropBox)} data-handle="move">
+                  {HANDLES.map((h) => <div key={h} className={`crop-handle ${h}`} data-handle={h} />)}
+                </div>
+              )}
             </div>
           )}
       </div>
@@ -149,8 +191,8 @@ export default function PhotoEditor({ path, onSave, onClose }) {
       {saving ? <div className="spinner" /> : (
         <div className="editor-panel">
           <p className="muted small center">{HINTS[mode]}</p>
-          {mode === 'crop' && drag && !drag.active && (
-            <button type="button" className="btn-primary" onClick={() => push(crop(current, sel))}>この範囲で切り取る</button>
+          {mode === 'crop' && (
+            <button type="button" className="btn-primary" onClick={() => push(crop(current, cropBox))} disabled={!cropped || !!drag}>この範囲で切り取る</button>
           )}
           <div className="editor-tools">
             <button type="button" className={`chip ${mode === 'mask' ? 'active' : ''}`} onClick={() => changeMode('mask')} disabled={!current}>■ 隠す</button>

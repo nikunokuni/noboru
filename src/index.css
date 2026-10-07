@@ -249,12 +249,31 @@ a { color: inherit; }
 /* 写真の編集 */
 .editor { position: fixed; inset: 0; z-index: 3000; background: var(--paper); display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; padding-bottom: env(safe-area-inset-bottom); }
 .editor-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 20px 10px; border-bottom: 1px solid var(--line); }
-.editor-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 12px; background: var(--paper2); }
-.editor-canvas-wrap { position: relative; display: inline-block; overflow: hidden; max-width: 100%; max-height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
+.editor-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 20px; overflow: hidden; background: var(--paper2); }
+.editor-canvas-wrap { position: relative; display: inline-block; max-width: 100%; max-height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
 .editor-canvas { display: block; max-width: 100%; max-height: calc(100vh - 260px); width: auto; height: auto; }
 .editor-sel { position: absolute; pointer-events: none; }
 .editor-sel.mask { background: rgba(0, 0, 0, 0.6); outline: 1px solid #000; }
-.editor-sel.crop { border: 1.5px dashed #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45); }
+/* 枠の外を暗くする層（写真の外にはみ出さないよう切り取る）。白いバーは写真の端からはみ出してよいので別の層 */
+.editor-clip { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.editor-crop-dim { position: absolute; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); }
+.editor-crop { position: absolute; border: 1px solid rgba(255, 255, 255, 0.9); cursor: move;
+  background-image: linear-gradient(to right, transparent calc(33.33% - 0.5px), rgba(255, 255, 255, 0.45) calc(33.33% - 0.5px), rgba(255, 255, 255, 0.45) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.67% - 0.5px), rgba(255, 255, 255, 0.45) calc(66.67% - 0.5px), rgba(255, 255, 255, 0.45) calc(66.67% + 0.5px), transparent calc(66.67% + 0.5px)),
+    linear-gradient(to bottom, transparent calc(33.33% - 0.5px), rgba(255, 255, 255, 0.45) calc(33.33% - 0.5px), rgba(255, 255, 255, 0.45) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px), transparent calc(66.67% - 0.5px), rgba(255, 255, 255, 0.45) calc(66.67% - 0.5px), rgba(255, 255, 255, 0.45) calc(66.67% + 0.5px), transparent calc(66.67% + 0.5px)); }
+/* つかむ所は見た目より広く（指で押しやすく）。白いバーは ::after で描く */
+.crop-handle { position: absolute; width: 36px; height: 36px; margin: -18px 0 0 -18px; }
+.crop-handle::after { content: ''; position: absolute; background: #fff; box-shadow: 0 0 2px rgba(0, 0, 0, 0.6); }
+.crop-handle.n, .crop-handle.s { left: 50%; } .crop-handle.e, .crop-handle.w { top: 50%; }
+.crop-handle.nw, .crop-handle.n, .crop-handle.ne { top: 0; } .crop-handle.sw, .crop-handle.s, .crop-handle.se { top: 100%; }
+.crop-handle.nw, .crop-handle.w, .crop-handle.sw { left: 0; } .crop-handle.ne, .crop-handle.e, .crop-handle.se { left: 100%; }
+.crop-handle.n::after, .crop-handle.s::after { width: 28px; height: 5px; left: 4px; top: 15.5px; }
+.crop-handle.e::after, .crop-handle.w::after { width: 5px; height: 28px; left: 15.5px; top: 4px; }
+/* 角は L 字：枠の外側に沿わせる */
+.crop-handle.nw::after, .crop-handle.ne::after, .crop-handle.sw::after, .crop-handle.se::after { width: 18px; height: 18px; background: none; box-shadow: none; border: 0 solid #fff; }
+.crop-handle.nw::after { left: 15px; top: 15px; border-width: 5px 0 0 5px; }
+.crop-handle.ne::after { left: 3px; top: 15px; border-width: 5px 5px 0 0; }
+.crop-handle.sw::after { left: 15px; top: 3px; border-width: 0 0 5px 5px; }
+.crop-handle.se::after { left: 3px; top: 3px; border-width: 0 5px 5px 0; }
 .editor-panel { padding: 12px 20px 16px; display: flex; flex-direction: column; gap: 10px; }
 .editor-tools { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .editor-tools .chip { font-size: 13px; padding: 10px 4px; }
