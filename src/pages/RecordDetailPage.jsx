@@ -4,14 +4,15 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { useSignedUrls } from '../components/Photos'
 import EmotionSlider from '../components/EmotionSlider'
+import PhotoEditor from '../components/PhotoEditor'
 import { MemoFields, VisibilityPicker } from '../components/MemoFields'
 import { useToast } from '../hooks/useToast'
-import { deleteRecord, fetchRecord, updatePhotoTags, updateRecord } from '../lib/records'
+import { deleteRecord, fetchRecord, replacePhoto, updatePhotoTags, updateRecord } from '../lib/records'
 import { formatDate, todayStr } from '../lib/format'
 import { DEFAULT_PHOTO_TAG, PHOTO_TAGS, PHOTO_TAG_LABELS, emotionColor, emotionLabel } from '../lib/constants'
 
-// 写真とタグ。onChange があればタグを選べる
-function TaggedPhotos({ photos, tags, onChange }) {
+// 写真とタグ。onChange があればタグを選べる。onEdit があれば写真を編集できる
+function TaggedPhotos({ photos, tags, onChange, onEdit }) {
   const urls = useSignedUrls(photos.map((p) => p.path))
   if (!photos.length) return null
   return (
@@ -24,6 +25,7 @@ function TaggedPhotos({ photos, tags, onChange }) {
                 {PHOTO_TAGS.map(([t, label]) => <option key={t} value={t}>{label}</option>)}
               </select>
             : <span className="photo-tag">{PHOTO_TAG_LABELS[tags[path]]}</span>}
+          {onEdit && <button type="button" className="text-btn photo-edit-btn" onClick={() => onEdit(path)}>写真を編集</button>}
         </div>
       ))}
     </div>
@@ -37,6 +39,7 @@ export default function RecordDetailPage() {
   const [record, setRecord] = useState(undefined)
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [editingPhoto, setEditingPhoto] = useState(null)
 
   useEffect(() => { fetchRecord(id).then(setRecord).catch(() => setRecord(null)) }, [id])
 
@@ -62,6 +65,25 @@ export default function RecordDetailPage() {
       showToast('更新に失敗しました')
     } finally {
       setBusy(false)
+    }
+  }
+
+  // 編集した写真はその場で保存する（パスが変わるので、記録と編集中のタグも付け替える）
+  const savePhoto = async (blob) => {
+    try {
+      const oldPath = editingPhoto
+      const path = await replacePhoto(record, oldPath, blob)
+      setRecord((r) => ({ ...r, photos: r.photos.map((p) => (p.path === oldPath ? { ...p, path } : p)) }))
+      setEditing((ed) => {
+        if (!ed) return ed
+        const { [oldPath]: tag, ...rest } = ed.tags
+        return { ...ed, tags: { ...rest, [path]: tag } }
+      })
+      setEditingPhoto(null)
+      showToast('写真を保存しました')
+    } catch (err) {
+      showToast('写真の保存に失敗しました')
+      throw err
     }
   }
 
@@ -128,7 +150,9 @@ export default function RecordDetailPage() {
             {record.photos?.length > 0 && (
               <div className="field-wrap">
                 <label className="field-label">写真のタグ</label>
-                <TaggedPhotos photos={record.photos} tags={e.tags} onChange={(path, tag) => set({ tags: { ...e.tags, [path]: tag } })} />
+                <TaggedPhotos photos={record.photos} tags={e.tags} onChange={(path, tag) => set({ tags: { ...e.tags, [path]: tag } })}
+                  onEdit={setEditingPhoto} />
+                <p className="muted small">写真の回転・切り取り・隠す（黒塗り）は「写真を編集」から。編集した写真はすぐに保存されます</p>
               </div>
             )}
             <button className="btn-primary mt16" onClick={save} disabled={busy}>保存する</button>
@@ -138,6 +162,7 @@ export default function RecordDetailPage() {
 
         <button className="text-btn danger mt24" onClick={remove} disabled={busy}>この記録を削除する</button>
       </div>
+      {editingPhoto && <PhotoEditor path={editingPhoto} onSave={savePhoto} onClose={() => setEditingPhoto(null)} />}
     </div>
   )
 }

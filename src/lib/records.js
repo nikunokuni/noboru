@@ -101,7 +101,8 @@ export async function fetchMyRecords(userId) {
 
 export async function fetchRecord(id) {
   const { data, error } = await supabase.from('records')
-    .select(`${RECORD_FIELDS}, user_id, record_private_notes(private_memo)`).eq('id', id).maybeSingle()
+    .select(`${RECORD_FIELDS}, user_id, record_private_notes(private_memo)`).eq('id', id)
+    .order('created_at', { referencedTable: 'photos' }).maybeSingle()
   if (error) throw error
   if (!data) return null
   const notes = data.record_private_notes
@@ -125,6 +126,39 @@ export async function updatePhotoTags(tags) {
     const { error } = await supabase.from('photos').update({ tag }).eq('path', path)
     if (error) throw error
   }
+}
+
+// 写真を編集用に読み込む
+export async function downloadPhoto(path) {
+  const { data, error } = await supabase.storage.from('photos').download(path)
+  if (error) throw error
+  return data
+}
+
+// 編集した写真に差し替える。CDN やブラウザに古い画像が残らないよう、上書きせず新しいパスに置いてから古いものを消す
+// タグと撮った順（created_at）は引き継ぐ。戻り値は新しいパス
+export async function replacePhoto(record, oldPath, blob) {
+  const { data: old, error: e0 } = await supabase.from('photos').select('tag, created_at').eq('path', oldPath).single()
+  if (e0) throw e0
+  const n = oldPath.split('/').pop().replace(/(-[0-9a-z]+)?\.jpg$/, '')
+  const path = `${record.id}/${n}-${Date.now().toString(36)}.jpg`
+
+  const { error: upErr } = await supabase.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' })
+  if (upErr) throw upErr
+  const { error: insErr } = await supabase.from('photos')
+    .insert({ record_id: record.id, user_id: record.user_id, path, tag: old.tag, created_at: old.created_at })
+  if (insErr) {
+    await supabase.storage.from('photos').remove([path])
+    throw insErr
+  }
+  const { error: delErr } = await supabase.from('photos').delete().eq('path', oldPath)
+  if (delErr) {
+    await supabase.from('photos').delete().eq('path', path)
+    await supabase.storage.from('photos').remove([path])
+    throw delErr
+  }
+  await supabase.storage.from('photos').remove([oldPath])
+  return path
 }
 
 export async function deleteRecord(record) {

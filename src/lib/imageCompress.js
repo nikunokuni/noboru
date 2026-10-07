@@ -4,7 +4,6 @@
  */
 export async function compressImage(file, maxKB = 100) {
   return new Promise((resolve, reject) => {
-    const maxBytes = maxKB * 1024
     const reader = new FileReader()
 
     reader.onload = (e) => {
@@ -30,37 +29,43 @@ export async function compressImage(file, maxKB = 100) {
         const ctx = canvas.getContext('2d')
         ctx.drawImage(img, 0, 0, width, height)
 
-        // 品質を下げながら100KB以下になるまでループ
-        let quality = 0.85
-        const compress = () => {
-          canvas.toBlob(
-            (blob) => {
-              if (!blob) {
-                reject(new Error('圧縮に失敗しました'))
-                return
-              }
-              if (blob.size <= maxBytes || quality <= 0.1) {
-                // Blobを File に変換して返す
-                const compressed = new File([blob], file.name, {
-                  type: 'image/jpeg',
-                  lastModified: Date.now(),
-                })
-                resolve(compressed)
-              } else {
-                quality = Math.max(quality - 0.1, 0.1)
-                compress()
-              }
-            },
-            'image/jpeg',
-            quality
-          )
-        }
-        compress()
+        canvasToJpeg(canvas, maxKB)
+          .then((blob) => resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })))
+          .catch(reject)
       }
       img.onerror = () => reject(new Error('画像の読み込みに失敗しました'))
       img.src = e.target.result
     }
     reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'))
     reader.readAsDataURL(file)
+  })
+}
+
+/**
+ * Canvas を maxKB 以下の JPEG の Blob にする（品質を下げながら）
+ */
+export function canvasToJpeg(canvas, maxKB = 100) {
+  const maxBytes = maxKB * 1024
+  return new Promise((resolve, reject) => {
+    let quality = 0.85
+    const compress = () => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('圧縮に失敗しました'))
+            return
+          }
+          if (blob.size <= maxBytes || quality <= 0.1) {
+            resolve(blob)
+          } else {
+            quality = Math.max(quality - 0.1, 0.1)
+            compress()
+          }
+        },
+        'image/jpeg',
+        quality
+      )
+    }
+    compress()
   })
 }
