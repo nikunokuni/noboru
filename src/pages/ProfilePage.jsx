@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { GuideLinkList } from '../components/GuideLinks'
+import NicknameSettings from '../components/NicknameSettings'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyRecords } from '../lib/records'
@@ -61,6 +62,7 @@ export default function ProfilePage() {
               <div className="stat"><div className="stat-num">{stats?.records ?? '—'}</div><div className="stat-label">記録</div></div>
               <div className="stat"><div className="stat-num">{stats?.avg ?? '—'}</div><div className="stat-label">感動の平均</div></div>
             </div>
+            <NicknameSettings userId={user.id} />
           </>
         )}
 
@@ -70,6 +72,7 @@ export default function ProfilePage() {
               申請の確認{pendingRequests > 0 ? `（未確認 ${pendingRequests}件）` : ''}
             </Link>
             <Link to="/admin/edits" className="btn-secondary mt8">情報提供の確認</Link>
+            <Link to="/admin/nicknames" className="btn-secondary mt8">ニックネームの確認</Link>
             <Link to="/admin/feedback" className="btn-secondary mt8">
               ご意見・ご要望の確認{openFeedback > 0 ? `（未対応 ${openFeedback}件）` : ''}
             </Link>

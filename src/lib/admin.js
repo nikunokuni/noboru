@@ -105,6 +105,32 @@ export async function fetchRecentEdits({ userId = null, limit = 100 } = {}) {
   return data
 }
 
+// ─── ニックネーム（管理者は全員分を読める） ───
+
+// { user_id: { nickname, show_name } }
+export async function fetchProfiles(userIds) {
+  const ids = [...new Set(userIds)]
+  if (!ids.length) return {}
+  const { data, error } = await supabase.from('profiles').select('user_id, nickname, show_name').in('user_id', ids)
+  if (error) throw error
+  return Object.fromEntries(data.map((p) => [p.user_id, p]))
+}
+
+// ニックネームのある人（新しく登録・変更した順）。query で名前の一部を検索
+export async function fetchNicknames({ query = '', limit = 100 } = {}) {
+  let q = supabase.from('profiles').select('user_id, nickname, show_name, updated_at').not('nickname', 'is', null)
+  const word = query.trim().replace(/[%_\\,()]/g, '')
+  if (word) q = q.ilike('nickname', `%${word}%`)
+  const { data, error } = await q.order('updated_at', { ascending: false }).limit(limit)
+  if (error) throw error
+  return data
+}
+
+export async function resetNickname(userId) {
+  const { error } = await supabase.rpc('reset_nickname', { target: userId })
+  if (error) throw error
+}
+
 export async function revertShrineEdit(editId) {
   const { error } = await supabase.rpc('revert_shrine_edit', { edit_id: editId })
   if (error) throw error

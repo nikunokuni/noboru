@@ -98,7 +98,7 @@ CREATE TABLE record_private_notes (
   private_memo TEXT NOT NULL DEFAULT ''
 );
 
--- 写真（Storage バケット 'photos' に保存。パスは <user_id>/<record_id>/<n>.jpg）
+-- 写真（Storage バケット 'photos' に保存。パスは <record_id>/<n>.jpg。user_id を含めない）
 CREATE TABLE photos (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   record_id  UUID NOT NULL REFERENCES records(id) ON DELETE CASCADE,
@@ -174,6 +174,19 @@ CREATE TABLE feedback (
 );
 
 CREATE INDEX idx_feedback_created ON feedback(created_at DESC);
+
+-- ニックネーム。「名前を出す」にした人だけ、公開記録・情報提供者の一覧に名前が載る
+-- 本人と管理者だけが読める。ほかの人には下の読み取り用の関数を通して名前だけを返す
+CREATE TABLE profiles (
+  user_id    UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  nickname   TEXT CHECK (nickname IS NULL OR (
+               nickname = btrim(nickname) AND char_length(nickname) BETWEEN 1 AND 20 AND nickname !~ '[[:cntrl:]]')),
+  show_name  BOOLEAN NOT NULL DEFAULT FALSE,   -- 「名前を出す」
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 同じニックネーム（大文字・小文字の違いを含む）は1人だけ
+CREATE UNIQUE INDEX idx_profiles_nickname ON profiles (lower(nickname)) WHERE nickname IS NOT NULL;
 
 -- ============================================================
 -- 4. 参拝の手引き（note 記事へのリンク）
@@ -515,6 +528,87 @@ REVOKE EXECUTE ON FUNCTION revert_shrine_edit(UUID), revert_user_edits(UUID), se
 GRANT  EXECUTE ON FUNCTION revert_shrine_edit(UUID), revert_user_edits(UUID), set_editor_banned(UUID, BOOLEAN) TO authenticated;
 
 -- ============================================================
+-- 公開情報の読み取り（user_id は返さず、画面に要る列だけを返す）
+--   他人の記録・写真・情報提供の履歴は、表を直接読めない（本人と管理者だけ）。この関数を通す
+-- ============================================================
+
+-- 表示する名前。「名前を出す」にしてニックネームがある人だけ。ほかは NULL
+CREATE OR REPLACE FUNCTION display_name(target UUID) RETURNS TEXT
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT nickname FROM profiles WHERE user_id = target AND show_name AND nickname IS NOT NULL;
+$$;
+
+-- 神社の公開記録（新しい順）。author は表示する名前（NULL なら名前なし）
+CREATE OR REPLACE FUNCTION get_public_records(target BIGINT, max_rows INT DEFAULT 20)
+RETURNS TABLE (id UUID, visited_on DATE, emotion_level INT, public_memo TEXT, photos JSONB, author TEXT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT r.id, r.visited_on, r.emotion_level, r.public_memo,
+         COALESCE((SELECT jsonb_agg(jsonb_build_object('path', p.path, 'tag', p.tag) ORDER BY p.created_at, p.path)
+                   FROM photos p WHERE p.record_id = r.id), '[]'::JSONB),
+         display_name(r.user_id)
+  FROM records r
+  WHERE r.shrine_id = target AND r.is_public
+  ORDER BY r.visited_on DESC, r.created_at DESC
+  LIMIT LEAST(GREATEST(max_rows, 1), 100);
+$$;
+
+-- 神社の写真（公開記録のものだけ・新しい順）
+CREATE OR REPLACE FUNCTION get_shrine_photos(target BIGINT, max_rows INT DEFAULT 200)
+RETURNS TABLE (path TEXT, tag TEXT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT p.path, p.tag
+  FROM photos p JOIN records r ON r.id = p.record_id
+  WHERE r.shrine_id = target AND r.is_public
+  ORDER BY p.created_at DESC, p.path
+  LIMIT LEAST(GREATEST(max_rows, 1), 500);
+$$;
+
+-- 神社の情報提供者（1人1行・最後に提供した順）。元に戻された変更は数えない
+-- name が NULL の行は「名前を出していない人」
+CREATE OR REPLACE FUNCTION get_shrine_contributors(target BIGINT)
+RETURNS TABLE (name TEXT, edit_count INT, last_edited_at TIMESTAMPTZ)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT display_name(e.user_id), COUNT(*)::INT, MAX(e.created_at)
+  FROM shrine_edits e
+  WHERE e.shrine_id = target AND e.reverted_at IS NULL
+  GROUP BY e.user_id
+  ORDER BY MAX(e.created_at) DESC;
+$$;
+
+-- 写真のパスの先頭が「自分の記録のID」か（パスは <record_id>/<n>.jpg。以前は <user_id>/<record_id>/<n>.jpg）
+CREATE OR REPLACE FUNCTION is_own_record_folder(object_name TEXT) RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM records
+    WHERE id = CASE WHEN split_part(object_name, '/', 1) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+                    THEN split_part(object_name, '/', 1)::UUID END
+      AND user_id = auth.uid());
+$$;
+
+-- 公開記録の写真か
+CREATE OR REPLACE FUNCTION is_public_photo(object_name TEXT) RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM photos p JOIN records r ON r.id = p.record_id
+                 WHERE p.path = object_name AND r.is_public);
+$$;
+
+-- ニックネームを初期化する（管理者）。不適切な名前を消す
+CREATE OR REPLACE FUNCTION reset_nickname(target UUID) RETURNS VOID
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  IF NOT is_admin() THEN
+    RAISE EXCEPTION '管理者だけが実行できます' USING ERRCODE = '42501';
+  END IF;
+  UPDATE profiles SET nickname = NULL, updated_at = NOW() WHERE user_id = target;
+END $$;
+
+REVOKE EXECUTE ON FUNCTION display_name(UUID) FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION get_public_records(BIGINT, INT), get_shrine_photos(BIGINT, INT), get_shrine_contributors(BIGINT),
+  is_own_record_folder(TEXT), is_public_photo(TEXT) TO anon, authenticated;
+REVOKE EXECUTE ON FUNCTION reset_nickname(UUID) FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION reset_nickname(UUID) TO authenticated;
+
+-- ============================================================
 -- Row Level Security
 -- ============================================================
 ALTER TABLE shrines              ENABLE ROW LEVEL SECURITY;
@@ -528,12 +622,14 @@ ALTER TABLE app_meta             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admins               ENABLE ROW LEVEL SECURITY;
 ALTER TABLE banned_editors       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles             ENABLE ROW LEVEL SECURITY;
 
 -- 神社：誰でも読める。書き込みは取り込み処理（service_role）とトリガーのみ
 CREATE POLICY shrines_read ON shrines FOR SELECT USING (status = 'active');
 
 -- 記録：公開記録は誰でも、自分の記録は本人が読める
-CREATE POLICY records_read   ON records FOR SELECT USING (is_public OR auth.uid() = user_id);
+-- 記録：表を読めるのは本人だけ。他人の公開記録は get_public_records() で（user_id を出さない）
+CREATE POLICY records_read   ON records FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY records_insert ON records FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY records_update ON records FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY records_delete ON records FOR DELETE USING (auth.uid() = user_id);
@@ -542,19 +638,20 @@ CREATE POLICY records_delete ON records FOR DELETE USING (auth.uid() = user_id);
 CREATE POLICY notes_owner ON record_private_notes FOR ALL
   USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
--- 写真：記録が読めるなら読める
-CREATE POLICY photos_read ON photos FOR SELECT USING (
-  EXISTS (SELECT 1 FROM records r WHERE r.id = record_id AND (r.is_public OR r.user_id = auth.uid()))
+-- 写真：表を読めるのは本人だけ。他人の公開記録の写真は get_public_records() / get_shrine_photos() で
+CREATE POLICY photos_read ON photos FOR SELECT USING (auth.uid() = user_id);
+-- 自分の記録にだけ付けられる
+CREATE POLICY photos_insert ON photos FOR INSERT WITH CHECK (
+  auth.uid() = user_id AND EXISTS (SELECT 1 FROM records r WHERE r.id = record_id AND r.user_id = auth.uid())
 );
-CREATE POLICY photos_insert ON photos FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY photos_delete ON photos FOR DELETE USING (auth.uid() = user_id);
 -- 本人はタグだけ付け直せる（ほかの列は変えられない）
 CREATE POLICY photos_update ON photos FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 REVOKE UPDATE ON photos FROM anon, authenticated;
 GRANT UPDATE (tag) ON photos TO authenticated;
 
--- 情報提供：履歴は誰でも読める。ログインユーザーが追加できる（止められたユーザーを除く）
-CREATE POLICY edits_read   ON shrine_edits FOR SELECT USING (TRUE);
+-- 情報提供：履歴を読めるのは管理者だけ（神社詳細の提供者の一覧は get_shrine_contributors() で）。ログインユーザーが追加できる（止められたユーザーを除く）
+CREATE POLICY edits_read   ON shrine_edits FOR SELECT USING (is_admin());
 CREATE POLICY edits_insert ON shrine_edits FOR INSERT WITH CHECK (auth.uid() = user_id AND NOT is_edit_banned());
 
 -- 追加申請：本人と管理者が読める。承認・却下は review_shrine_request() で
@@ -564,6 +661,11 @@ CREATE POLICY requests_insert ON shrine_requests FOR INSERT WITH CHECK (auth.uid
 -- 管理者：自分が管理者かどうかだけ読める（登録は SQL Editor から）
 CREATE POLICY admins_read_self ON admins FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY banned_editors_admin_read ON banned_editors FOR SELECT USING (is_admin());
+
+-- ニックネーム：本人と管理者が読める。本人が登録・変更できる（情報提供を止められたユーザーを除く）
+CREATE POLICY profiles_read   ON profiles FOR SELECT USING (auth.uid() = user_id OR is_admin());
+CREATE POLICY profiles_insert ON profiles FOR INSERT WITH CHECK (auth.uid() = user_id AND NOT is_edit_banned());
+CREATE POLICY profiles_update ON profiles FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id AND NOT is_edit_banned());
 
 -- ご意見・ご要望：ログインユーザーが送れる（止められたユーザーを除く）。読む・対応済みにするのは管理者だけ
 CREATE POLICY feedback_insert ON feedback FOR INSERT WITH CHECK (auth.uid() = user_id AND NOT is_edit_banned());
@@ -580,23 +682,23 @@ CREATE POLICY app_meta_admin_update ON app_meta FOR UPDATE
 -- ============================================================
 -- Storage
 -- ============================================================
--- photos      : 非公開バケット。パスは <user_id>/<record_id>/<n>.jpg。署名付きURLで表示
+-- photos      : 非公開バケット。パスは <record_id>/<n>.jpg（以前は <user_id>/<record_id>/<n>.jpg）。署名付きURLで表示
 -- public-data : 公開バケット。shrines-index.<version>.json.gz を置く（取り込み処理か、アプリの管理者画面がアップロード）
 INSERT INTO storage.buckets (id, name, public) VALUES ('photos', 'photos', FALSE), ('public-data', 'public-data', TRUE)
 ON CONFLICT (id) DO NOTHING;
 
 CREATE POLICY photos_obj_insert ON storage.objects FOR INSERT TO authenticated
-  WITH CHECK (bucket_id = 'photos' AND (storage.foldername(name))[1] = auth.uid()::TEXT);
+  WITH CHECK (bucket_id = 'photos' AND ((storage.foldername(name))[1] = auth.uid()::TEXT OR public.is_own_record_folder(name)));
 
 CREATE POLICY photos_obj_delete ON storage.objects FOR DELETE TO authenticated
-  USING (bucket_id = 'photos' AND (storage.foldername(name))[1] = auth.uid()::TEXT);
+  USING (bucket_id = 'photos' AND ((storage.foldername(name))[1] = auth.uid()::TEXT OR public.is_own_record_folder(name)));
 
 -- 本人の写真、または公開記録の写真なら読める
 CREATE POLICY photos_obj_read ON storage.objects FOR SELECT
   USING (bucket_id = 'photos' AND (
     (storage.foldername(name))[1] = auth.uid()::TEXT
-    OR EXISTS (SELECT 1 FROM public.photos p JOIN public.records r ON r.id = p.record_id
-               WHERE p.path = storage.objects.name AND r.is_public)
+    OR public.is_own_record_folder(name)
+    OR public.is_public_photo(name)
   ));
 
 -- 管理者は神社一覧ファイルを置ける（毎回新しい名前なので上書きはしない）

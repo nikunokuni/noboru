@@ -235,3 +235,11 @@ a { color: inherit; }
 .lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); display: flex; align-items: center; justify-content: center; z-index: 3000; cursor: zoom-out; }
 .lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .feedback-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+.check-row input { width: 18px; height: 18px; accent-color: var(--vermillion); }
+.record-author { color: var(--ink); margin-right: 8px; font-family: var(--font-mincho); letter-spacing: 0.05em; }
+.contributors { margin-top: 10px; }
+.contributors-line { background: none; border: none; padding: 4px 0; font-size: 12px; text-align: left; cursor: pointer; color: var(--ink); font-family: var(--font-body); line-height: 1.7; }
+.contributors-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.contributors-list li { display: flex; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid rgba(26, 18, 8, 0.07); font-size: 13px; }
+.nickname-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

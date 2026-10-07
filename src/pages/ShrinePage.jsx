@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import Photos from '../components/Photos'
 import ShrinePhotos from '../components/ShrinePhotos'
+import ShrineContributors from '../components/ShrineContributors'
 import { GuideInlineLink } from '../components/GuideLinks'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
@@ -62,7 +63,7 @@ function RecordItem({ r, mine }) {
     <div className="record-line" style={{ borderLeftColor: emotionColor(r.emotion_level) }}>
       <div className="record-line-head">
         <span className="small" style={{ color: emotionColor(r.emotion_level) }}>{emotionMarks(r.emotion_level)}</span>
-        <span className="muted small">{formatDate(r.visited_on)}</span>
+        <span className="muted small">{!mine && r.author && <span className="record-author">{r.author}</span>}{formatDate(r.visited_on)}</span>
       </div>
       {r.public_memo && <p className="memo">{r.public_memo}</p>}
       <Photos paths={(r.photos || []).map((p) => p.path)} size={56} />
@@ -168,6 +169,7 @@ export default function ShrinePage() {
         <div className="action-row">
           <Link to={`/shrine/${shrine.id}/edit`} className="btn-secondary">情報を追加・訂正する</Link>
         </div>
+        <ShrineContributors shrineId={shrine.id} />
 
         {mine.length > 0 && (
           <section>

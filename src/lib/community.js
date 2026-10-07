@@ -26,23 +26,28 @@ export async function fetchShrine(id) {
   return data
 }
 
+// 他人の記録・写真・情報提供は、user_id を返さない読み取り用の関数から読む
+
+// 神社の公開記録（新しい順）: [{ id, visited_on, emotion_level, public_memo, photos: [{ path, tag }], author }]
+// author は「名前を出す」にした人のニックネーム（ほかは null）
 export async function fetchPublicRecords(shrineId, limit = 20) {
-  const { data, error } = await supabase.from('records')
-    .select('id, visited_on, emotion_level, public_memo, photos(path)')
-    .eq('shrine_id', shrineId).eq('is_public', true)
-    .order('visited_on', { ascending: false }).limit(limit)
+  const { data, error } = await supabase.rpc('get_public_records', { target: Number(shrineId), max_rows: limit })
   if (error) throw error
   return data
 }
 
-// 神社の写真（公開記録のものだけ・新しい順）
+// 神社の写真（公開記録のものだけ・新しい順）: [{ path, tag }]
 export async function fetchShrinePhotos(shrineId, limit = 200) {
-  const { data, error } = await supabase.from('photos')
-    .select('path, tag, created_at, records!inner(shrine_id, is_public)')
-    .eq('records.shrine_id', shrineId).eq('records.is_public', true)
-    .order('created_at', { ascending: false }).limit(limit)
+  const { data, error } = await supabase.rpc('get_shrine_photos', { target: Number(shrineId), max_rows: limit })
   if (error) throw error
-  return data.map(({ path, tag }) => ({ path, tag }))
+  return data
+}
+
+// 神社の情報提供者（最後に提供した順）: [{ name, edit_count, last_edited_at }]。name が null は名前を出していない人
+export async function fetchShrineContributors(shrineId) {
+  const { data, error } = await supabase.rpc('get_shrine_contributors', { target: Number(shrineId) })
+  if (error) throw error
+  return data
 }
 
 export async function fetchMyRecordsForShrine(shrineId, userId) {
@@ -73,3 +78,20 @@ export async function submitFeedback({ userId, screen, body }) {
   const { error } = await supabase.from('feedback').insert({ user_id: userId, screen, body })
   if (error) throw error
 }
+
+// ─── ニックネーム ─────────────────────────────────────────
+export const NICKNAME_MAX_LENGTH = 20
+
+export async function fetchMyProfile(userId) {
+  const { data, error } = await supabase.from('profiles').select('nickname, show_name').eq('user_id', userId).maybeSingle()
+  if (error) throw error
+  return data || { nickname: null, show_name: false }
+}
+
+export async function saveMyProfile({ userId, nickname, showName }) {
+  const { error } = await supabase.from('profiles')
+    .upsert({ user_id: userId, nickname: nickname || null, show_name: showName, updated_at: new Date().toISOString() })
+  if (error) throw error
+}
+
+export const isDuplicateNicknameError = (e) => e?.code === '23505'

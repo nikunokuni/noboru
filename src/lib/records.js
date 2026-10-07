@@ -27,7 +27,8 @@ export const removePending = (id) => updatePending((all) => all.filter((r) => r.
 const markPendingError = (id, message) =>
   updatePending((all) => all.map((r) => (r.id === id ? { ...r, last_error: message } : r)))
 
-const photoPath = (userId, recordId, n) => `${userId}/${recordId}/${n}.jpg`
+// user_id を含めない（公開記録の写真から誰の記録か分からないように）
+const photoPath = (recordId, n) => `${recordId}/${n}.jpg`
 
 // 1件送信。何度送っても二重登録にならないように作る
 async function uploadRecord(r) {
@@ -52,7 +53,7 @@ async function uploadRecord(r) {
   }
 
   for (const [n, blob] of (r.photos || []).entries()) {
-    const path = photoPath(r.user_id, r.id, n)
+    const path = photoPath(r.id, n)
     const { error: upErr } = await supabase.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' })
     if (upErr && !/exists|Duplicate/i.test(upErr.message)) throw upErr
     const { error } = await supabase.from('photos')

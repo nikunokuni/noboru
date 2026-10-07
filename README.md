@@ -37,6 +37,7 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 | [`supabase/upgrade-locality.sql`](supabase/upgrade-locality.sql) | 近くの地名（同じ名前の神社を見分ける）。実行後に取り込みをやり直す（例: `npm run import:shrines -- --pref 11,13,14 --no-transit --gsi-address`） |
 | [`supabase/upgrade-shrine-details.sql`](supabase/upgrade-shrine-details.sql) | 神社詳細の新項目（創建・例祭・拝観時間・見どころ）と写真のタグ。`upgrade-edit-revert.sql` を先に実行しておく |
 | [`supabase/upgrade-feedback.sql`](supabase/upgrade-feedback.sql) | アプリへのご意見・ご要望 |
+| [`supabase/upgrade-nickname.sql`](supabase/upgrade-nickname.sql) | ニックネーム・公開記録と情報提供の履歴から `user_id` を読めなくする。実行後に `npm run move:photos` で今ある写真を移す（下の「写真のパスを移す」） |
 
 ### 申請の確認（管理者）
 
@@ -52,6 +53,19 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 
 - 「元に戻す」: その変更の前の値に戻す。同じ項目に後から別の変更があるときは、新しい方から戻す
 - 「提供者 #xxxxxx」を押すとその人の変更だけ表示。「すべて元に戻す」「情報提供を止める」（止めた人は情報提供・申請・ご意見を送れない）
+
+### ニックネームの確認（管理者）
+
+マイページの「ニックネームの確認」で、登録された名前を新しい順に見る・検索する。不適切な名前は「初期化」で消す（本人はまた登録できる。繰り返す人は「情報提供の確認」から情報提供を止めると、ニックネームも変えられなくなる）。「情報提供の確認」でも、提供者の番号の横に名前が出て、その人の変更だけ表示したときに初期化できる。
+
+### 写真のパスを移す（1回だけ）
+
+`upgrade-nickname.sql` の前に保存された写真は、パスに `user_id` が入っている（`<user_id>/<record_id>/<n>.jpg`）。`.env` に `SUPABASE_URL` と `SUPABASE_SERVICE_ROLE_KEY` を入れて、次を実行すると `<record_id>/<n>.jpg` に移る（何度実行しても大丈夫）。
+
+```sh
+npm run move:photos -- --dry-run   # 移す件数だけ表示
+npm run move:photos
+```
 
 ### ご意見・ご要望の確認（管理者）
 
@@ -71,3 +85,4 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 | `npm run build` | 本番ビルド（PWA の Service Worker も生成） |
 | `npm test` | テスト（取り込み処理・検索） |
 | `npm run import:shrines -- --pref 13` | 神社マスタの取り込み |
+| `npm run move:photos` | 写真のパスから `user_id` を外す（1回だけ。上の「写真のパスを移す」） |
