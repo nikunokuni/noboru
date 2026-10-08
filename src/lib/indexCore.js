@@ -15,8 +15,13 @@
 //   munis: ['世田谷区', ...], muni: [3, -1, ...],   // 市区町村（同じ名前の神社の区別用）。-1 は不明
 //   locs:  ['上町', ...],     loc:  [0, -1, ...],   // 近くの地名（町・字など）。-1 は不明
 //   deis:  ['素戔嗚尊', ...], dei:  [[0, 4], [], ...], // ご祭神（表記をそろえたもの）
+//   goshs: ['unknown', 'both', ...], gosh: [0, 1, ...],   // 御朱印（goshuin_status）
+//   parks: ['unknown', 'nearby', ...], park: [0, 1, ...], // 駐車場（parking_status）
+//   bens:  ['縁結び', ...],   ben:  [[0, 3], [], ...],   // ご利益
+//   ranks: ['式内社', ...],   rank: [0, -1, ...],        // 社格。-1 は不明
 // }
 // munis 以降は後から足した項目。古い一覧ファイルにはないので、ないときは空として扱う
+// goshs 以降（マップのタグで絞り込む項目）がない古い一覧ファイルでは、それらのタグでは絞り込めない
 
 import { distanceM } from './geo.js'
 import { normalizeDeities, deityKey, matchDeityNames } from './deities.js'
@@ -39,7 +44,7 @@ export async function fetchIndexRows(db, onProgress = () => {}) {
   const PAGE = 1000
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await db.from('shrines')
-      .select('id, name, name_kana, prefecture, municipality, locality, deities, lat, lng, first_visited_on')
+      .select('id, name, name_kana, prefecture, municipality, locality, deities, lat, lng, first_visited_on, goshuin, parking, benefits, shrine_rank')
       .eq('status', 'active').order('id').range(from, from + PAGE - 1)
     if (error) throw error
     rows.push(...data)
@@ -65,10 +70,15 @@ export function encodeIndex(rows, { version, generatedAt = new Date().toISOStrin
   const munis = stringTable()
   const locs = stringTable()
   const deis = stringTable()
+  const goshs = stringTable()
+  const parks = stringTable()
+  const bens = stringTable()
+  const ranks = stringTable()
   const out = {
     format: INDEX_FORMAT, version, generated_at: generatedAt, prefs: prefs.list,
     id: [], name: [], kana: [], lat: [], lng: [], pref: [], vis: [],
     munis: munis.list, muni: [], locs: locs.list, loc: [], deis: deis.list, dei: [],
+    goshs: goshs.list, gosh: [], parks: parks.list, park: [], bens: bens.list, ben: [], ranks: ranks.list, rank: [],
   }
   for (const r of rows) {
     out.id.push(Number(r.id))
@@ -83,6 +93,10 @@ export function encodeIndex(rows, { version, generatedAt = new Date().toISOStrin
     out.loc.push(r.locality && r.locality !== r.municipality ? locs.at(r.locality) : -1)
     // 古い表記で入っているご祭神も、そろえた表記で探せるようにする
     out.dei.push(normalizeDeities(r.deities).names.map(deis.at))
+    out.gosh.push(goshs.at(r.goshuin || 'unknown'))
+    out.park.push(parks.at(r.parking || 'unknown'))
+    out.ben.push([...new Set((r.benefits || []).map((b) => b.trim()).filter(Boolean))].map(bens.at))
+    out.rank.push(ranks.at((r.shrine_rank || '').trim()))
   }
   return out
 }

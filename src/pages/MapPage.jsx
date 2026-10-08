@@ -12,8 +12,8 @@ import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyShrineIds } from '../lib/records'
 import { getCurrentPosition } from '../lib/geo'
 import { getItem, searchPositions } from '../lib/indexCore'
-import { serverSearch, serverSearchByDeity } from '../lib/shrineIndex'
-import { matchDeityNames, deityAliases } from '../lib/deities'
+import { serverSearch } from '../lib/shrineIndex'
+import { SEARCH_TAGS, deityTag, hasTagColumns, tagFilter } from '../lib/searchTags'
 import { PREFECTURES } from '../lib/constants'
 
 const MODES = [
@@ -51,18 +51,11 @@ const clusterIcon = (count, mode) => {
 
 const pinIcon = (kind) => L.divIcon({ html: `<div class="pin pin-${kind}"></div>`, className: '', iconSize: [16, 16] })
 
-// ご祭神で探すとき、どの神様として探しているかを見せる（「スサノオ」→ 素戔嗚尊）
-function DeityHint({ query }) {
-  const names = query.trim() ? matchDeityNames(query).slice(0, 3) : []
-  if (!names.length) return null
-  return (
-    <p className="muted small mt8">
-      {names.map((n) => {
-        const aliases = deityAliases(n).slice(0, 3)
-        return <span key={n} className="block">「{n}」{aliases.length > 0 && `（${aliases.join('・')} など）`}として探しています</span>
-      })}
-    </p>
-  )
+// 神社詳細のご祭神から来たとき（/map?deity=…）に選んだ状態にするタグ
+function initialTags(deity) {
+  if (!deity) return {}
+  const known = SEARCH_TAGS.find((g) => g.key === 'deity').tags.find((t) => t.label === deity)
+  return { deity: [known || deityTag(deity)] }
 }
 
 // 地図と検索の間のバー。指で上下に動かす
@@ -94,11 +87,11 @@ export default function MapPage() {
   const { user } = useAuth()
   const { index, revision, status, refreshVisited } = useShrineIndex()
   const { pending, syncRevision } = usePendingRecords()
-  // 検索の条件。神社詳細のご祭神から来たときはご祭神で探す
+  // 検索の条件。神社詳細のご祭神から来たときはそのご祭神のタグを選んでおく
   const [mode, setMode] = useState('all')
-  const [kind, setKind] = useState(params.get('deity') ? 'deity' : 'name')
-  const [query, setQuery] = useState(params.get('deity') || '')
+  const [query, setQuery] = useState('')
   const [prefecture, setPrefecture] = useState('')
+  const [tags, setTags] = useState(() => initialTags(params.get('deity')))
   const [serverResults, setServerResults] = useState(null)
   const [serverIds, setServerIds] = useState([])
   const [split, setSplit] = useState(loadSplit)
@@ -140,39 +133,50 @@ export default function MapPage() {
   }, [])
 
   // 検索の条件
-  const searchQuery = kind === 'deity' ? '' : query
-  const deity = kind === 'deity' ? query : null
+  const tagCount = Object.values(tags).reduce((n, t) => n + t.length, 0)
   const include = useMemo(() => {
-    if (!index || mode === 'all' || mode === 'nobody') return null
+    if (!index) return null
     const ids = index.raw.id
-    return mode === 'mine' ? (i) => myIds.has(ids[i]) : (i) => !myIds.has(ids[i])
-  }, [index, mode, myIds])
-  const opts = { prefecture: prefecture || null, unvisitedOnly: mode === 'nobody', deity, include }
-  const active = Boolean(query.trim() || prefecture || mode !== 'all')
+    const mineTest = mode === 'mine' ? (i) => myIds.has(ids[i]) : mode === 'notmine' ? (i) => !myIds.has(ids[i]) : null
+    const tagTest = tagFilter(index, tags)
+    if (mineTest && tagTest) return (i) => mineTest(i) && tagTest(i)
+    return mineTest || tagTest
+  }, [index, mode, myIds, tags])
+  const active = Boolean(query.trim() || prefecture || mode !== 'all' || tagCount)
 
   // 条件に合う神社の一覧の位置（全件。地図に出す）
   const positions = useMemo(
-    () => (index ? searchPositions(index, searchQuery, { ...opts, limit: Infinity }) : null),
-    [index, revision, searchQuery, deity, prefecture, mode, include], // eslint-disable-line react-hooks/exhaustive-deps
+    () => (index ? searchPositions(index, query, { prefecture: prefecture || null, unvisitedOnly: mode === 'nobody', include, limit: Infinity }) : null),
+    [index, revision, query, prefecture, mode, include],
   )
+
+  const toggleTag = (group, tag) => setTags((prev) => {
+    const list = prev[group] || []
+    const next = list.some((t) => t.key === tag.key) ? list.filter((t) => t.key !== tag.key) : [...list, tag]
+    return { ...prev, [group]: next }
+  })
+  // 神社詳細から来たご祭神など、決まったタグにないものも選べるように並べる
+  const tagGroups = SEARCH_TAGS.map((g) => {
+    const extra = (tags[g.key] || []).filter((t) => !g.tags.some((x) => x.key === t.key))
+    return { ...g, tags: [...g.tags, ...extra] }
+  })
 
   const results = useMemo(
     () => (index ? (active ? positions.slice(0, LIST_LIMIT).map((i) => getItem(index, i)) : null) : serverResults),
     [index, positions, active, serverResults],
   )
 
-  // 神社一覧がまだ端末にないときはサーバーで探す（地図には出せない）
+  // 神社一覧がまだ端末にないときはサーバーで探す（地図には出せない。タグは使えない）
+  const serverActive = Boolean(query.trim() || prefecture || mode === 'nobody')
   useEffect(() => {
-    const serverActive = query.trim() || prefecture || mode === 'nobody'
     if (index || !serverActive) { setServerResults(null); return }
     let alive = true
     const t = setTimeout(() => {
-      const search = kind === 'deity' && query.trim() ? serverSearchByDeity : serverSearch
-      search(query, { prefecture: prefecture || null, unvisitedOnly: mode === 'nobody', limit: 30 })
+      serverSearch(query, { prefecture: prefecture || null, unvisitedOnly: mode === 'nobody', limit: 30 })
         .then((r) => alive && setServerResults(r)).catch(() => alive && setServerResults([]))
     }, 400)
     return () => { alive = false; clearTimeout(t) }
-  }, [index, kind, query, prefecture, mode])
+  }, [index, serverActive, query, prefecture, mode])
 
   const cluster = useMemo(() => {
     if (!index || !positions) return null
@@ -251,20 +255,30 @@ export default function MapPage() {
             ))}
             <span className="muted small map-count">{positions ? `${positions.length.toLocaleString()}社` : ''}</span>
           </div>
-          <div className="tab-row">
-            <button className={`tab-btn ${kind === 'name' ? 'active' : ''}`} onClick={() => setKind('name')}>神社名で探す</button>
-            <button className={`tab-btn ${kind === 'deity' ? 'active' : ''}`} onClick={() => setKind('deity')}>ご祭神で探す</button>
-          </div>
           <input className="field-input" value={query} onChange={(e) => setQuery(e.target.value)} enterKeyHint="search"
-            placeholder={kind === 'deity' ? 'ご祭神の名前（例：スサノオ、稲荷、八幡）' : '神社名・よみがな（例：八幡 世田谷）'} />
-          {kind === 'deity' && <DeityHint query={query} />}
+            placeholder="神社名・よみがな（例：八幡 世田谷）" aria-label="神社名で探す" />
           <div className="filter-row">
             <select className="select" value={prefecture} onChange={(e) => setPrefecture(e.target.value)} aria-label="都道府県">
               <option value="">全国</option>
               {PREFECTURES.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
+            {tagCount > 0 && <button className="text-btn map-clear" onClick={() => setTags({})}>タグをすべて外す</button>}
           </div>
-          {status === 'downloading' && <p className="muted small">神社一覧を準備中…（サーバーで検索しています）</p>}
+          {tagGroups.map((g) => (
+            <div key={g.key} className="tag-group">
+              <span className="tag-group-label">{g.label}</span>
+              <div className="tag-group-chips">
+                {g.tags.map((t) => {
+                  const on = (tags[g.key] || []).some((x) => x.key === t.key)
+                  return <button key={t.key} className={`chip ${on ? 'active' : ''}`} aria-pressed={on} onClick={() => toggleTag(g.key, t)}>{t.label}</button>
+                })}
+              </div>
+            </div>
+          ))}
+          {index && !hasTagColumns(index) && tagCount > 0 && (
+            <p className="muted small mt8">神社一覧が古いため、御朱印・ご利益・社格・駐車場のタグでは絞り込めません（管理者が神社一覧を更新すると使えます）</p>
+          )}
+          {status === 'downloading' && <p className="muted small">神社一覧を準備中…（サーバーで検索しています。タグは準備ができてから使えます）</p>}
 
           {results && (
             <div className="mt8">
@@ -275,7 +289,7 @@ export default function MapPage() {
               )}
             </div>
           )}
-          {!results && !index && (query.trim() || prefecture || mode === 'nobody') && <div className="spinner" />}
+          {!results && !index && serverActive && <div className="spinner" />}
         </div>
       </div>
     </div>

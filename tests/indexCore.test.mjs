@@ -137,3 +137,40 @@ test('辞書の別の神様どうしが同じ書き方にならない', () => {
     }
   }
 })
+
+test('マップのタグで絞り込む（同じ項目はどれか、別の項目はすべて）', async () => {
+  const { SEARCH_TAGS, tagFilter, deityTag, hasTagColumns } = await import('../src/lib/searchTags.js')
+  const tag = (group, key) => SEARCH_TAGS.find((g) => g.key === group).tags.find((t) => t.key === key)
+  const idx = prepareIndex(encodeIndex([
+    { id: 1, name: '八幡宮', prefecture: '東京都', lat: 35, lng: 139, deities: '応神天皇', goshuin: 'both', parking: 'dedicated', benefits: ['厄除け', '開運招福'], shrine_rank: '式内社（名神大社）' },
+    { id: 2, name: '稲荷神社', prefecture: '東京都', lat: 35, lng: 139, deities: '倉稲魂命', goshuin: 'direct_only', parking: 'none', benefits: ['商売繁盛'], shrine_rank: '式内小社' },
+    { id: 3, name: '神明社', prefecture: '東京都', lat: 35, lng: 139, deities: '天照大神、弁才天', goshuin: 'written_only', benefits: ['縁結び・恋愛成就'] },
+    { id: 4, name: '須賀神社', prefecture: '東京都', lat: 35, lng: 139, deities: '須佐之男命' },
+  ], { version: 'v' }))
+  assert.ok(hasTagColumns(idx))
+  const ids = (selected) => {
+    const f = tagFilter(idx, selected)
+    return idx.raw.id.filter((_, i) => !f || f(i))
+  }
+  assert.deepEqual(ids({}), [1, 2, 3, 4])
+  assert.deepEqual(ids({ goshuin: [tag('goshuin', 'direct')] }), [1, 2])
+  assert.deepEqual(ids({ goshuin: [tag('goshuin', 'written')] }), [1, 3])
+  assert.deepEqual(ids({ goshuin: [tag('goshuin', 'both')] }), [1])
+  assert.deepEqual(ids({ parking: [tag('parking', 'yes')] }), [1])
+  assert.deepEqual(ids({ parking: [tag('parking', 'no')] }), [2])   // 不明は「なし」に入れない
+  assert.deepEqual(ids({ benefit: [tag('benefit', 'kaiun'), tag('benefit', 'enmusubi')] }), [1, 3])
+  assert.deepEqual(ids({ benefit: [tag('benefit', 'kaiun'), tag('benefit', 'enmusubi')], goshuin: [tag('goshuin', 'direct')] }), [1])
+  assert.deepEqual(ids({ rank: [tag('rank', 'myojin')] }), [1])
+  assert.deepEqual(ids({ rank: [tag('rank', 'shosha')] }), [2])
+  assert.deepEqual(ids({ rank: [tag('rank', 'hachiman'), tag('rank', 'ise')] }), [1, 3])
+  assert.deepEqual(ids({ rank: [tag('rank', 'inari')] }), [2])
+  assert.deepEqual(ids({ deity: [tag('deity', 'amaterasu')] }), [3])
+  assert.deepEqual(ids({ deity: [tag('deity', 'benzaiten'), tag('deity', 'susanoo')] }), [3, 4])
+  assert.deepEqual(ids({ deity: [deityTag('誉田別命')] }), [1])
+  // 古い一覧ファイル（タグの項目がない）では、御朱印などのタグに当てはまる神社はない
+  const raw = { ...index().raw }
+  for (const k of ['goshs', 'gosh', 'parks', 'park', 'bens', 'ben', 'ranks', 'rank']) delete raw[k]
+  const old = prepareIndex(raw)
+  assert.ok(!hasTagColumns(old))
+  assert.equal(tagFilter(old, { goshuin: [tag('goshuin', 'none')] })(0), false)
+})
