@@ -90,6 +90,7 @@ CREATE TABLE records (
 
 CREATE INDEX idx_records_user   ON records(user_id, visited_on DESC);
 CREATE INDEX idx_records_shrine ON records(shrine_id, visited_on DESC);
+CREATE INDEX idx_records_public_timeline ON records(visited_on DESC, created_at DESC) WHERE is_public;  -- みんなの参拝
 
 -- 非公開メモは別テーブル（records を公開しても読まれないように）
 CREATE TABLE record_private_notes (
@@ -168,7 +169,7 @@ CREATE TABLE banned_editors (
 CREATE TABLE feedback (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  screen     TEXT NOT NULL CHECK (screen IN ('nearby', 'record', 'shrine', 'map', 'search', 'records', 'profile', 'other')),  -- どの画面について
+  screen     TEXT NOT NULL CHECK (screen IN ('nearby', 'record', 'shrine', 'map', 'search', 'community', 'records', 'profile', 'other')),  -- どの画面について
   body       TEXT NOT NULL CHECK (char_length(btrim(body)) BETWEEN 1 AND 2000),
   done_at    TIMESTAMPTZ,                       -- 管理者が「対応済み」にした時刻
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -565,6 +566,19 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   LIMIT LEAST(GREATEST(max_rows, 1), 100);
 $$;
 
+-- みんなの参拝：全国の公開記録（参拝日の新しい順）。写真は最初の1枚だけ。author は表示する名前（NULL なら名前なし）
+CREATE OR REPLACE FUNCTION get_public_timeline(max_rows INT DEFAULT 30, skip INT DEFAULT 0)
+RETURNS TABLE (id UUID, shrine_id BIGINT, shrine_name TEXT, prefecture TEXT, photo TEXT, author TEXT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT r.id, s.id, s.name, s.prefecture,
+         (SELECT p.path FROM photos p WHERE p.record_id = r.id ORDER BY p.created_at, p.path LIMIT 1),
+         display_name(r.user_id)
+  FROM records r JOIN shrines s ON s.id = r.shrine_id
+  WHERE r.is_public AND s.status = 'active'
+  ORDER BY r.visited_on DESC, r.created_at DESC, r.id
+  LIMIT LEAST(GREATEST(max_rows, 1), 100) OFFSET GREATEST(skip, 0);
+$$;
+
 -- 神社の写真（公開記録のものだけ・新しい順）
 CREATE OR REPLACE FUNCTION get_shrine_photos(target BIGINT, max_rows INT DEFAULT 200)
 RETURNS TABLE (path TEXT, tag TEXT)
@@ -616,7 +630,7 @@ BEGIN
 END $$;
 
 REVOKE EXECUTE ON FUNCTION display_name(UUID) FROM PUBLIC, anon, authenticated;
-GRANT  EXECUTE ON FUNCTION get_public_records(BIGINT, INT), get_shrine_photos(BIGINT, INT), get_shrine_contributors(BIGINT),
+GRANT  EXECUTE ON FUNCTION get_public_records(BIGINT, INT), get_public_timeline(INT, INT), get_shrine_photos(BIGINT, INT), get_shrine_contributors(BIGINT),
   is_own_record_folder(TEXT), is_public_photo(TEXT) TO anon, authenticated;
 REVOKE EXECUTE ON FUNCTION reset_nickname(UUID) FROM PUBLIC, anon;
 GRANT  EXECUTE ON FUNCTION reset_nickname(UUID) TO authenticated;

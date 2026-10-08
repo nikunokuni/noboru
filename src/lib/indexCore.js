@@ -148,7 +148,13 @@ export function matchingDeities(index, query) {
 // 名前・読み仮名で検索。前方一致を先に並べる
 //   「八幡 世田谷」のように空白で区切ると、2語目以降は市区町村・地名・都道府県にも当てはめる（どれか1語は名前に当たること）
 //   deity: ご祭神で絞り込む（検索語）
-export function searchIndex(index, query, { prefecture = null, unvisitedOnly = false, deity = null, limit = 50 } = {}) {
+//   include: 一覧の位置 i を受け取り、残すなら true を返す（自分の参拝だけ、など）
+export function searchIndex(index, query, opts = {}) {
+  return searchPositions(index, query, opts).map((i) => getItem(index, i))
+}
+
+// searchIndex と同じ条件で、当てはまる一覧の位置を返す（マップのピン用。limit: Infinity で全件）
+export function searchPositions(index, query, { prefecture = null, unvisitedOnly = false, deity = null, include = null, limit = 50 } = {}) {
   const terms = (query || '').normalize('NFKC').split(/\s+/).map(normalize).filter(Boolean)
   const r = index.raw
   const prefPos = prefecture ? r.prefs.indexOf(prefecture) : -1
@@ -161,6 +167,7 @@ export function searchIndex(index, query, { prefecture = null, unvisitedOnly = f
     if (prefPos >= 0 && r.pref[i] !== prefPos) continue
     if (unvisitedOnly && r.vis[i] === 1) continue
     if (deities && !(r.dei?.[i] || []).some((j) => deities.has(j))) continue
+    if (include && !include(i)) continue
     if (terms.length) {
       const key = index.keys[i]
       const place = index.placeKeys[i]
@@ -177,7 +184,7 @@ export function searchIndex(index, query, { prefecture = null, unvisitedOnly = f
     if (rest.length < limit) rest.push(i)
     if (!terms.length && rest.length >= limit) break
   }
-  return head.concat(rest).slice(0, limit).map((i) => getItem(index, i))
+  return head.concat(rest).slice(0, limit)
 }
 
 // 近くの神社（距離順）

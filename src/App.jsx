@@ -1,5 +1,5 @@
 import React, { Suspense, lazy } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider } from './hooks/useAuth'
 import { ToastProvider } from './hooks/useToast'
 import { ShrineIndexProvider } from './hooks/useShrineIndex'
@@ -7,7 +7,7 @@ import { PendingRecordsProvider } from './hooks/usePendingRecords'
 import BottomNav from './components/BottomNav'
 import HomePage from './pages/HomePage'
 import RecordPage from './pages/RecordPage'
-import SearchPage from './pages/SearchPage'
+import CommunityPage from './pages/CommunityPage'
 import RecordsPage from './pages/RecordsPage'
 import RecordDetailPage from './pages/RecordDetailPage'
 import ShrinePage from './pages/ShrinePage'
@@ -23,6 +23,12 @@ const AdminRequestsPage = lazy(() => import('./pages/AdminRequestsPage'))
 const AdminEditsPage = lazy(() => import('./pages/AdminEditsPage'))
 const AdminFeedbackPage = lazy(() => import('./pages/AdminFeedbackPage'))
 const AdminNicknamesPage = lazy(() => import('./pages/AdminNicknamesPage'))
+
+// 「探す」はマップに入った。以前のリンク（/search?deity=…）はマップの検索へ
+function SearchRedirect() {
+  const { search } = useLocation()
+  return <Navigate to={`/map${search}`} replace />
+}
 
 // 下部タブのある画面
 function TabLayout() {
@@ -40,10 +46,11 @@ export default function App() {
                 <Route element={<TabLayout />}>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/map" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><MapPage /></Suspense>} />
-                  <Route path="/search" element={<SearchPage />} />
+                  <Route path="/community" element={<CommunityPage />} />
                   <Route path="/records" element={<RecordsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                 </Route>
+                <Route path="/search" element={<SearchRedirect />} />
                 <Route path="/record/:shrineId" element={<RecordPage />} />
                 <Route path="/records/:id" element={<RecordDetailPage />} />
                 <Route path="/shrine/:id" element={<ShrinePage />} />

@@ -36,6 +36,17 @@ export async function fetchPublicRecords(shrineId, limit = 20) {
   return data
 }
 
+// みんなの参拝：全国の公開記録（参拝日の新しい順）: [{ id, shrine_id, shrine_name, prefecture, photo, author }]
+// photo は最初の写真のパス（なければ null）。author は「名前を出す」にした人のニックネーム（ほかは null）
+export async function fetchPublicTimeline({ limit = 30, offset = 0 } = {}) {
+  const { data, error } = await supabase.rpc('get_public_timeline', { max_rows: limit, skip: offset })
+  if (error) throw error
+  return data
+}
+
+// 名前を出していない人の、みんなの参拝での呼び名
+export const ANONYMOUS_NAME = 'にくみん'
+
 // 神社の写真（公開記録のものだけ・新しい順）: [{ path, tag }]
 export async function fetchShrinePhotos(shrineId, limit = 200) {
   const { data, error } = await supabase.rpc('get_shrine_photos', { target: Number(shrineId), max_rows: limit })

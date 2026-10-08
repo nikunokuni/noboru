@@ -197,12 +197,19 @@ a { color: inherit; }
 .logout { border-top: 1px solid var(--line); margin-top: 32px; padding-top: 16px; }
 
 /* マップ */
+/* マップ：上に地図、下に検索。間のバーで広さを変える */
 .map-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
-.map-toolbar { display: flex; gap: 6px; align-items: center; padding: 10px 12px; background: var(--paper); border-bottom: 1px solid var(--line); z-index: 500; overflow-x: auto; }
+.map-split { flex: 1; min-height: 0; display: flex; flex-direction: column; margin-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+.map-pane { position: relative; flex: none; min-height: 0; isolation: isolate; }
+.map { height: 100%; background: var(--paper2); }
+.split-handle { flex: none; height: 22px; display: flex; align-items: center; justify-content: center; background: var(--paper); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); cursor: row-resize; touch-action: none; user-select: none; }
+.split-grip { width: 40px; height: 4px; border-radius: 2px; background: rgba(26, 18, 8, 0.25); }
+.map-search { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 16px 16px; }
+.map-modes { align-items: center; margin-bottom: 4px; }
 .map-count { margin-left: auto; white-space: nowrap; }
-.map { flex: 1; margin-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); background: var(--paper2); }
-.map-overlay { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); background: rgba(245, 240, 232, 0.95); border-radius: 20px; padding: 8px 16px; font-size: 12px; font-family: var(--font-mincho); letter-spacing: 0.08em; z-index: 600; box-shadow: 0 2px 8px rgba(26, 18, 8, 0.15); white-space: nowrap; }
+.map-overlay { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(245, 240, 232, 0.95); border-radius: 20px; padding: 8px 16px; font-size: 12px; font-family: var(--font-mincho); letter-spacing: 0.08em; z-index: 600; box-shadow: 0 2px 8px rgba(26, 18, 8, 0.15); white-space: nowrap; }
 .cluster { display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 600; font-family: var(--font-body); border: 2px solid rgba(255, 255, 255, 0.9); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25); }
+.cluster-all { background: rgba(26, 18, 8, 0.6); }
 .cluster-mine { background: rgba(192, 57, 43, 0.85); }
 .cluster-notmine { background: rgba(26, 18, 8, 0.6); }
 .cluster-nobody { background: rgba(184, 150, 12, 0.9); }
@@ -291,3 +298,11 @@ a { color: inherit; }
 .editor-undo { align-self: center; }
 .editor-undo:disabled { color: var(--mist); opacity: 0.5; cursor: default; }
 .photo-edit-btn { font-size: 10px; padding: 0; }
+
+/* みんなの参拝 */
+.timeline-row { display: flex; width: 100%; align-items: center; gap: 12px; text-align: left; padding: 10px 2px; background: none; border: none; border-bottom: 1px solid rgba(26, 18, 8, 0.07); cursor: pointer; }
+.timeline-photo { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.timeline-photo.placeholder { background: var(--paper3); }
+.timeline-photo.empty { background: var(--paper2); font-size: 24px; opacity: 0.6; }
+.timeline-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.timeline-name { font-family: var(--font-mincho); font-size: 15px; letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

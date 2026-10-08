@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { encodeIndex, prepareIndex, searchIndex, nearbyIndex, getById, applyVisited, normalize, newIndexVersion, indexVersionDate } from '../src/lib/indexCore.js'
+import { encodeIndex, prepareIndex, searchIndex, searchPositions, nearbyIndex, getById, applyVisited, normalize, newIndexVersion, indexVersionDate } from '../src/lib/indexCore.js'
 import { titleFor } from '../src/lib/constants.js'
 import { canonicalDeity, normalizeDeities, deityKey, DEITIES } from '../src/lib/deities.js'
 
@@ -33,6 +33,18 @@ test('名前・読み仮名で検索し、前方一致を先に出す', () => {
   assert.deepEqual(searchIndex(idx, '', { prefecture: '東京都' }).map((r) => r.id), [3, 5, 6, 7])
   assert.deepEqual(searchIndex(idx, '', { prefecture: '京都府', unvisitedOnly: true }).map((r) => r.id), [2, 4])
   assert.equal(normalize('ﾔｻｶ 神社'), 'やさか神社')
+})
+
+test('マップ用に、追加の条件で絞った位置を全件返す', () => {
+  const idx = index()
+  const mine = new Set([1, 5])
+  const include = (i) => mine.has(idx.raw.id[i])
+  const ids = (q, opts) => searchPositions(idx, q, { limit: Infinity, ...opts }).map((i) => idx.raw.id[i])
+  assert.deepEqual(ids('', {}), [1, 2, 3, 4, 5, 6, 7])
+  assert.deepEqual(ids('', { include }), [1, 5])
+  assert.deepEqual(ids('八', { include }), [1, 5])
+  assert.deepEqual(ids('八坂', { include: (i) => !include(i) }), [4])
+  assert.deepEqual(ids('', { limit: 2 }), [1, 2])
 })
 
 test('近い順に返す', () => {

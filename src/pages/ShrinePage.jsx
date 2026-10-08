@@ -32,7 +32,7 @@ function Deities({ text }) {
   return names.map((n, i) => (
     <React.Fragment key={n}>
       {i > 0 && '、'}
-      <Link to={`/search?deity=${encodeURIComponent(n)}`} className="inline-link">{n}</Link>
+      <Link to={`/map?deity=${encodeURIComponent(n)}`} className="inline-link">{n}</Link>
     </React.Fragment>
   ))
 }

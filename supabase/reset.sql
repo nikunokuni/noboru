@@ -15,7 +15,7 @@ DROP FUNCTION IF EXISTS import_shrines(JSONB), refresh_shrine_stats(BIGINT), ref
   on_record_change(), apply_shrine_edit(), get_app_stats(), get_prefecture_progress(),
   review_shrine_request(UUID, BOOLEAN, JSONB), is_admin(), is_edit_banned(),
   shrine_edit_columns(TEXT), revert_shrine_edit(UUID), revert_user_edits(UUID), set_editor_banned(UUID, BOOLEAN),
-  display_name(UUID), get_public_records(BIGINT, INT), get_shrine_photos(BIGINT, INT), get_shrine_contributors(BIGINT),
+  display_name(UUID), get_public_records(BIGINT, INT), get_public_timeline(INT, INT), get_shrine_photos(BIGINT, INT), get_shrine_contributors(BIGINT),
   is_own_record_folder(TEXT), is_public_photo(TEXT), reset_nickname(UUID) CASCADE;
 
 DROP TYPE IF EXISTS parking_status, goshuin_status, shrine_status, request_status CASCADE;

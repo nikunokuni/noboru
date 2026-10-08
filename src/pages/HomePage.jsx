@@ -79,7 +79,7 @@ export default function HomePage() {
         ) : (
           <div className="nearby-map nearby-map-empty">
             {locating ? <><div className="spinner" /><p className="muted small">現在地を確認中…</p></>
-              : <p className="muted small">現在地を取得できませんでした。<br />位置情報の利用を許可してください（「探す」から名前でも探せます）</p>}
+              : <p className="muted small">現在地を取得できませんでした。<br />位置情報の利用を許可してください（「マップ」の下の検索から名前でも探せます）</p>}
           </div>
         )}
 
