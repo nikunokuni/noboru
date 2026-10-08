@@ -58,7 +58,7 @@ export default function ShrineRequestPage() {
     try {
       await submitShrineRequest(hideId
         ? { user_id: user.id, kind: 'hide', shrine_id: Number(hideId), name: target?.name || '', note: `${reason}　${note}`.trim() }
-        : { user_id: user.id, kind: 'add', name: name.trim(), note: note.trim(), lat: position?.lat ?? null, lng: position?.lng ?? null })
+        : { user_id: user.id, kind: 'add', name: name.trim(), note: note.trim(), lat: position?.lat ?? null, lng: position?.lng ?? null, from_map: !!pin })
       showToast('ありがとうございます。確認して反映します', 3500)
       navigate(-1)
     } catch (e) {
@@ -104,6 +104,7 @@ export default function ShrineRequestPage() {
                       ? `地図で選んだ場所を添付します（${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}）`
                       : `現在地を添付します（誤差 約${position.accuracy}m）`}</p>
                     : <button type="button" className="btn-secondary" onClick={locate} disabled={locating}>{locating ? '取得中…' : '現在地を添付する'}</button>}
+                  {pin && <p className="muted small mt8">承認されると、この神社の参拝記録（現地で記録）が自動で作られます</p>}
                 </div>
               </>
             )}

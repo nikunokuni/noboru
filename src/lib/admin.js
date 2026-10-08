@@ -8,7 +8,7 @@ export async function fetchIsAdmin(userId) {
   return !!data
 }
 
-const REQUEST_COLUMNS = 'id, kind, shrine_id, name, lat, lng, note, status, created_at, reviewed_at'
+const REQUEST_COLUMNS = 'id, kind, shrine_id, name, lat, lng, note, from_map, status, created_at, reviewed_at'
 
 export async function fetchPendingRequests() {
   const { data, error } = await supabase.from('shrine_requests')

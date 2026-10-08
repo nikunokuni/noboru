@@ -141,6 +141,7 @@ function RequestHead({ request: r }) {
       </div>
       <p className="request-name">⛩ {r.name || '（名前なし）'}</p>
       {r.note && <p className="small request-note">{r.note}</p>}
+      {r.kind === 'add' && r.from_map && <p className="muted small mt8">現地の地図から申請。承認すると申請した人の参拝記録（現地で記録）を作ります</p>}
       {r.lat != null && r.lng != null && (
         <p className="small mt8">
           <a className="inline-link" href={mapUrl(r.lat, r.lng)} target="_blank" rel="noopener noreferrer">申請された場所を地図で見る</a>

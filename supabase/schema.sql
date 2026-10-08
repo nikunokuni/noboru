@@ -146,6 +146,7 @@ CREATE TABLE shrine_requests (
   lat        DOUBLE PRECISION,
   lng        DOUBLE PRECISION,
   note       TEXT NOT NULL DEFAULT '',
+  from_map   BOOLEAN NOT NULL DEFAULT FALSE,                    -- 「記録する」の地図でピンを立てて申請（現地にいた）
   status     request_status NOT NULL DEFAULT 'pending',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   reviewed_at TIMESTAMPTZ                                        -- 承認・却下した時刻
@@ -405,6 +406,7 @@ $$;
 
 -- 申請を承認・却下する
 --   add  を承認: shrine の内容（name, name_kana, prefecture, municipality, address, lat, lng）で shrines に追加
+--               地図から申請（from_map）なら、申請した人の参拝記録を作る（参拝日＝申請日、「現地で記録」の印付き）
 --   hide を承認: 対象の神社を status = 'hidden' にする
 -- 戻り値は追加・非表示にした神社の id（却下は NULL）
 CREATE OR REPLACE FUNCTION review_shrine_request(request_id UUID, approve BOOLEAN, shrine JSONB DEFAULT '{}')
@@ -432,6 +434,10 @@ BEGIN
       COALESCE((shrine->>'lat')::DOUBLE PRECISION, req.lat),
       COALESCE((shrine->>'lng')::DOUBLE PRECISION, req.lng))
     RETURNING id INTO target;
+    IF req.from_map THEN
+      INSERT INTO records (user_id, shrine_id, visited_on, onsite)
+      VALUES (req.user_id, target, (req.created_at AT TIME ZONE 'Asia/Tokyo')::DATE, TRUE);
+    END IF;
   ELSIF approve AND req.kind = 'hide' THEN
     UPDATE shrines SET status = 'hidden', updated_at = NOW() WHERE id = req.shrine_id;
     target := req.shrine_id;

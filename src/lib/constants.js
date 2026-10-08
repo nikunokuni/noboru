@@ -13,10 +13,8 @@ export const PREFECTURES = [
 
 export const prefectureIso = (index) => `JP-${String(index + 1).padStart(2, '0')}`
 
-// 「現地で記録」とみなす神社からの距離（m）
-export const ONSITE_RADIUS_M = 300
-
 // 「記録する」のマップに出す範囲（現在地から東西南北それぞれの距離 m。約2km四方）
+// この範囲に入る神社の記録には「現地で記録」の印を付ける
 export const NEARBY_HALF_M = 1000
 
 // 徒歩の目安（m/分）

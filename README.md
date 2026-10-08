@@ -39,6 +39,7 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 | [`supabase/upgrade-feedback.sql`](supabase/upgrade-feedback.sql) | アプリへのご意見・ご要望 |
 | [`supabase/upgrade-nickname.sql`](supabase/upgrade-nickname.sql) | ニックネーム・公開記録と情報提供の履歴から `user_id` を読めなくする。実行後に `npm run move:photos` で今ある写真を移す（下の「写真のパスを移す」） |
 | [`supabase/upgrade-prayer.sql`](supabase/upgrade-prayer.sql) | マイページの「神社でお祈りしたいこと」（本人だけが読める自由記述） |
+| [`supabase/upgrade-request-visit.sql`](supabase/upgrade-request-visit.sql) | 「記録する」の地図から申請した神社が承認されたら、申請した人の参拝記録（現地で記録）を作る。アプリの更新より先に実行する |
 
 ### 申請の確認（管理者）
 
