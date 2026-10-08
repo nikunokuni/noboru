@@ -12,7 +12,7 @@ import {
   countUnpublishedApprovals, rebuildShrineIndex,
 } from '../lib/admin'
 import { nearbyIndex } from '../lib/indexCore'
-import { formatDistance } from '../lib/geo'
+import { formatDistance, reverseGeocode } from '../lib/geo'
 import { formatDate } from '../lib/format'
 import { PREFECTURES } from '../lib/constants'
 
@@ -218,22 +218,31 @@ function AddForm({ request, index, saving, onApprove, onReject }) {
   const hasPos = request.lat != null && request.lng != null
   const [name, setName] = useState(request.name)
   const [kana, setKana] = useState('')
-  const [address, setAddress] = useState('')
+  // 地図からの申請は補足に「住所（自動）：…」が入っている
+  const [address, setAddress] = useState(() => /住所（自動）：(\S+)/.exec(request.note || '')?.[1] || '')
   const [latLng, setLatLng] = useState(hasPos ? `${request.lat}, ${request.lng}` : '')
   const pos = parseLatLng(latLng)
   const posKey = pos ? `${pos.lat},${pos.lng}` : ''
 
-  // 近くの登録済みの神社：重複の確認と、都道府県の推定に使う
+  // 住所がなければ場所から調べて入れる
+  useEffect(() => {
+    if (address || !pos) return
+    let alive = true
+    reverseGeocode(pos.lat, pos.lng).then((a) => { if (alive && a) setAddress((cur) => cur || a) })
+    return () => { alive = false }
+  }, [posKey])
+
+  // 近くの登録済みの神社：重複の確認と、住所から都道府県がわからないときの推定に使う
   const nearby = useMemo(() => (index && pos ? nearbyIndex(index, pos.lat, pos.lng, { radiusM: 30000, limit: 5 }) : []),
     [index, posKey])
   const close = nearby.filter((s) => s.distance <= 500)
-  const [prefecture, setPrefecture] = useState('')
-  useEffect(() => { if (!prefecture && nearby[0]) setPrefecture(nearby[0].prefecture) }, [nearby, prefecture])
+  const prefFromAddress = PREFECTURES.find((p) => address.trim().startsWith(p))
+  const prefecture = prefFromAddress || nearby[0]?.prefecture || ''
 
   const approve = () => {
     if (!name.trim()) return window.alert('神社名を入力してください')
     if (!pos) return window.alert('場所（緯度, 経度）を入力してください')
-    if (!prefecture) return window.alert('都道府県を選んでください')
+    if (!prefecture) return window.alert('住所を都道府県から入力してください')
     onApprove({ name: name.trim(), name_kana: kana.trim(), prefecture, address: address.trim(), lat: pos.lat, lng: pos.lng })
   }
 
@@ -254,15 +263,9 @@ function AddForm({ request, index, saving, onApprove, onReject }) {
         {!hasPos && <p className="small muted mt8">申請に現在地が付いていません。地図で場所を調べて入力してください</p>}
       </div>
       <div className="field-wrap">
-        <label className="field-label">都道府県</label>
-        <select className="field-input" value={prefecture} onChange={(e) => setPrefecture(e.target.value)}>
-          <option value="">選んでください</option>
-          {PREFECTURES.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-      </div>
-      <div className="field-wrap">
-        <label className="field-label">住所（わかれば）</label>
-        <input className="field-input" value={address} onChange={(e) => setAddress(e.target.value)} />
+        <label className="field-label">住所</label>
+        <input className="field-input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="例：東京都世田谷区上町" />
+        {prefecture && !prefFromAddress && <p className="small muted mt8">都道府県は近くの神社から {prefecture} とします</p>}
       </div>
 
       {close.length > 0 && (

@@ -1,5 +1,6 @@
 // 「記録する」の小さな地図。現在地を中心に約2km四方で固定（動かせない）
 // 神社のピンを押すと onPick。placing のときは地図を押した場所に申請用のピンを動かす
+// placing の間は、ピンを打ちやすいように最初の範囲の中で拡大・移動できる
 import React, { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -26,6 +27,8 @@ export default function NearbyMap({ position, bounds, shrines, onPick, placing, 
   const hereMarker = useRef(null)
   const newPinMarker = useRef(null)
   const boundsRef = useRef(bounds)
+  const placingRef = useRef(placing)
+  const zoomControl = useRef(null)
   // 地図のイベントからは最新の関数を呼ぶ
   const handlers = useRef({})
   handlers.current = { onPick, onPlace, placing }
@@ -43,7 +46,10 @@ export default function NearbyMap({ position, bounds, shrines, onPick, placing, 
     map.on('click', (e) => { if (handlers.current.placing) handlers.current.onPlace(e.latlng) })
     mapRef.current = map
     // 画面の幅が変わったら同じ範囲に合わせ直す
-    const ro = new ResizeObserver(() => { map.invalidateSize(); map.fitBounds(boundsRef.current, { animate: false }) })
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize()
+      if (!placingRef.current) map.fitBounds(boundsRef.current, { animate: false })
+    })
     ro.observe(mapEl.current)
     return () => { ro.disconnect(); map.remove(); mapRef.current = null }
   }, [])
@@ -57,6 +63,27 @@ export default function NearbyMap({ position, bounds, shrines, onPick, placing, 
     if (hereMarker.current) hereMarker.current.setLatLng(at)
     else hereMarker.current = L.marker(at, { icon: hereIcon, interactive: false, keyboard: false }).addTo(map)
   }, [bounds, position])
+
+  // ピンを置く間だけ拡大・移動できる。最初の範囲より外・より縮小はできない
+  useEffect(() => {
+    const map = mapRef.current
+    placingRef.current = placing
+    const gestures = [map.dragging, map.touchZoom, map.scrollWheelZoom]
+    map.setMaxBounds(null)
+    map.setMinZoom(0)
+    map.fitBounds(boundsRef.current, { animate: false })
+    if (placing) {
+      map.setMinZoom(map.getZoom())
+      map.options.maxBoundsViscosity = 1
+      map.setMaxBounds(boundsRef.current)
+      gestures.forEach((g) => g.enable())
+      zoomControl.current = L.control.zoom({ position: 'topright' }).addTo(map)
+    } else {
+      gestures.forEach((g) => g.disable())
+      zoomControl.current?.remove()
+      zoomControl.current = null
+    }
+  }, [placing, bounds])
 
   // 神社のピン。申請のピンを置いている間は押せない（地図を押した扱いにする）
   useEffect(() => {

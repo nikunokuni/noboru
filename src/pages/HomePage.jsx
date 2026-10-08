@@ -74,7 +74,7 @@ export default function HomePage() {
                 placing={placing} newPin={newPin} onPlace={(ll) => setNewPin({ lat: ll.lat, lng: ll.lng })}
               />
             </Suspense>
-            {placing && <div className="nearby-map-hint">神社の場所をタップしてください</div>}
+            {placing && <div className="nearby-map-hint">拡大して、神社の場所をタップ</div>}
           </div>
         ) : (
           <div className="nearby-map nearby-map-empty">
