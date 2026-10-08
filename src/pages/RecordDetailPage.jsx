@@ -1,5 +1,5 @@
 // 自分の記録の詳細・編集・削除
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { useSignedUrls } from '../components/Photos'
@@ -7,9 +7,10 @@ import EmotionSlider from '../components/EmotionSlider'
 import PhotoEditor from '../components/PhotoEditor'
 import { MemoFields, VisibilityPicker } from '../components/MemoFields'
 import { useToast } from '../hooks/useToast'
-import { deleteRecord, fetchRecord, replacePhoto, updatePhotoTags, updateRecord } from '../lib/records'
+import { addPhoto, deleteRecord, fetchRecord, replacePhoto, updatePhotoTags, updateRecord } from '../lib/records'
+import { compressImage } from '../lib/imageCompress'
 import { formatDate, todayStr } from '../lib/format'
-import { DEFAULT_PHOTO_TAG, PHOTO_TAGS, PHOTO_TAG_LABELS, emotionColor, emotionLabel } from '../lib/constants'
+import { DEFAULT_PHOTO_TAG, MAX_PHOTOS, PHOTO_TAGS, PHOTO_TAG_LABELS, emotionColor, emotionLabel } from '../lib/constants'
 
 // 写真とタグ。onChange があればタグを選べる。onEdit があれば写真を編集できる
 function TaggedPhotos({ photos, tags, onChange, onEdit }) {
@@ -40,12 +41,14 @@ export default function RecordDetailPage() {
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState(false)
   const [editingPhoto, setEditingPhoto] = useState(null)
+  const [addingPhotos, setAddingPhotos] = useState(false)
+  const fileRef = useRef(null)
 
   useEffect(() => { fetchRecord(id).then(setRecord).catch(() => setRecord(null)) }, [id])
 
   const startEdit = () => setEditing({
     visited_on: record.visited_on, emotion_level: record.emotion_level, public_memo: record.public_memo,
-    private_memo: record.private_memo, next_memo: record.next_memo, is_public: record.is_public,
+    private_memo: record.private_memo, is_public: record.is_public,
     tags: photoTags(record),
   })
 
@@ -87,6 +90,31 @@ export default function RecordDetailPage() {
     }
   }
 
+  // 足した写真もその場で保存する（タグは「その他」で入れ、下のタグの欄で選び直してもらう）
+  const handleAddPhotos = async (ev) => {
+    const files = Array.from(ev.target.files || [])
+    ev.target.value = ''
+    if (!files.length) return
+    if ((record.photos?.length || 0) + files.length > MAX_PHOTOS) { showToast(`写真は${MAX_PHOTOS}枚までです`); return }
+    setAddingPhotos(true)
+    let current = record
+    let added = 0
+    try {
+      for (const file of files) {
+        const photo = await addPhoto(current, await compressImage(file))
+        current = { ...current, photos: [...(current.photos || []), photo] }
+        setRecord(current)
+        setEditing((ed) => ed && { ...ed, tags: { ...ed.tags, [photo.path]: photo.tag } })
+        added++
+      }
+      showToast('写真を追加しました')
+    } catch {
+      showToast(added ? `${added}枚だけ追加しました（残りは失敗しました）` : '写真の追加に失敗しました')
+    } finally {
+      setAddingPhotos(false)
+    }
+  }
+
   const remove = async () => {
     if (!confirm('この記録を削除しますか？写真も削除され、元に戻せません')) return
     setBusy(true)
@@ -125,7 +153,6 @@ export default function RecordDetailPage() {
             <TaggedPhotos photos={record.photos || []} tags={photoTags(record)} />
             {record.public_memo && <><div className="section-mini">みんなへのメモ{!record.is_public && '（記録が自分だけなので、いまは誰にも見えません）'}</div><p className="memo">{record.public_memo}</p></>}
             {record.private_memo && <><div className="section-mini">自分だけのメモ</div><p className="memo">{record.private_memo}</p></>}
-            {record.next_memo && <><div className="section-mini">次回へのメモ</div><p className="memo">{record.next_memo}</p></>}
           </>
         ) : (
           <>
@@ -144,18 +171,18 @@ export default function RecordDetailPage() {
                 ...('privateMemo' in p && { private_memo: p.privateMemo }),
               })} />
             <div className="field-wrap">
-              <label className="field-label">次回へのメモ</label>
-              <input className="field-input" value={e.next_memo} onChange={(ev) => set({ next_memo: ev.target.value })} />
+              <label className="field-label">写真とタグ（{record.photos?.length || 0}/{MAX_PHOTOS}）</label>
+              <TaggedPhotos photos={record.photos || []} tags={e.tags} onChange={(path, tag) => set({ tags: { ...e.tags, [path]: tag } })}
+                onEdit={setEditingPhoto} />
+              {(record.photos?.length || 0) < MAX_PHOTOS && (
+                <button type="button" className="btn-secondary mt8" onClick={() => fileRef.current.click()} disabled={addingPhotos}>
+                  {addingPhotos ? '写真を追加中…' : '＋ 写真を追加'}
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handleAddPhotos} />
+              <p className="muted small">追加した写真・編集した写真はすぐに保存されます（タグは「保存する」で保存）。写真の回転・切り取り・隠す（黒塗り）は「写真を編集」から</p>
             </div>
-            {record.photos?.length > 0 && (
-              <div className="field-wrap">
-                <label className="field-label">写真のタグ</label>
-                <TaggedPhotos photos={record.photos} tags={e.tags} onChange={(path, tag) => set({ tags: { ...e.tags, [path]: tag } })}
-                  onEdit={setEditingPhoto} />
-                <p className="muted small">写真の回転・切り取り・隠す（黒塗り）は「写真を編集」から。編集した写真はすぐに保存されます</p>
-              </div>
-            )}
-            <button className="btn-primary mt16" onClick={save} disabled={busy}>保存する</button>
+            <button className="btn-primary mt16" onClick={save} disabled={busy || addingPhotos}>保存する</button>
             <button className="text-btn mt16 block" onClick={() => setEditing(null)}>やめる</button>
           </>
         )}

@@ -5,6 +5,8 @@
 DROP POLICY IF EXISTS photos_obj_insert ON storage.objects;
 DROP POLICY IF EXISTS photos_obj_delete ON storage.objects;
 DROP POLICY IF EXISTS photos_obj_read   ON storage.objects;
+DROP POLICY IF EXISTS photos_obj_admin_orphan_read   ON storage.objects;
+DROP POLICY IF EXISTS photos_obj_admin_orphan_delete ON storage.objects;
 DROP POLICY IF EXISTS public_data_admin_insert ON storage.objects;
 DROP POLICY IF EXISTS public_data_admin_read   ON storage.objects;
 
@@ -16,6 +18,6 @@ DROP FUNCTION IF EXISTS import_shrines(JSONB), refresh_shrine_stats(BIGINT), ref
   review_shrine_request(UUID, BOOLEAN, JSONB), is_admin(), is_edit_banned(),
   shrine_edit_columns(TEXT), revert_shrine_edit(UUID), revert_user_edits(UUID), set_editor_banned(UUID, BOOLEAN),
   display_name(UUID), get_public_records(BIGINT, INT), get_public_timeline(INT, INT), get_shrine_photos(BIGINT, INT), get_shrine_contributors(BIGINT),
-  is_own_record_folder(TEXT), is_public_photo(TEXT), reset_nickname(UUID) CASCADE;
+  is_own_record_folder(TEXT), is_public_photo(TEXT), reset_nickname(UUID), delete_shrine(BIGINT), is_orphan_photo(TEXT) CASCADE;
 
 DROP TYPE IF EXISTS parking_status, goshuin_status, shrine_status, request_status CASCADE;

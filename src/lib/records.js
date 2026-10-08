@@ -7,7 +7,7 @@ const KEY_PENDING = 'pending-records'
 
 // ─── 未送信の記録（IndexedDB） ───────────────────────────────
 // 1件の形: { id, user_id, shrine_id, shrine_name, visited_on, emotion_level, public_memo,
-//           private_memo, next_memo, is_public, onsite, location_accuracy_m, photos: Blob[],
+//           private_memo, is_public, onsite, location_accuracy_m, photos: Blob[],
 //           photo_tags: string[]（photos と同じ並び。以前の版で保存した記録にはない）, created_at, last_error }
 
 export async function listPending(userId) {
@@ -39,7 +39,6 @@ async function uploadRecord(r) {
     visited_on: r.visited_on,
     emotion_level: r.emotion_level,
     public_memo: r.public_memo,
-    next_memo: r.next_memo,
     is_public: r.is_public,
     onsite: r.onsite,
     location_accuracy_m: r.location_accuracy_m,
@@ -90,7 +89,7 @@ export function syncPending(userId) {
 }
 
 // ─── サーバー上の記録 ─────────────────────────────────────────
-const RECORD_FIELDS = 'id, shrine_id, visited_on, emotion_level, public_memo, next_memo, is_public, onsite, created_at, shrines(id, name, prefecture), photos(path, tag)'
+const RECORD_FIELDS = 'id, shrine_id, visited_on, emotion_level, public_memo, is_public, onsite, created_at, shrines(id, name, prefecture), photos(path, tag)'
 
 export async function fetchMyRecords(userId) {
   const { data, error } = await supabase.from('records').select(RECORD_FIELDS)
@@ -133,6 +132,21 @@ export async function downloadPhoto(path) {
   const { data, error } = await supabase.storage.from('photos').download(path)
   if (error) throw error
   return data
+}
+
+// 投稿済みの記録に写真を足す。パスは <record_id>/<n>-<時刻>.jpg（n は今ある写真の続きの番号）。戻り値は { path, tag }
+export async function addPhoto(record, blob, tag = DEFAULT_PHOTO_TAG) {
+  const used = (record.photos || []).map((p) => parseInt(p.path.split('/').pop(), 10)).filter((n) => !Number.isNaN(n))
+  const n = used.length ? Math.max(...used) + 1 : 0
+  const path = `${record.id}/${n}-${Date.now().toString(36)}.jpg`
+  const { error: upErr } = await supabase.storage.from('photos').upload(path, blob, { contentType: 'image/jpeg' })
+  if (upErr) throw upErr
+  const { error } = await supabase.from('photos').insert({ record_id: record.id, user_id: record.user_id, path, tag })
+  if (error) {
+    await supabase.storage.from('photos').remove([path])
+    throw error
+  }
+  return { path, tag }
 }
 
 // 編集した写真に差し替える。CDN やブラウザに古い画像が残らないよう、上書きせず新しいパスに置いてから古いものを消す

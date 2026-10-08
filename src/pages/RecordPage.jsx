@@ -19,7 +19,7 @@ import { DEFAULT_PHOTO_TAG, MAX_PHOTOS, NEARBY_HALF_M } from '../lib/constants'
 
 const emptyForm = () => ({
   visitedOn: todayStr(), emotion: 50,
-  publicMemo: '', privateMemo: '', nextMemo: '', isPublic: true, photos: [],
+  publicMemo: '', privateMemo: '', isPublic: true, photos: [],
 })
 
 // 端末の神社一覧にあればそれを、なければ（一覧の準備中・追加されたばかり）サーバーから
@@ -122,7 +122,6 @@ export default function RecordPage() {
         emotion_level: form.emotion,
         public_memo: form.publicMemo.trim(),
         private_memo: form.privateMemo.trim(),
-        next_memo: form.nextMemo.trim(),
         is_public: form.isPublic,
         onsite,
         location_accuracy_m: onsite ? position.accuracy : null,
@@ -187,12 +186,6 @@ export default function RecordPage() {
 
             <VisibilityPicker isPublic={form.isPublic} onChange={(isPublic) => update({ isPublic })} />
             <MemoFields isPublic={form.isPublic} publicMemo={form.publicMemo} privateMemo={form.privateMemo} onChange={update} />
-
-            <div className="field-wrap">
-              <label className="field-label" htmlFor="next-memo">次回へのメモ</label>
-              <input id="next-memo" className="field-input" placeholder="次に来るときのために…"
-                value={form.nextMemo} onChange={(e) => update({ nextMemo: e.target.value })} />
-            </div>
 
             <div className="field-wrap">
               <label className="field-label">写真（{form.photos.length}/{MAX_PHOTOS}）</label>

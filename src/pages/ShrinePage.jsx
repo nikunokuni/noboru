@@ -8,6 +8,9 @@ import ShrineContributors from '../components/ShrineContributors'
 import { GuideInlineLink } from '../components/GuideLinks'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
+import { useShrineIndex } from '../hooks/useShrineIndex'
+import { useToast } from '../hooks/useToast'
+import { deleteShrine, fetchIsAdmin, rebuildShrineIndex } from '../lib/admin'
 import { fetchMyRecordsForShrine, fetchPublicRecords, fetchShrine } from '../lib/community'
 import { formatDistance, walkMinutes } from '../lib/geo'
 import { formatDate, placeLabel } from '../lib/format'
@@ -80,6 +83,11 @@ export default function ShrinePage() {
   const [shrine, setShrine] = useState(undefined)
   const [records, setRecords] = useState([])
   const [mine, setMine] = useState([])
+  const [isAdmin, setIsAdmin] = useState(false)
+  // 削除中: null（していない）/ 'deleting' / 数値（神社一覧の作り直し中。読み込んだ社数）
+  const [deleting, setDeleting] = useState(null)
+  const { refreshIndex } = useShrineIndex()
+  const { showToast } = useToast()
 
   useEffect(() => {
     let alive = true
@@ -88,6 +96,35 @@ export default function ShrinePage() {
       .catch(() => alive && setShrine(null))
     return () => { alive = false }
   }, [id, user, syncRevision])
+
+  useEffect(() => {
+    let alive = true
+    if (user) fetchIsAdmin(user.id).then((v) => alive && setIsAdmin(v))
+    else setIsAdmin(false)
+    return () => { alive = false }
+  }, [user])
+
+  // 管理者だけ：神社を完全に削除し、マップ・検索から消えるよう神社一覧を作り直す
+  const remove = async () => {
+    if (!confirm(`「${shrine.name}」を本当に削除してもよいですか？\nみんなの参拝記録・写真・情報提供も消え、元に戻せません`)) return
+    setDeleting('deleting')
+    try {
+      await deleteShrine(shrine.id)
+    } catch (e) {
+      showToast(e.message || '削除に失敗しました')
+      setDeleting(null)
+      return
+    }
+    try {
+      await rebuildShrineIndex(setDeleting)
+      await refreshIndex()
+      showToast('削除しました')
+    } catch {
+      showToast('削除しました。神社一覧の更新に失敗したので「申請の確認」から更新してください')
+    }
+    if (window.history.state?.idx > 0) navigate(-1)
+    else navigate('/map', { replace: true })
+  }
 
   if (shrine === undefined) return <div className="app-shell"><TopBar back title="" /><div className="page-content"><div className="spinner" /></div></div>
   if (shrine === null) return <div className="app-shell"><TopBar back title="" /><div className="page-content"><p className="muted center">神社が見つかりませんでした（電波の届く場所で開き直してください）</p></div></div>
@@ -188,6 +225,13 @@ export default function ShrinePage() {
         <p className="source mt24">
           位置・アクセス情報: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>
         </p>
+
+        {isAdmin && (
+          <button className="text-btn danger mt24" onClick={remove} disabled={deleting != null}>
+            {deleting == null ? 'この神社を削除する（管理者）'
+              : deleting === 'deleting' ? '削除中…' : `神社一覧を作り直し中… ${deleting.toLocaleString()}社`}
+          </button>
+        )}
       </div>
     </div>
   )

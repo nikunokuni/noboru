@@ -60,6 +60,16 @@ export async function reviewShrineRequest(requestId, approve, shrine = {}) {
   return data
 }
 
+// 神社を完全に削除する（みんなの参拝記録・写真・情報提供・申請も消える）
+// DB から消したあと、残った写真ファイルを消す。ファイルが消せなくても神社の削除は済んでいる
+export async function deleteShrine(shrineId) {
+  const { data: paths, error } = await supabase.rpc('delete_shrine', { target: Number(shrineId) })
+  if (error) throw error
+  for (let i = 0; i < paths.length; i += 100) {
+    await supabase.storage.from('photos').remove(paths.slice(i, i + 100))
+  }
+}
+
 // 今の一覧ファイルを作ったあとに承認した申請の数（＝アプリの一覧にまだ入っていない）
 export async function countUnpublishedApprovals(version) {
   let q = supabase.from('shrine_requests')
