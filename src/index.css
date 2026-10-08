@@ -321,3 +321,8 @@ a { color: inherit; }
 .book-lightbox img { max-height: calc(100% - 96px); }
 .book-lightbox-info { color: #fff; text-align: center; font-family: var(--font-mincho); letter-spacing: 0.06em; cursor: default; display: flex; flex-direction: column; gap: 4px; }
 .book-lightbox-info .inline-link { color: #fff; }
+
+/* 新しい版のお知らせ */
+.update-banner { position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); display: flex; align-items: center; gap: 12px; background: var(--ink); color: var(--paper); font-family: var(--font-mincho); font-size: 13px; letter-spacing: 0.1em; padding: 8px 8px 8px 18px; border-radius: 24px; z-index: 2500; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2); animation: toastIn 0.3s ease; }
+.update-btn { background: var(--paper); color: var(--ink); border: none; border-radius: 16px; padding: 6px 14px; font-family: var(--font-mincho); font-size: 12px; letter-spacing: 0.1em; cursor: pointer; }
+.update-later { background: none; border: none; color: var(--paper); opacity: 0.6; font-size: 13px; padding: 4px 6px; cursor: pointer; }

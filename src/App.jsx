@@ -5,6 +5,7 @@ import { ToastProvider } from './hooks/useToast'
 import { ShrineIndexProvider } from './hooks/useShrineIndex'
 import { PendingRecordsProvider } from './hooks/usePendingRecords'
 import BottomNav from './components/BottomNav'
+import UpdateBanner from './components/UpdateBanner'
 import HomePage from './pages/HomePage'
 import RecordPage from './pages/RecordPage'
 import CommunityPage from './pages/CommunityPage'
@@ -64,6 +65,7 @@ export default function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </BrowserRouter>
+            <UpdateBanner />
           </PendingRecordsProvider>
         </ShrineIndexProvider>
       </AuthProvider>

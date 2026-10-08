@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 新しい版は「更新があります」で知らせ、押したときに切り替える（入力中の内容が消えないように）
+      registerType: 'prompt',
       includeAssets: ['icon.svg'],
       manifest: {
         name: 'ノボル — 参拝の記録',
@@ -24,6 +25,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // 初めて開いた画面もすぐ service worker の管理下に入れる（そうしないと「更新する」で切り替わらない）
+        clientsClaim: true,
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         runtimeCaching: [
