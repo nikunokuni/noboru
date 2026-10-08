@@ -104,7 +104,7 @@ export default function ShrineRequestPage() {
                       ? `地図で選んだ場所を添付します（${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}）`
                       : `現在地を添付します（誤差 約${position.accuracy}m）`}</p>
                     : <button type="button" className="btn-secondary" onClick={locate} disabled={locating}>{locating ? '取得中…' : '現在地を添付する'}</button>}
-                  {pin && <p className="muted small mt8">承認されると、この神社の参拝記録（現地で記録）が自動で作られます</p>}
+                  {pin && <p className="muted small mt8">承認されると、この神社の参拝記録（現地で記録・非公開）が自動で作られます</p>}
                 </div>
               </>
             )}
