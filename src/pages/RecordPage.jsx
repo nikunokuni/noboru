@@ -1,4 +1,4 @@
-// 記録画面（近くの神社・神社詳細から、神社を選んだ状態で開く）
+// 記録画面（記録する・神社詳細から、神社を選んだ状態で開く）
 import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
@@ -67,7 +67,7 @@ export default function RecordPage() {
   photosRef.current = form.photos
   useEffect(() => () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.preview)), [])
 
-  // 来た画面へ戻る。直接開いたときは近くの神社へ
+  // 来た画面へ戻る。直接開いたときはホーム（記録する）へ
   const leave = () => {
     if (window.history.state?.idx > 0) navigate(-1)
     else navigate('/', { replace: true })

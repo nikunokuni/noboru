@@ -16,9 +16,8 @@ export const prefectureIso = (index) => `JP-${String(index + 1).padStart(2, '0')
 // 「現地で記録」とみなす神社からの距離（m）
 export const ONSITE_RADIUS_M = 300
 
-// 記録画面の「近くの神社」に出す範囲と件数
-export const NEARBY_RADIUS_M = 3000
-export const NEARBY_LIMIT = 8
+// 「記録する」のマップに出す範囲（現在地から東西南北それぞれの距離 m。約2km四方）
+export const NEARBY_HALF_M = 1000
 
 // 徒歩の目安（m/分）
 export const WALK_M_PER_MIN = 80
@@ -106,7 +105,7 @@ export function emotionMarks(value) {
 
 // ご意見・ご要望：どの画面についてか
 export const FEEDBACK_SCREENS = [
-  ['nearby', '近くの神社'], ['record', '記録画面'], ['shrine', '神社詳細'], ['map', 'マップ'],
+  ['nearby', '記録する'], ['record', '記録画面'], ['shrine', '神社詳細'], ['map', 'マップ'],
   ['search', '探す'], ['records', '自分の記録'], ['profile', 'マイページ'], ['other', 'その他'],
 ]
 export const FEEDBACK_SCREEN_LABELS = Object.fromEntries(FEEDBACK_SCREENS)

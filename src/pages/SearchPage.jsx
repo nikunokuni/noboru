@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
-import { ShrineRow } from '../components/ShrineFinder'
+import ShrineRow from '../components/ShrineRow'
 import { useShrineIndex } from '../hooks/useShrineIndex'
 import { searchIndex } from '../lib/indexCore'
 import { serverSearch, serverSearchByDeity } from '../lib/shrineIndex'

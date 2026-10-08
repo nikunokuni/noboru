@@ -5,9 +5,17 @@ import TopBar from '../components/TopBar'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { fetchShrine, submitShrineRequest, isBannedError } from '../lib/community'
-import { getCurrentPosition } from '../lib/geo'
+import { getCurrentPosition, reverseGeocode } from '../lib/geo'
 
 const HIDE_REASONS = ['境内社です', '同じ神社が重複しています', '現存しません', '神社ではありません']
+
+// 「記録する」の地図で立てたピンの座標（?lat=..&lng=..）
+function pinFromParams(params) {
+  const lat = Number(params.get('lat'))
+  const lng = Number(params.get('lng'))
+  if (!params.get('lat') || !params.get('lng') || !Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng, accuracy: null } : null
+}
 
 export default function ShrineRequestPage() {
   const [params] = useSearchParams()
@@ -19,11 +27,22 @@ export default function ShrineRequestPage() {
   const [name, setName] = useState('')
   const [note, setNote] = useState('')
   const [reason, setReason] = useState(HIDE_REASONS[0])
-  const [position, setPosition] = useState(null)
+  const [pin] = useState(() => pinFromParams(params))
+  const [position, setPosition] = useState(pin)
   const [locating, setLocating] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { if (hideId) fetchShrine(hideId).then(setTarget).catch(() => {}) }, [hideId])
+
+  // ピンの場所のおおよその住所を補足に入れる（書き換えてよい）
+  useEffect(() => {
+    if (hideId || !pin) return
+    let alive = true
+    reverseGeocode(pin.lat, pin.lng).then((address) => {
+      if (alive && address) setNote((n) => n || `住所（自動）：${address}`)
+    })
+    return () => { alive = false }
+  }, [hideId, pin])
 
   const locate = async () => {
     setLocating(true)
@@ -81,7 +100,9 @@ export default function ShrineRequestPage() {
                 <div className="field-wrap">
                   <label className="field-label">場所</label>
                   {position
-                    ? <p className="small">現在地を添付します（誤差 約{position.accuracy}m）</p>
+                    ? <p className="small">{position.accuracy == null
+                      ? `地図で選んだ場所を添付します（${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}）`
+                      : `現在地を添付します（誤差 約${position.accuracy}m）`}</p>
                     : <button type="button" className="btn-secondary" onClick={locate} disabled={locating}>{locating ? '取得中…' : '現在地を添付する'}</button>}
                 </div>
               </>
