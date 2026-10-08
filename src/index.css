@@ -310,3 +310,14 @@ a { color: inherit; }
 .timeline-photo.empty { background: var(--paper2); font-size: 24px; opacity: 0.6; }
 .timeline-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .timeline-name { font-family: var(--font-mincho); font-size: 15px; letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 御朱印帳・鳥居帳・狛犬帳 */
+.book-row { margin-bottom: 8px; }
+.book-chip { font-size: 13px; padding: 7px 14px; }
+.book-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 0; background: none; border: none; text-align: left; cursor: zoom-in; }
+.book-grid .photo { width: 100%; height: auto; aspect-ratio: 1; }
+.book-caption { font-size: 11px; color: rgba(26, 18, 8, 0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.book-lightbox { flex-direction: column; gap: 12px; padding: 16px; }
+.book-lightbox img { max-height: calc(100% - 96px); }
+.book-lightbox-info { color: #fff; text-align: center; font-family: var(--font-mincho); letter-spacing: 0.06em; cursor: default; display: flex; flex-direction: column; gap: 4px; }
+.book-lightbox-info .inline-link { color: #fff; }

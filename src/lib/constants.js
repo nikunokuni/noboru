@@ -52,6 +52,8 @@ export const PHOTO_TAGS = [
 ]
 export const PHOTO_TAG_LABELS = Object.fromEntries(PHOTO_TAGS)
 export const DEFAULT_PHOTO_TAG = 'other'
+// 自分の記録・みんなの参拝で、タグごとに写真を並べて見る帳面
+export const PHOTO_BOOKS = [['goshuin', '御朱印帳'], ['torii', '鳥居帳'], ['komainu', '狛犬帳']]
 // 神社詳細で大きく出す写真のタグ
 export const MAIN_PHOTO_TAG = 'honden'
 

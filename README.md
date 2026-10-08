@@ -43,6 +43,7 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 | [`supabase/upgrade-timeline.sql`](supabase/upgrade-timeline.sql) | 「みんなの参拝」タブのタイムライン（全国の公開記録）と、ご意見・ご要望の画面「みんなの参拝」。`upgrade-nickname.sql` を先に実行しておく。アプリの更新より先に実行する |
 | [`supabase/upgrade-request-visit.sql`](supabase/upgrade-request-visit.sql) | 「記録する」の地図から申請した神社が承認されたら、申請した人の参拝記録（現地で記録）を作る。アプリの更新より先に実行する |
 | [`supabase/upgrade-delete-shrine.sql`](supabase/upgrade-delete-shrine.sql) | 管理者が神社詳細から神社を完全に削除する（参拝記録・写真・情報提供ごと）。アプリの更新より先に実行する |
+| [`supabase/upgrade-photo-books.sql`](supabase/upgrade-photo-books.sql) | 「みんなの参拝」の御朱印帳・鳥居帳・狛犬帳（みんなの公開写真をタグごとに見る）。`upgrade-nickname.sql` を先に実行しておく。アプリの更新より先に実行する |
 
 「次回へのメモ」はアプリから外した。以前のプロジェクトの `records.next_memo` 列は使われないまま残る（消すならアプリの更新後に `ALTER TABLE records DROP COLUMN next_memo;`）
 

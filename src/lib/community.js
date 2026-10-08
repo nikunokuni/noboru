@@ -44,6 +44,14 @@ export async function fetchPublicTimeline({ limit = 30, offset = 0 } = {}) {
   return data
 }
 
+// 御朱印帳など：公開記録の写真のうち、そのタグのもの（参拝日の新しい順。自分の写真は除く）
+// [{ path, shrine_id, shrine_name, visited_on, author }]
+export async function fetchPublicPhotosByTag(tag, { limit = 60, offset = 0 } = {}) {
+  const { data, error } = await supabase.rpc('get_public_photos_by_tag', { photo_tag: tag, max_rows: limit, skip: offset })
+  if (error) throw error
+  return data
+}
+
 // 名前を出していない人の、みんなの参拝での呼び名
 export const ANONYMOUS_NAME = 'にくみん'
 

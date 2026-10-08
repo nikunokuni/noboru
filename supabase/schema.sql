@@ -110,6 +110,7 @@ CREATE TABLE photos (
 );
 
 CREATE INDEX idx_photos_record ON photos(record_id);
+CREATE INDEX idx_photos_tag    ON photos(tag, created_at DESC);  -- 御朱印帳など
 
 -- ============================================================
 -- 3. 情報提供（神社情報の追加・訂正）
@@ -579,6 +580,18 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
 $$;
 
 -- 神社の写真（公開記録のものだけ・新しい順）
+-- 御朱印帳など：公開記録の写真のうち、そのタグのもの（参拝日の新しい順）。見ている人自身の写真は除く
+CREATE OR REPLACE FUNCTION get_public_photos_by_tag(photo_tag TEXT, max_rows INT DEFAULT 60, skip INT DEFAULT 0)
+RETURNS TABLE (path TEXT, shrine_id BIGINT, shrine_name TEXT, visited_on DATE, author TEXT)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT p.path, s.id, s.name, r.visited_on, display_name(r.user_id)
+  FROM photos p JOIN records r ON r.id = p.record_id JOIN shrines s ON s.id = r.shrine_id
+  WHERE p.tag = photo_tag AND r.is_public AND s.status = 'active'
+    AND r.user_id IS DISTINCT FROM auth.uid()
+  ORDER BY r.visited_on DESC, p.created_at DESC, p.path
+  LIMIT LEAST(GREATEST(max_rows, 1), 100) OFFSET GREATEST(skip, 0);
+$$;
+
 CREATE OR REPLACE FUNCTION get_shrine_photos(target BIGINT, max_rows INT DEFAULT 200)
 RETURNS TABLE (path TEXT, tag TEXT)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -655,7 +668,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
 $$;
 
 REVOKE EXECUTE ON FUNCTION display_name(UUID) FROM PUBLIC, anon, authenticated;
-GRANT  EXECUTE ON FUNCTION get_public_records(BIGINT, INT), get_public_timeline(INT, INT), get_shrine_photos(BIGINT, INT), get_shrine_contributors(BIGINT),
+GRANT  EXECUTE ON FUNCTION get_public_records(BIGINT, INT), get_public_timeline(INT, INT), get_public_photos_by_tag(TEXT, INT, INT), get_shrine_photos(BIGINT, INT), get_shrine_contributors(BIGINT),
   is_own_record_folder(TEXT), is_public_photo(TEXT) TO anon, authenticated;
 REVOKE EXECUTE ON FUNCTION reset_nickname(UUID) FROM PUBLIC, anon;
 GRANT  EXECUTE ON FUNCTION reset_nickname(UUID) TO authenticated;

@@ -3,11 +3,12 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { useSignedUrls } from '../components/Photos'
+import PhotoBook, { PhotoBookPicker } from '../components/PhotoBook'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyRecords } from '../lib/records'
 import { formatDate } from '../lib/format'
-import { emotionColor, emotionMarks } from '../lib/constants'
+import { PHOTO_BOOKS, emotionColor, emotionMarks } from '../lib/constants'
 
 const FILTERS = [
   { key: 'all', label: 'すべて', test: () => true },
@@ -25,6 +26,8 @@ export default function RecordsPage() {
   const [records, setRecords] = useState(null)
   const [failed, setFailed] = useState(false)
   const [filter, setFilter] = useState('all')
+  // 御朱印帳など（写真のタグ）。null なら記録の一覧
+  const [book, setBook] = useState(null)
 
   useEffect(() => {
     if (!user) { setRecords([]); return }
@@ -48,6 +51,11 @@ export default function RecordsPage() {
     })),
   ].filter(FILTERS.find((f) => f.key === filter).test)
 
+  // 帳面：送信済みの自分の写真のうち、そのタグのもの（参拝日の新しい順）
+  const bookItems = book ? (records || []).flatMap((r) => (r.photos || []).filter((p) => p.tag === book).map((p) => ({
+    path: p.path, title: r.shrines?.name, sub: formatDate(r.visited_on), to: `/records/${r.id}`, linkLabel: '記録を見る',
+  }))) : []
+
   // 参拝の数字（送信済みの記録から）
   const stats = records && {
     shrines: new Set(records.map((r) => r.shrine_id)).size,
@@ -66,6 +74,11 @@ export default function RecordsPage() {
             <div className="stat"><div className="stat-num">{stats?.avg ?? '—'}</div><div className="stat-label">感動の平均</div></div>
           </div>
         )}
+        {user && <PhotoBookPicker value={book} onChange={setBook} />}
+        {book ? (
+          records === null ? <div className="spinner mt24" />
+            : <PhotoBook items={bookItems} emptyText={`「${PHOTO_BOOKS.find(([t]) => t === book)[1].replace(/帳$/, '')}」のタグを付けた写真はまだありません`} />
+        ) : (<>
         <div className="chip-row">
           {FILTERS.map((f) => (
             <button key={f.key} className={`chip ${filter === f.key ? 'active' : ''}`} onClick={() => setFilter(f.key)}>{f.label}</button>
@@ -105,6 +118,7 @@ export default function RecordsPage() {
             {r.thumb && <img src={r.thumb} alt="" className="photo thumb" />}
           </div>
         ))}
+        </>)}
       </div>
     </div>
   )
