@@ -50,10 +50,29 @@ npm run import:shrines -- --index-only
    （混雑したサーバーに断られにくいよう種類ごとに分けて問い合わせ、失敗したら別のサーバーに切り替える。取れた分は `scripts/.cache/` に保存され、やり直したときは続きから取る）
 2. 別の神社の敷地の中にある社（境内社）を除外
 3. 最寄り駅・バス停（直線距離）、駐車場（敷地内なら「専用」、200m以内なら「近くに」）、市区町村と近くの地名（同じ名前の神社を見分ける用）を計算
-4. Wikidata からご祭神（表記をそろえる。`src/lib/deities.js`）・読み仮名、Wikipedia から冒頭の要約（特徴）を取得
+4. Wikidata からご祭神（表記をそろえる。`src/lib/deities.js`）・読み仮名、Wikipedia から冒頭の要約（特徴）と、記事の神社の表（インフォボックス）の社格・創建・例祭（ご祭神は Wikidata になければ）を取得
 5. `import_shrines()` で DB に反映。**ユーザーが情報提供した項目は上書きしない**
 6. 軽い一覧ファイル `shrines-index.<版>.json.gz` を Storage の `public-data` に置き、`app_meta` の版を更新
    （アプリは起動時に版を確認し、変わっていれば裏で取り直す）
+
+## 空欄を埋め直す
+
+前に取り込んだ神社でも、もう一度取り込むと**空欄の項目だけ**が埋まります（入っている値・情報提供された値は変えない）。
+Overpass の結果は `scripts/.cache/` に残っているので、2回目は速く終わります。前回と同じオプションで実行してください（`--gsi-address` を外すと「近くの地名」が OSM の地名に戻るため）。
+
+```sh
+# 例: 東京・神奈川・埼玉
+npm run import:shrines -- --pref 11,13,14 --no-transit --gsi-address
+```
+
+| 項目 | 自動で埋まるもの |
+|---|---|
+| 住所・近くの地名 | `--gsi-address` を付けたとき（国土地理院） |
+| 最寄り駅・バス停 | `--no-transit` を外したとき（OSM） |
+| 駐車場 | OSM に駐車場があるとき |
+| ご祭神・よみがな | OSM に Wikidata の番号がある神社 |
+| 社格・創建・例祭・由緒 | OSM に Wikidata / Wikipedia の記事がある神社（創建・例祭は [`supabase/upgrade-import-details.sql`](../supabase/upgrade-import-details.sql) の実行が必要） |
+| ご利益・御朱印・拝観時間・見どころ・アクセスの補足 | 自動では埋まらない（情報提供で入れる） |
 
 ## 注意
 

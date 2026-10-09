@@ -103,6 +103,8 @@ export function processPrefecture(elements, prefecture) {
       deities: null,
       benefits: [],
       shrine_rank: null,
+      founded: null,
+      annual_festival: null,
       nearest_station: station?.point.name ?? null,
       nearest_station_m: station ? Math.round(station.distance) : null,
       nearest_bus_stop: bus?.point.name ?? null,

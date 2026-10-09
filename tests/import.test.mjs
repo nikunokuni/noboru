@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { processPrefecture, toHiragana, addressOf } from '../scripts/lib/process.mjs'
 import { assembleRings, polygonOf, pointInPolygon } from '../scripts/lib/geometry.mjs'
-import { trimExtract } from '../scripts/lib/wiki.mjs'
+import { trimExtract, parseShrineInfobox, infoboxColumns, cleanWikiValue } from '../scripts/lib/wiki.mjs'
 import { parseMuniJs, gsiAddress, cleanTownName } from '../scripts/lib/gsi.mjs'
 
 // 正方形（左下 lat,lon と一辺 d 度）
@@ -116,4 +116,31 @@ test('駅・バス停を取らないと、どの神社にも駅・バス停が�
   const noTransit = elements.filter((e) => !e.tags?.railway && !e.tags?.highway)
   const { rows } = processPrefecture(noTransit, '東京都')
   assert.ok(rows.every((r) => r.nearest_station == null && r.nearest_bus_stop == null))
+})
+
+test('Wikipedia の神社のインフォボックスから社格・創建・例祭・ご祭神を取り出す', () => {
+  const wikitext = `{{otheruses|x}}
+{{Infobox 神社
+|名称 = 氷川神社
+|画像 = [[ファイル:Hikawa.jpg|200px]]
+|主祭神 = [[須佐之男命]]<br />[[稲田姫命]]<br />大己貴命
+|社格 = [[式内社]]（[[名神大社]]）<br />[[武蔵国]][[一宮]]<br />旧[[官幣大社]]
+|創建 = （伝）[[孝昭天皇]]3年<ref>社伝による</ref>
+|例祭 = [[8月1日]]{{要出典|date=2020年1月}}
+|主な神事 =
+}}
+'''氷川神社'''は…`
+  const f = parseShrineInfobox(wikitext)
+  assert.equal(f.名称, '氷川神社')
+  assert.equal(f.画像, undefined)
+  assert.equal(f.主な神事, undefined)
+  assert.deepEqual(infoboxColumns(f), {
+    deities: '素戔嗚尊、櫛稲田姫命、大国主命',
+    shrine_rank: '式内社（名神大社）、武蔵国一宮、旧官幣大社',
+    founded: '（伝）孝昭天皇3年',
+    annual_festival: '8月1日',
+  })
+  assert.equal(parseShrineInfobox('{{Infobox 寺院\n|名称 = 寺\n}}'), null)
+  assert.equal(parseShrineInfobox(null), null)
+  assert.equal(cleanWikiValue('{{small|[[延喜式神名帳|式内]]小社}}<!-- メモ -->'), '式内小社')
 })
