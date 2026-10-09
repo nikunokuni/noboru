@@ -791,3 +791,6 @@ CREATE POLICY public_data_admin_insert ON storage.objects FOR INSERT TO authenti
   WITH CHECK (bucket_id = 'public-data' AND name LIKE 'shrines-index.%' AND public.is_admin());
 CREATE POLICY public_data_admin_read ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id = 'public-data' AND public.is_admin());
+-- 更新のたびに古い一覧ファイルを消す（新しい方から2つは残す）
+CREATE POLICY public_data_admin_delete ON storage.objects FOR DELETE TO authenticated
+  USING (bucket_id = 'public-data' AND name LIKE 'shrines-index.%' AND public.is_admin());

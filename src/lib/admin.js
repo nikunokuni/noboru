@@ -1,6 +1,6 @@
 // 管理者用：神社の追加申請・外す報告の承認と、神社一覧ファイルの作り直し
 import { supabase } from './supabase.js'
-import { encodeIndex, fetchIndexRows, newIndexVersion, indexVersionDate } from './indexCore.js'
+import { encodeIndex, fetchIndexRows, newIndexVersion, indexVersionDate, removeOldIndexFiles } from './indexCore.js'
 
 export async function fetchIsAdmin(userId) {
   const { data, error } = await supabase.from('admins').select('user_id').eq('user_id', userId).maybeSingle()
@@ -99,6 +99,7 @@ export async function rebuildShrineIndex(onProgress = () => {}) {
     .update({ value: version }).eq('key', 'shrine_index_version').select('key')
   if (error) throw error
   if (!data?.length) throw new Error('版を更新できませんでした（管理者の権限を確認してください）')
+  await removeOldIndexFiles(supabase)
   return { version, count: rows.length }
 }
 

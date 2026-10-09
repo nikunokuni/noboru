@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { createClient } from '@supabase/supabase-js'
 import { PREFECTURES, prefectureIso } from '../src/lib/constants.js'
-import { encodeIndex, fetchIndexRows, newIndexVersion } from '../src/lib/indexCore.js'
+import { encodeIndex, fetchIndexRows, newIndexVersion, removeOldIndexFiles } from '../src/lib/indexCore.js'
 import { fetchOverpass, PARTS } from './lib/overpass.mjs'
 import { processPrefecture } from './lib/process.mjs'
 import { enrichWithWiki } from './lib/wiki.mjs'
@@ -141,6 +141,8 @@ async function buildIndex(rows, db) {
   const { error: metaErr } = await db.from('app_meta').upsert({ key: 'shrine_index_version', value: version })
   if (metaErr) throw new Error(`app_meta 更新失敗: ${metaErr.message}`)
   log(`  → public-data/${path}（バージョン ${version}）`)
+  const removed = await removeOldIndexFiles(db)
+  if (removed) log(`  古い一覧ファイルを${removed}件消しました`)
 }
 
 async function main() {

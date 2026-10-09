@@ -53,7 +53,7 @@ npm run import:shrines -- --index-only
 4. Wikidata からご祭神（表記をそろえる。`src/lib/deities.js`）・読み仮名、Wikipedia から冒頭の要約（特徴）と、記事の神社の表（インフォボックス）の社格・創建・例祭・本殿の様式（ご祭神は Wikidata になければ）を取得
 5. `import_shrines()` で DB に反映。**ユーザーが情報提供した項目は上書きしない**
 6. 軽い一覧ファイル `shrines-index.<版>.json.gz` を Storage の `public-data` に置き、`app_meta` の版を更新
-   （アプリは起動時に版を確認し、変わっていれば裏で取り直す）
+   （アプリは起動時に版を確認し、変わっていれば裏で取り直す）。古い一覧ファイルは新しい方から2つを残して消す
 
 ## 空欄を埋め直す
 

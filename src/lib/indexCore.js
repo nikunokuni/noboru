@@ -38,6 +38,22 @@ export function indexVersionDate(version) {
   return m ? new Date(Date.UTC(m[1], m[2] - 1, m[3], m[4], m[5], m[6])) : null
 }
 
+// 古い一覧ファイルの名前（新しい方から keep 個は残す）。取り直しの途中の人が前の版を読めるよう、1つ前の版も残す
+const INDEX_FILE = /^shrines-index\.(\d+)\.json\.gz$/
+export function staleIndexFiles(names, keep = 2) {
+  return names.filter((n) => INDEX_FILE.test(n)).sort().reverse().slice(keep)
+}
+
+// public-data から古い一覧ファイルを消す。消せた件数を返す（消せなくても一覧の更新は済んでいるので投げない）
+export async function removeOldIndexFiles(db, keep = 2) {
+  const { data, error } = await db.storage.from('public-data').list('', { limit: 1000, search: 'shrines-index.' })
+  if (error || !data) return 0
+  const stale = staleIndexFiles(data.map((f) => f.name), keep)
+  if (!stale.length) return 0
+  const { data: removed, error: rmErr } = await db.storage.from('public-data').remove(stale)
+  return rmErr ? 0 : (removed?.length ?? 0)
+}
+
 // 一覧ファイルに入れる神社（status = 'active'）を DB から全件取る。db は supabase-js のクライアント
 export async function fetchIndexRows(db, onProgress = () => {}) {
   const rows = []

@@ -9,6 +9,7 @@ DROP POLICY IF EXISTS photos_obj_admin_orphan_read   ON storage.objects;
 DROP POLICY IF EXISTS photos_obj_admin_orphan_delete ON storage.objects;
 DROP POLICY IF EXISTS public_data_admin_insert ON storage.objects;
 DROP POLICY IF EXISTS public_data_admin_read   ON storage.objects;
+DROP POLICY IF EXISTS public_data_admin_delete ON storage.objects;
 
 DROP TABLE IF EXISTS photos, record_private_notes, records, shrine_edits, shrine_requests,
   guide_links, app_meta, admins, banned_editors, feedback, profiles, prayers, shrines CASCADE;

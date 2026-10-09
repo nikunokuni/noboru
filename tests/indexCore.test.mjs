@@ -174,3 +174,11 @@ test('マップのタグで絞り込む（同じ項目はどれか、別の項�
   assert.ok(!hasTagColumns(old))
   assert.equal(tagFilter(old, { goshuin: [tag('goshuin', 'none')] })(0), false)
 })
+
+test('古い一覧ファイルは新しい方から2つを残して消す', async () => {
+  const { staleIndexFiles } = await import('../src/lib/indexCore.js')
+  const names = ['shrines-index.20260101000000.json.gz', 'shrines-index.20260301000000.json.gz', 'other.txt',
+    'shrines-index.20260201000000.json.gz', 'shrines-index.20251201000000.json.gz']
+  assert.deepEqual(staleIndexFiles(names), ['shrines-index.20260101000000.json.gz', 'shrines-index.20251201000000.json.gz'])
+  assert.deepEqual(staleIndexFiles(names.slice(0, 2)), [])
+})
