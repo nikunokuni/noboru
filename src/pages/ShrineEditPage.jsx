@@ -19,6 +19,7 @@ const FIELDS = {
   shrine_rank: { label: '社格', type: 'text', placeholder: '例：式内社、旧郷社' },
   founded: { label: '創建', type: 'text', placeholder: '例：伝・景行天皇の御代、明治33年' },
   annual_festival: { label: '例祭', type: 'text', placeholder: '例：毎年9月15日' },
+  honden_style: { label: '本殿の様式', type: 'text', placeholder: '例：流造、春日造' },
   visiting_hours: { label: '拝観時間', type: 'textarea', placeholder: '例：6:00〜17:00（冬は16:30まで）。境内は終日参拝可' },
   highlights: { label: '見どころ', type: 'textarea', placeholder: '例：樹齢800年の御神木、朱塗りの楼門' },
   nearest_station: { label: '最寄り駅', type: 'text', placeholder: '例：〇〇駅 徒歩10分' },
@@ -33,7 +34,7 @@ const FIELDS = {
 const SECTIONS = [
   ['参拝の情報', ['visiting_hours', 'goshuin', 'goshuin_note']],
   ['見どころ', ['highlights']],
-  ['基本情報', ['name_kana', 'address', 'deities', 'benefits', 'shrine_rank', 'founded', 'annual_festival']],
+  ['基本情報', ['name_kana', 'address', 'deities', 'benefits', 'shrine_rank', 'founded', 'annual_festival', 'honden_style']],
   ['由緒', ['features']],
   ['アクセス', ['nearest_station', 'nearest_bus_stop', 'parking', 'access_note']],
 ]

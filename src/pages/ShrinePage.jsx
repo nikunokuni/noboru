@@ -179,6 +179,7 @@ export default function ShrinePage() {
             <Row label="社格">{shrine.shrine_rank || <Unknown />}</Row>
             <Row label="創建">{shrine.founded || <Unknown />}</Row>
             <Row label="例祭">{shrine.annual_festival || <Unknown />}</Row>
+            <Row label="本殿の様式">{shrine.honden_style || <Unknown />}</Row>
           </dl>
         </section>
 

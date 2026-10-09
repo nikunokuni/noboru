@@ -127,6 +127,7 @@ test('Wikipedia の神社のインフォボックスから社格・創建・例�
 |社格 = [[式内社]]（[[名神大社]]）<br />[[武蔵国]][[一宮]]<br />旧[[官幣大社]]
 |創建 = （伝）[[孝昭天皇]]3年<ref>社伝による</ref>
 |例祭 = [[8月1日]]{{要出典|date=2020年1月}}
+|本殿の様式 = [[流造]]
 |主な神事 =
 }}
 '''氷川神社'''は…`
@@ -139,6 +140,7 @@ test('Wikipedia の神社のインフォボックスから社格・創建・例�
     shrine_rank: '式内社（名神大社）、武蔵国一宮、旧官幣大社',
     founded: '（伝）孝昭天皇3年',
     annual_festival: '8月1日',
+    honden_style: '流造',
   })
   assert.equal(parseShrineInfobox('{{Infobox 寺院\n|名称 = 寺\n}}'), null)
   assert.equal(parseShrineInfobox(null), null)

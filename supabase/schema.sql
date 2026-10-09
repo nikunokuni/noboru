@@ -36,6 +36,7 @@ CREATE TABLE shrines (
   shrine_rank         TEXT,                     -- 社格
   founded             TEXT,                     -- 創建（「伝・景行天皇の御代」のように書くことが多いので文字で）
   annual_festival     TEXT,                     -- 例祭（「毎年9月15日」など）
+  honden_style        TEXT,                     -- 本殿の様式（「流造」など）
   visiting_hours      TEXT,                     -- 拝観時間
   highlights          TEXT,                     -- 見どころ
 
@@ -124,7 +125,7 @@ CREATE TABLE shrine_edits (
                'address', 'deities', 'benefits', 'shrine_rank',
                'access_note', 'parking', 'goshuin', 'features', 'name_kana',
                'goshuin_note', 'nearest_station', 'nearest_bus_stop',
-               'founded', 'annual_festival', 'visiting_hours', 'highlights')),
+               'founded', 'annual_festival', 'visiting_hours', 'highlights', 'honden_style')),
   value      JSONB NOT NULL,                    -- 文字列 / 文字列配列 / 列挙値
   old_value  JSONB,                             -- 変更前の値（{列名: 値}）。トリガーが入れる。管理者が元に戻すときに使う
   reverted_at TIMESTAMPTZ,                      -- 管理者が元に戻した時刻
@@ -290,6 +291,7 @@ BEGIN
     goshuin_note    = CASE WHEN NEW.field = 'goshuin_note' THEN txt ELSE goshuin_note END,
     founded         = CASE WHEN NEW.field = 'founded'         THEN txt ELSE founded END,
     annual_festival = CASE WHEN NEW.field = 'annual_festival' THEN txt ELSE annual_festival END,
+    honden_style    = CASE WHEN NEW.field = 'honden_style'    THEN txt ELSE honden_style END,
     visiting_hours  = CASE WHEN NEW.field = 'visiting_hours'  THEN txt ELSE visiting_hours END,
     highlights      = CASE WHEN NEW.field = 'highlights'      THEN txt ELSE highlights END,
     features        = CASE WHEN NEW.field = 'features'     THEN txt ELSE features END,
@@ -358,16 +360,16 @@ DECLARE n INTEGER;
 BEGIN
   INSERT INTO shrines AS s (
     osm_ref, wikidata_id, name, name_kana, prefecture, municipality, locality, address, lat, lng,
-    deities, benefits, shrine_rank, founded, annual_festival, nearest_station, nearest_station_m,
+    deities, benefits, shrine_rank, founded, annual_festival, honden_style, nearest_station, nearest_station_m,
     nearest_bus_stop, nearest_bus_stop_m, parking, features, features_source
   )
   SELECT r.osm_ref, r.wikidata_id, r.name, r.name_kana, r.prefecture, r.municipality, r.locality, r.address, r.lat, r.lng,
-         r.deities, COALESCE(r.benefits, '{}'), r.shrine_rank, r.founded, r.annual_festival, r.nearest_station, r.nearest_station_m,
+         r.deities, COALESCE(r.benefits, '{}'), r.shrine_rank, r.founded, r.annual_festival, r.honden_style, r.nearest_station, r.nearest_station_m,
          r.nearest_bus_stop, r.nearest_bus_stop_m, COALESCE(r.parking, 'unknown'), r.features, r.features_source
   FROM jsonb_to_recordset(rows) AS r(
     osm_ref TEXT, wikidata_id TEXT, name TEXT, name_kana TEXT, prefecture TEXT, municipality TEXT, locality TEXT,
     address TEXT, lat DOUBLE PRECISION, lng DOUBLE PRECISION, deities TEXT, benefits TEXT[],
-    shrine_rank TEXT, founded TEXT, annual_festival TEXT, nearest_station TEXT, nearest_station_m INTEGER, nearest_bus_stop TEXT,
+    shrine_rank TEXT, founded TEXT, annual_festival TEXT, honden_style TEXT, nearest_station TEXT, nearest_station_m INTEGER, nearest_bus_stop TEXT,
     nearest_bus_stop_m INTEGER, parking parking_status, features TEXT, features_source TEXT)
   ON CONFLICT (osm_ref) DO UPDATE SET
     wikidata_id        = EXCLUDED.wikidata_id,
@@ -388,6 +390,7 @@ BEGIN
     shrine_rank        = COALESCE(s.shrine_rank, EXCLUDED.shrine_rank),
     founded            = COALESCE(s.founded,     EXCLUDED.founded),
     annual_festival    = COALESCE(s.annual_festival, EXCLUDED.annual_festival),
+    honden_style       = COALESCE(s.honden_style, EXCLUDED.honden_style),
     benefits           = CASE WHEN cardinality(s.benefits) = 0 THEN EXCLUDED.benefits ELSE s.benefits END,
     parking            = CASE WHEN s.parking = 'unknown' THEN EXCLUDED.parking ELSE s.parking END,
     features           = COALESCE(s.features, EXCLUDED.features),
@@ -491,6 +494,7 @@ BEGIN
     address = s.address, name_kana = s.name_kana, deities = s.deities, shrine_rank = s.shrine_rank,
     access_note = s.access_note, goshuin_note = s.goshuin_note,
     founded = s.founded, annual_festival = s.annual_festival, visiting_hours = s.visiting_hours, highlights = s.highlights,
+    honden_style = s.honden_style,
     features = s.features, features_source = s.features_source,
     benefits = s.benefits, parking = s.parking, goshuin = s.goshuin,
     nearest_station = s.nearest_station, nearest_station_m = s.nearest_station_m,

@@ -43,6 +43,7 @@ export const EDIT_FIELD_LABELS = {
   nearest_station: '最寄り駅', nearest_bus_stop: 'バス停', parking: '駐車場', access_note: 'アクセス補足',
   goshuin: '御朱印', goshuin_note: '御朱印のメモ', features: '由緒',
   founded: '創建', annual_festival: '例祭', visiting_hours: '拝観時間', highlights: '見どころ',
+  honden_style: '本殿の様式',
 }
 
 // 写真のタグ（1枚に1つ）。並びは選ぶ画面・神社詳細の表示順

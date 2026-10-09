@@ -120,7 +120,7 @@ export function parseShrineInfobox(wikitext) {
 }
 
 // インフォボックスの項目 → shrines の列
-const INFOBOX_COLUMNS = { 主祭神: 'deities', 祭神: 'deities', 社格: 'shrine_rank', 創建: 'founded', 例祭: 'annual_festival' }
+const INFOBOX_COLUMNS = { 主祭神: 'deities', 祭神: 'deities', 社格: 'shrine_rank', 創建: 'founded', 例祭: 'annual_festival', 本殿の様式: 'honden_style' }
 const COLUMN_MAX = 200
 
 export function infoboxColumns(fields) {
@@ -167,7 +167,7 @@ export async function enrichWithWiki(rows, { userAgent, log = () => {} }) {
     if (title) r.wikipedia_title = title
   }
 
-  // 3. Wikipedia の冒頭の要約を「特徴」に、インフォボックスから社格・創建・例祭（ご祭神は Wikidata になければ）
+  // 3. Wikipedia の冒頭の要約を「特徴」に、インフォボックスから社格・創建・例祭・本殿の様式（ご祭神は Wikidata になければ）
   const titles = [...new Set(rows.map((r) => r.wikipedia_title).filter(Boolean))]
   const pages = new Map()
   for (const batch of chunk(titles, 20)) {
@@ -204,6 +204,6 @@ export async function enrichWithWiki(rows, { userAgent, log = () => {} }) {
     Object.assign(r, info)
     if (deities || Object.keys(info).length) infoCount++
   }
-  log(`  Wikipedia: ${pages.size}件（社格・創建・例祭など: ${infoCount}件）`)
+  log(`  Wikipedia: ${pages.size}件（社格・創建・例祭・本殿の様式など: ${infoCount}件）`)
   return rows
 }
