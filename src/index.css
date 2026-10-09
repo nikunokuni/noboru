@@ -158,6 +158,8 @@ a { color: inherit; }
 .edit-row { align-items: flex-start; }
 .edit-row dt { padding-top: 9px; }
 .edit-row .chip-row { margin: 4px 0 4px; }
+.pick-other { display: flex; gap: 6px; align-items: center; }
+.pick-other .edit-input { flex: 1; min-width: 0; }
 .edit-row .edit-input { padding: 6px 0; font-size: 14px; font-family: var(--font-body); }
 .edit-row .edit-textarea { min-height: 64px; padding: 6px 0; line-height: 1.8; }
 .edit-row.changed dt { color: var(--vermillion); }

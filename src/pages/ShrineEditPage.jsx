@@ -9,17 +9,21 @@ import { fetchShrine, submitShrineEdits, isBannedError } from '../lib/community'
 import { normalizeDeities } from '../lib/deities'
 import { formatDistance } from '../lib/geo'
 import { GOSHUIN_LABELS, PARKING_LABELS, goshuinKinds, goshuinFromKinds } from '../lib/constants'
+import {
+  RANK_OPTIONS, HONDEN_OPTIONS, BENEFIT_OPTIONS, DEITY_OPTIONS, deityLabel, splitTags, splitDeityTags,
+} from '../lib/shrineTags'
 
-// type: text / textarea / tags（読点区切り）/ choice / goshuin / deities（表記をそろえる）
+// type: text / textarea / choice / goshuin / pick（タグを選ぶ。選択肢にないものも書き足せる）
+//   pick の array: 配列で保存（ご利益）。deities: ご祭神の表記をそろえる
 const FIELDS = {
   name_kana: { label: 'よみがな', type: 'text', placeholder: 'ひらがなで' },
   address: { label: '住所', type: 'text' },
-  deities: { label: 'ご祭神', type: 'deities', placeholder: '読点（、）で区切る　例：素戔嗚尊、櫛稲田姫命' },
-  benefits: { label: 'ご利益', type: 'tags', placeholder: '読点（、）で区切る　例：縁結び、厄除け' },
-  shrine_rank: { label: '社格', type: 'text', placeholder: '例：式内社、旧郷社' },
+  deities: { label: 'ご祭神', type: 'pick', options: DEITY_OPTIONS, optionLabel: deityLabel, deities: true, placeholder: '例：櫛稲田姫命' },
+  benefits: { label: 'ご利益', type: 'pick', options: BENEFIT_OPTIONS, array: true, placeholder: '例：眼病平癒' },
+  shrine_rank: { label: '社格', type: 'pick', options: RANK_OPTIONS, placeholder: '例：武蔵国三宮' },
   founded: { label: '創建', type: 'text', placeholder: '例：伝・景行天皇の御代、明治33年' },
   annual_festival: { label: '例祭', type: 'text', placeholder: '例：毎年9月15日' },
-  honden_style: { label: '本殿の様式', type: 'text', placeholder: '例：流造、春日造' },
+  honden_style: { label: '本殿の様式', type: 'pick', options: HONDEN_OPTIONS, placeholder: '例：三間社流造' },
   visiting_hours: { label: '拝観時間', type: 'textarea', placeholder: '例：6:00〜17:00（冬は16:30まで）。境内は終日参拝可' },
   highlights: { label: '見どころ', type: 'textarea', placeholder: '例：樹齢800年の御神木、朱塗りの楼門' },
   nearest_station: { label: '最寄り駅', type: 'text', placeholder: '例：〇〇駅 徒歩10分' },
@@ -40,14 +44,19 @@ const SECTIONS = [
 ]
 
 const toInput = (field, value) => {
-  if (field.type === 'tags') return (value || []).join('、')
+  if (field.type === 'pick') {
+    if (field.array) return [...new Set((value || []).map((s) => s.trim()).filter(Boolean))]
+    return field.deities ? splitDeityTags(value) : splitTags(value)
+  }
   if (field.type === 'choice' || field.type === 'goshuin') return value || 'unknown'
   return value ?? ''
 }
 
 const toValue = (field, input) => {
-  if (field.type === 'deities') return normalizeDeities(input).text
-  if (field.type === 'tags') return input.split(/[、,，\n]/).map((s) => s.trim()).filter(Boolean)
+  if (field.type === 'pick') {
+    if (field.array) return input
+    return field.deities ? normalizeDeities(input.join('、')).text : input.join('、')
+  }
   return field.type === 'choice' || field.type === 'goshuin' ? input : input.trim()
 }
 
@@ -81,23 +90,56 @@ function GoshuinInput({ value, onChange }) {
   )
 }
 
-// 同じ神様の書き方の違い（須佐之男命・スサノオ など）は代表の表記にそろえて送る
-function DeitiesInput({ field, value, onChange }) {
-  const { changed } = normalizeDeities(value)
+// タグを選ぶ。選んだもの・書き足したものは先頭に、選択肢は最初の数個だけ（「すべて表示」で全部）
+const PICK_SHOWN = 12
+
+function TagPicker({ field, value, onChange }) {
+  const [expanded, setExpanded] = useState(false)
+  const [text, setText] = useState('')
+  const label = field.optionLabel || ((v) => v)
+  const toggle = (v) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v])
+  const custom = value.filter((v) => !field.options.includes(v))
+  const rest = field.options.filter((v) => !value.includes(v))
+  const shown = expanded ? rest : rest.slice(0, Math.max(0, PICK_SHOWN - value.length))
+
+  // 同じ神様の書き方の違い（須佐之男命・スサノオ など）は代表の表記にそろえる
+  const typed = field.deities ? splitDeityTags(text) : splitTags(text)
+  const add = () => {
+    if (!typed.length) return
+    onChange([...value, ...typed.filter((v) => !value.includes(v))])
+    setText('')
+  }
+
   return (
     <>
-      <input className="field-input edit-input" placeholder={field.placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
-      {changed.length > 0 && (
-        <p className="muted small">
-          表記をそろえて送ります：{changed.map((c) => `${c.from} → ${c.to}`).join('、')}
-        </p>
+      <div className="chip-row">
+        {[...field.options.filter((v) => value.includes(v)), ...custom].map((v) => (
+          <button key={v} type="button" className="chip active" onClick={() => toggle(v)}>{label(v)} ×</button>
+        ))}
+        {shown.map((v) => (
+          <button key={v} type="button" className="chip" onClick={() => toggle(v)}>{label(v)}</button>
+        ))}
+        {rest.length > shown.length && (
+          <button type="button" className="chip" onClick={() => setExpanded(true)}>すべて表示（ほか{rest.length - shown.length}）</button>
+        )}
+      </div>
+      <div className="pick-other">
+        <input
+          className="field-input edit-input" placeholder={`選択肢にないもの　${field.placeholder}`} value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
+        />
+        <button type="button" className="chip" onClick={add} disabled={!typed.length}>追加</button>
+      </div>
+      {field.deities && typed.some((v) => !text.includes(v)) && (
+        <p className="muted small">表記をそろえて追加します：{typed.join('、')}</p>
       )}
     </>
   )
 }
 
 function FieldInput({ field, value, onChange }) {
-  if (field.type === 'deities') return <DeitiesInput field={field} value={value} onChange={onChange} />
+  if (field.type === 'pick') return <TagPicker field={field} value={value} onChange={onChange} />
   if (field.type === 'goshuin') return <GoshuinInput value={value} onChange={onChange} />
   if (field.type === 'choice') {
     return (
