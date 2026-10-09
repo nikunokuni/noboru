@@ -2,6 +2,14 @@
 // ブラウザとテストの両方から使うため、外部依存なし
 
 import { matchingDeities, normalize } from './indexCore.js'
+import { canonicalDeity } from './deities.js'
+import { deityLabel } from './shrineTags.js'
+
+// ご祭神のタグ。表記は情報提供と同じ「天照大御神（アマテラス）」
+export function deityTag(name) {
+  const canonical = canonicalDeity(name)
+  return { key: `deity:${canonical}`, label: deityLabel(canonical), deity: canonical }
+}
 
 // match の種類
 //   goshuin / parking: 一覧の値がこのどれかなら当てはまる
@@ -9,12 +17,22 @@ import { matchingDeities, normalize } from './indexCore.js'
 //   deity:   このご祭神（別の書き方でも）を祀っていれば当てはまる
 //   rank:    社格の欄にこの文字が入っていれば当てはまる
 //   name:    神社名にこの文字が入っていれば当てはまる（八幡宮・伊勢・稲荷は社格の欄にほぼ入っていないので名前で見る）
+// 項目の順番は神社詳細と同じ（御朱印 → ご祭神 → ご利益 → 社格 → 駐車場）
+// status: 神社詳細から来たとき、その値（goshuin / parking の欄）をこのタグとして選ぶ
 export const SEARCH_TAGS = [
   { key: 'goshuin', label: '御朱印', tags: [
-    { key: 'direct', label: '直書き', goshuin: ['direct_only', 'both'] },
-    { key: 'written', label: '書置き', goshuin: ['written_only', 'both'] },
-    { key: 'both', label: '両方', goshuin: ['both'] },
-    { key: 'none', label: 'なし', goshuin: ['none'] },
+    { key: 'yes', label: 'あり', goshuin: ['direct_only', 'written_only', 'both', 'available'], status: ['available'] },
+    { key: 'direct', label: '直書き', goshuin: ['direct_only', 'both'], status: ['direct_only'] },
+    { key: 'written', label: '書き置き', goshuin: ['written_only', 'both'], status: ['written_only'] },
+    { key: 'both', label: '直書き・書き置き', goshuin: ['both'], status: ['both'] },
+    { key: 'none', label: 'なし', goshuin: ['none'], status: ['none'] },
+  ] },
+  { key: 'deity', label: 'ご祭神', tags: [
+    deityTag('天照大御神'),
+    deityTag('素戔嗚尊'),
+    deityTag('月読命'),
+    deityTag('弁財天'),
+    deityTag('大黒天'),
   ] },
   { key: 'benefit', label: 'ご利益', tags: [
     { key: 'enmusubi', label: '縁結び', benefit: ['縁結'] },
@@ -24,13 +42,6 @@ export const SEARCH_TAGS = [
     { key: 'shigoto', label: '仕事運', benefit: ['仕事', '出世'] },
     { key: 'shobai', label: '商売繁盛', benefit: ['商売'] },
     { key: 'gakugyo', label: '学業成就', benefit: ['学業', '合格'] },
-  ] },
-  { key: 'deity', label: 'ご祭神', tags: [
-    { key: 'amaterasu', label: 'アマテラス', deity: 'アマテラス' },
-    { key: 'susanoo', label: 'スサノオ', deity: 'スサノオ' },
-    { key: 'tsukuyomi', label: 'ツクヨミ', deity: 'ツクヨミ' },
-    { key: 'benzaiten', label: '弁財天', deity: '弁財天' },
-    { key: 'daikokuten', label: '大黒天', deity: '大黒天' },
   ] },
   { key: 'rank', label: '社格', tags: [
     { key: 'myojin', label: '名神大社', rank: ['名神'] },
@@ -42,13 +53,39 @@ export const SEARCH_TAGS = [
     { key: 'inari', label: '稲荷', name: ['稲荷'] },
   ] },
   { key: 'parking', label: '駐車場', tags: [
-    { key: 'yes', label: 'あり', parking: ['dedicated', 'nearby'] },
-    { key: 'no', label: 'なし', parking: ['none'] },
+    { key: 'yes', label: 'あり', parking: ['dedicated', 'nearby'], status: ['dedicated', 'nearby'] },
+    { key: 'no', label: 'なし', parking: ['none'], status: ['none'] },
   ] },
 ]
 
-// ご祭神の欄（神社詳細）から来たときなど、上のタグにない神様で絞り込むタグ
-export const deityTag = (name) => ({ key: `deity:${name}`, label: name, deity: name })
+// 神社詳細の値（ご祭神・ご利益・社格は1つずつの名前、御朱印・駐車場は欄の値）を、マップで絞り込むタグにする
+// 上の決まったタグに同じものがあればそれを、なければその値だけで絞り込むタグを作る。絞り込めない値（不明など）は null
+export function tagForValue(group, value) {
+  const v = (value || '').trim()
+  if (!v) return null
+  const tags = SEARCH_TAGS.find((g) => g.key === group)?.tags || []
+  if (group === 'goshuin' || group === 'parking') return tags.find((t) => t.status.includes(v)) || null
+  if (group === 'deity') {
+    const name = canonicalDeity(v)
+    return tags.find((t) => t.deity === name) || deityTag(name)
+  }
+  if (group === 'benefit') return tags.find((t) => t.label === v) || { key: `benefit:${v}`, label: v, benefit: [v] }
+  if (group === 'rank') return tags.find((t) => t.rank && t.label === v) || { key: `rank:${v}`, label: v, rank: [v] }
+  return null
+}
+
+// 神社詳細からマップへ移るときのリンク先（/map?benefit=縁結び など）
+export const tagLink = (group, value) => `/map?${group}=${encodeURIComponent(value)}`
+
+// リンク先の ?項目=値 から、最初に選んでおくタグを作る
+export function tagsFromParams(params) {
+  const out = {}
+  for (const g of SEARCH_TAGS) {
+    const tag = tagForValue(g.key, params.get(g.key))
+    if (tag) out[g.key] = [tag]
+  }
+  return out
+}
 
 // 一覧ファイルが御朱印・駐車場・ご利益・社格を持っているか（古い一覧ファイルにはない）
 export const hasTagColumns = (index) => Array.isArray(index.raw.gosh)

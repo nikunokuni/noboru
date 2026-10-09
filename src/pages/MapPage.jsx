@@ -13,7 +13,7 @@ import { fetchMyShrineIds } from '../lib/records'
 import { getCurrentPosition } from '../lib/geo'
 import { getItem, searchPositions } from '../lib/indexCore'
 import { serverSearch } from '../lib/shrineIndex'
-import { SEARCH_TAGS, deityTag, hasTagColumns, tagFilter } from '../lib/searchTags'
+import { SEARCH_TAGS, hasTagColumns, tagFilter, tagsFromParams } from '../lib/searchTags'
 import { PREFECTURES } from '../lib/constants'
 
 const MODES = [
@@ -51,13 +51,6 @@ const clusterIcon = (count, mode) => {
 
 const pinIcon = (kind) => L.divIcon({ html: `<div class="pin pin-${kind}"></div>`, className: '', iconSize: [16, 16] })
 
-// 神社詳細のご祭神から来たとき（/map?deity=…）に選んだ状態にするタグ
-function initialTags(deity) {
-  if (!deity) return {}
-  const known = SEARCH_TAGS.find((g) => g.key === 'deity').tags.find((t) => t.label === deity)
-  return { deity: [known || deityTag(deity)] }
-}
-
 // 地図と検索の間のバー。指で上下に動かす
 function SplitHandle({ containerRef, onChange, onEnd }) {
   const dragging = useRef(false)
@@ -87,11 +80,11 @@ export default function MapPage() {
   const { user } = useAuth()
   const { index, revision, status, refreshVisited } = useShrineIndex()
   const { pending, syncRevision } = usePendingRecords()
-  // 検索の条件。神社詳細のご祭神から来たときはそのご祭神のタグを選んでおく
+  // 検索の条件。神社詳細のタグから来たとき（/map?deity=… など）はそのタグを選んでおく
   const [mode, setMode] = useState('all')
   const [query, setQuery] = useState('')
   const [prefecture, setPrefecture] = useState('')
-  const [tags, setTags] = useState(() => initialTags(params.get('deity')))
+  const [tags, setTags] = useState(() => tagsFromParams(params))
   const [serverResults, setServerResults] = useState(null)
   const [serverIds, setServerIds] = useState([])
   const [split, setSplit] = useState(loadSplit)
@@ -155,7 +148,7 @@ export default function MapPage() {
     const next = list.some((t) => t.key === tag.key) ? list.filter((t) => t.key !== tag.key) : [...list, tag]
     return { ...prev, [group]: next }
   })
-  // 神社詳細から来たご祭神など、決まったタグにないものも選べるように並べる
+  // 神社詳細から来たご祭神・ご利益・社格など、決まったタグにないものも選べるように並べる
   const tagGroups = SEARCH_TAGS.map((g) => {
     const extra = (tags[g.key] || []).filter((t) => !g.tags.some((x) => x.key === t.key))
     return { ...g, tags: [...g.tags, ...extra] }

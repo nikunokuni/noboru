@@ -145,7 +145,7 @@ test('マップのタグで絞り込む（同じ項目はどれか、別の項�
     { id: 1, name: '八幡宮', prefecture: '東京都', lat: 35, lng: 139, deities: '応神天皇', goshuin: 'both', parking: 'dedicated', benefits: ['厄除け', '開運招福'], shrine_rank: '式内社（名神大社）' },
     { id: 2, name: '稲荷神社', prefecture: '東京都', lat: 35, lng: 139, deities: '倉稲魂命', goshuin: 'direct_only', parking: 'none', benefits: ['商売繁盛'], shrine_rank: '式内小社' },
     { id: 3, name: '神明社', prefecture: '東京都', lat: 35, lng: 139, deities: '天照大神、弁才天', goshuin: 'written_only', benefits: ['縁結び・恋愛成就'] },
-    { id: 4, name: '須賀神社', prefecture: '東京都', lat: 35, lng: 139, deities: '須佐之男命' },
+    { id: 4, name: '須賀神社', prefecture: '東京都', lat: 35, lng: 139, deities: '須佐之男命', goshuin: 'available' },
   ], { version: 'v' }))
   assert.ok(hasTagColumns(idx))
   const ids = (selected) => {
@@ -156,6 +156,7 @@ test('マップのタグで絞り込む（同じ項目はどれか、別の項�
   assert.deepEqual(ids({ goshuin: [tag('goshuin', 'direct')] }), [1, 2])
   assert.deepEqual(ids({ goshuin: [tag('goshuin', 'written')] }), [1, 3])
   assert.deepEqual(ids({ goshuin: [tag('goshuin', 'both')] }), [1])
+  assert.deepEqual(ids({ goshuin: [tag('goshuin', 'yes')] }), [1, 2, 3, 4])   // 「あり」だけの神社も入る
   assert.deepEqual(ids({ parking: [tag('parking', 'yes')] }), [1])
   assert.deepEqual(ids({ parking: [tag('parking', 'no')] }), [2])   // 不明は「なし」に入れない
   assert.deepEqual(ids({ benefit: [tag('benefit', 'kaiun'), tag('benefit', 'enmusubi')] }), [1, 3])
@@ -164,8 +165,8 @@ test('マップのタグで絞り込む（同じ項目はどれか、別の項�
   assert.deepEqual(ids({ rank: [tag('rank', 'shosha')] }), [2])
   assert.deepEqual(ids({ rank: [tag('rank', 'hachiman'), tag('rank', 'ise')] }), [1, 3])
   assert.deepEqual(ids({ rank: [tag('rank', 'inari')] }), [2])
-  assert.deepEqual(ids({ deity: [tag('deity', 'amaterasu')] }), [3])
-  assert.deepEqual(ids({ deity: [tag('deity', 'benzaiten'), tag('deity', 'susanoo')] }), [3, 4])
+  assert.deepEqual(ids({ deity: [tag('deity', 'deity:天照大御神')] }), [3])
+  assert.deepEqual(ids({ deity: [tag('deity', 'deity:弁財天'), tag('deity', 'deity:素戔嗚尊')] }), [3, 4])
   assert.deepEqual(ids({ deity: [deityTag('誉田別命')] }), [1])
   // 古い一覧ファイル（タグの項目がない）では、御朱印などのタグに当てはまる神社はない
   const raw = { ...index().raw }

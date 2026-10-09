@@ -15,6 +15,8 @@ import { fetchMyRecordsForShrine, fetchPublicRecords, fetchShrine } from '../lib
 import { formatDistance, walkMinutes } from '../lib/geo'
 import { formatDate, placeLabel } from '../lib/format'
 import { normalizeDeities } from '../lib/deities'
+import { deityLabel, splitTags } from '../lib/shrineTags'
+import { tagForValue, tagLink } from '../lib/searchTags'
 import { GOSHUIN_LABELS, PARKING_LABELS, emotionColor, emotionMarks } from '../lib/constants'
 
 function Row({ label, children }) {
@@ -28,17 +30,21 @@ function Row({ label, children }) {
 
 const Unknown = () => <span className="muted">不明</span>
 
-// ご祭神は表記をそろえて表示し、それぞれ同じ神様を祀る神社の検索へつなぐ
-function Deities({ text }) {
-  const { names } = normalizeDeities(text)
-  if (!names.length) return <Unknown />
-  return names.map((n, i) => (
-    <React.Fragment key={n}>
-      {i > 0 && '、'}
-      <Link to={`/map?deity=${encodeURIComponent(n)}`} className="inline-link">{n}</Link>
-    </React.Fragment>
-  ))
+// ご祭神・ご利益・社格・御朱印・駐車場はタグで表示し、押すとマップでそのタグの神社を探す（マップの検索と同じ項目）
+// values: [{ value: マップに渡す値, label: 表示 }]
+function TagChips({ group, values }) {
+  const items = values.filter((v) => v.value && v.value !== 'unknown')
+  if (!items.length) return <Unknown />
+  return (
+    <div className="info-chips">
+      {items.map(({ value, label }) => tagForValue(group, value)
+        ? <Link key={value} to={tagLink(group, value)} className="chip">{label || value}</Link>
+        : <span key={value}>{label || value}</span>)}
+    </div>
+  )
 }
+
+const asValues = (list) => list.map((v) => ({ value: v }))
 
 // meters がないのは情報提供された駅・バス停（「〇〇駅 徒歩10分」のように書かれている）
 function Access({ name, meters }) {
@@ -158,7 +164,10 @@ export default function ShrinePage() {
           <div className="section-mini">参拝の情報</div>
           <dl className="info">
             <Row label="拝観時間">{shrine.visiting_hours ? <span className="pre-wrap">{shrine.visiting_hours}</span> : <Unknown />}</Row>
-            <Row label="御朱印">{GOSHUIN_LABELS[shrine.goshuin]} <GuideInlineLink context="goshuin" /></Row>
+            <Row label="御朱印">
+              <TagChips group="goshuin" values={[{ value: shrine.goshuin || 'unknown', label: GOSHUIN_LABELS[shrine.goshuin || 'unknown'] }]} />
+              <GuideInlineLink context="goshuin" />
+            </Row>
             {shrine.goshuin_note && <Row label="御朱印メモ"><span className="pre-wrap">{shrine.goshuin_note}</span></Row>}
           </dl>
         </section>
@@ -174,9 +183,11 @@ export default function ShrinePage() {
           <div className="section-mini">基本情報</div>
           <dl className="info">
             <Row label="住所">{shrine.address || <Unknown />}</Row>
-            <Row label="ご祭神"><Deities text={shrine.deities} /></Row>
-            <Row label="ご利益">{shrine.benefits?.length ? shrine.benefits.join('・') : <Unknown />}</Row>
-            <Row label="社格">{shrine.shrine_rank || <Unknown />}</Row>
+            <Row label="ご祭神">
+              <TagChips group="deity" values={normalizeDeities(shrine.deities).names.map((n) => ({ value: n, label: deityLabel(n) }))} />
+            </Row>
+            <Row label="ご利益"><TagChips group="benefit" values={asValues([...new Set((shrine.benefits || []).map((b) => b.trim()))])} /></Row>
+            <Row label="社格"><TagChips group="rank" values={asValues(splitTags(shrine.shrine_rank))} /></Row>
             <Row label="創建">{shrine.founded || <Unknown />}</Row>
             <Row label="例祭">{shrine.annual_festival || <Unknown />}</Row>
             <Row label="本殿の様式">{shrine.honden_style || <Unknown />}</Row>
@@ -195,7 +206,9 @@ export default function ShrinePage() {
           <dl className="info">
             <Row label="最寄り駅"><Access name={shrine.nearest_station} meters={shrine.nearest_station_m} /></Row>
             <Row label="バス停"><Access name={shrine.nearest_bus_stop} meters={shrine.nearest_bus_stop_m} /></Row>
-            <Row label="駐車場">{PARKING_LABELS[shrine.parking]}</Row>
+            <Row label="駐車場">
+              <TagChips group="parking" values={[{ value: shrine.parking || 'unknown', label: PARKING_LABELS[shrine.parking || 'unknown'] }]} />
+            </Row>
             {shrine.access_note && <Row label="補足">{shrine.access_note}</Row>}
           </dl>
           <a className="inline-link small" target="_blank" rel="noopener noreferrer"
