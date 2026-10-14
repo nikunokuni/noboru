@@ -57,6 +57,8 @@ export default function ProfilePage() {
               {title?.next && <p className="muted small mt8">「{title.next.label}」まで あと{title.next.remaining}社</p>}
             </div>
             <PrayerBox userId={user.id} />
+            {/* おみくじ（内容は後日実装） */}
+            <button className="btn-secondary mt24" onClick={() => alert('おみくじは準備中です')}>おみくじを引く</button>
           </>
         )}
 

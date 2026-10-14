@@ -182,12 +182,12 @@ a { color: inherit; }
 .progress-text { font-family: var(--font-mincho); font-size: 14px; letter-spacing: 0.05em; margin: 6px 0 8px; }
 .progress-text strong { color: var(--vermillion); font-weight: 600; }
 .bar { height: 6px; background: var(--paper3); border-radius: 3px; overflow: hidden; }
-.bar.small { height: 4px; flex: 1; }
+.bar.small { height: 4px; flex: 1; min-width: 0; }
 .bar-fill { height: 100%; background: linear-gradient(90deg, var(--vermillion-soft), var(--vermillion)); min-width: 2px; }
-.pref-list { margin-top: 10px; max-height: 360px; overflow-y: auto; }
+.pref-list { margin-top: 10px; max-height: 360px; overflow-y: auto; padding-right: 14px; }
 .pref-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
-.pref-name { width: 64px; font-size: 12px; font-family: var(--font-mincho); }
-.pref-num { width: 72px; text-align: right; }
+.pref-name { width: 64px; flex-shrink: 0; font-size: 12px; font-family: var(--font-mincho); }
+.pref-num { min-width: 64px; flex-shrink: 0; text-align: right; white-space: nowrap; }
 
 /* マイページ */
 .prayer-box { border: 1px solid var(--line); border-radius: 10px; padding: 0 16px 14px; }
