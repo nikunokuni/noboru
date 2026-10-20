@@ -3,8 +3,9 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSignedUrls } from './Photos'
 import { fetchShrine, fetchShrinePhotos } from '../lib/community'
+import { serverSearch } from '../lib/shrineIndex'
 import { placeLabel } from '../lib/format'
-import { FEATURED_SHRINES, localDateKey, pickFeatured } from '../lib/featuredShrines'
+import { FEATURED_SHRINES, localDateKey, matchFeatured, pickFeatured } from '../lib/featuredShrines'
 import { MAIN_PHOTO_TAG } from '../lib/constants'
 
 export default function TodayShrine() {
@@ -15,13 +16,19 @@ export default function TodayShrine() {
   useEffect(() => {
     if (!featured) return
     let alive = true
-    fetchShrine(featured.id).then((s) => alive && setShrine(s)).catch(() => {})
-    // 画像の指定がなければ、本殿の写真を使う
-    if (!featured.image) {
-      fetchShrinePhotos(featured.id)
-        .then((p) => alive && setPhotoPath(p.find((x) => x.tag === MAIN_PHOTO_TAG)?.path || null))
-        .catch(() => {})
-    }
+    ;(async () => {
+      // id がなければ名前で探す
+      const id = featured.id ?? matchFeatured(featured, await serverSearch(featured.name, { prefecture: featured.prefecture }))?.id
+      if (id == null || !alive) return
+      const [s, photos] = await Promise.all([
+        fetchShrine(id),
+        // 画像の指定がなければ、本殿の写真を使う
+        featured.image ? [] : fetchShrinePhotos(id).catch(() => []),
+      ])
+      if (!alive) return
+      setShrine(s)
+      setPhotoPath(photos.find((x) => x.tag === MAIN_PHOTO_TAG)?.path || null)
+    })().catch(() => {})
     return () => { alive = false }
   }, [featured])
 

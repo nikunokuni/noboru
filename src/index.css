@@ -265,7 +265,7 @@ a { color: inherit; }
 .today-shrine-img.placeholder { background: var(--paper3); }
 .today-shrine-body { padding: 10px 14px 14px; }
 .today-shrine-name { font-family: var(--font-mincho); font-size: 16px; letter-spacing: 0.08em; margin-bottom: 2px; }
-.today-shrine-text { font-size: 12px; line-height: 1.9; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.today-shrine-text { font-size: 12px; line-height: 1.9; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
 .photo-tags { justify-content: center; }
 .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
 .photo-grid .photo { width: 100%; height: auto; aspect-ratio: 1; cursor: zoom-in; }
