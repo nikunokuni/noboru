@@ -257,6 +257,15 @@ a { color: inherit; }
 .shrine-photos { margin-bottom: 8px; }
 .main-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; display: block; margin-bottom: 12px; cursor: zoom-in; }
 .main-photo.placeholder { background: var(--paper3); }
+
+/* 今日の神社（記録するタブの一番上） */
+.today-shrine { display: block; text-decoration: none; color: inherit; background: var(--paper2); border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+.today-shrine-label { font-family: var(--font-mincho); font-size: 10px; letter-spacing: 0.25em; color: var(--vermillion); padding: 10px 14px 8px; }
+.today-shrine-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
+.today-shrine-img.placeholder { background: var(--paper3); }
+.today-shrine-body { padding: 10px 14px 14px; }
+.today-shrine-name { font-family: var(--font-mincho); font-size: 16px; letter-spacing: 0.08em; margin-bottom: 2px; }
+.today-shrine-text { font-size: 12px; line-height: 1.9; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .photo-tags { justify-content: center; }
 .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
 .photo-grid .photo { width: 100%; height: auto; aspect-ratio: 1; cursor: zoom-in; }

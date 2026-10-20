@@ -3,6 +3,7 @@
 import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import ShrineRow from '../components/ShrineRow'
+import TodayShrine from '../components/TodayShrine'
 import { useShrineIndex } from '../hooks/useShrineIndex'
 import { nearbyIndex } from '../lib/indexCore'
 import { formatDistance, getCurrentPosition, inBounds, squareBounds } from '../lib/geo'
@@ -64,6 +65,7 @@ export default function HomePage() {
         <div className="app-logo">ノ<span>ボ</span>ル</div>
       </header>
       <div className="page-content">
+        <TodayShrine />
         <RecentVisitors />
 
         {position ? (
