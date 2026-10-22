@@ -6,6 +6,7 @@ import Photos from '../components/Photos'
 import ShrinePhotos from '../components/ShrinePhotos'
 import ShrineContributors from '../components/ShrineContributors'
 import { GuideInlineLink } from '../components/GuideLinks'
+import ShareButtons, { shareUrl } from '../components/ShareButtons'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { useShrineIndex } from '../hooks/useShrineIndex'
@@ -159,6 +160,7 @@ export default function ShrinePage() {
 
         <div className="action-row">
           <button className="btn-primary" onClick={() => navigate(`/record/${shrine.id}`)}>ここを記録する</button>
+          <ShareButtons className="mt8" url={shareUrl(`/shrine/${shrine.id}`)} text={`⛩ ${shrine.name}（${placeLabel(shrine)}）`} />
         </div>
 
         <section>

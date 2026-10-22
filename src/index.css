@@ -79,6 +79,8 @@ a { color: inherit; }
 .inline-link { color: var(--vermillion); font-size: 12px; text-decoration: none; border-bottom: 1px solid rgba(192, 57, 43, 0.25); }
 .link-plain { text-decoration: none; display: block; }
 .action-row { margin: 18px 0; }
+.share-row { display: flex; gap: 8px; }
+.share-row .btn-secondary { flex: 1; width: auto; }
 
 /* チップ */
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }

@@ -1,4 +1,4 @@
-// マイページ：ニックネーム・称号・お祈りしたいこと・おみくじ・参拝の手引き（note）
+// マイページ：ニックネーム・称号・お祈りしたいこと・おみくじ・参拝の手引き（note）・アプリの紹介
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
@@ -6,6 +6,7 @@ import { GuideLinkList } from '../components/GuideLinks'
 import NicknameSettings from '../components/NicknameSettings'
 import PrayerBox from '../components/PrayerBox'
 import Omikuji from '../components/Omikuji'
+import ShareButtons, { APP_SHARE_TEXT, shareUrl } from '../components/ShareButtons'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyRecords } from '../lib/records'
@@ -80,6 +81,11 @@ export default function ProfilePage() {
         <section className="mt24">
           <div className="section-mini">参拝の手引き</div>
           <GuideLinkList context="general" />
+        </section>
+
+        <section className="mt24">
+          <div className="section-mini">ノボルを紹介する</div>
+          <ShareButtons url={shareUrl('/')} text={APP_SHARE_TEXT} />
         </section>
 
         <Link to="/feedback" className="btn-secondary mt24">アプリへのご意見・ご要望</Link>
