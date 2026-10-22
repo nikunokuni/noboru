@@ -1,10 +1,11 @@
-// マイページ：ニックネーム・称号・お祈りしたいこと・参拝の手引き（note）
+// マイページ：ニックネーム・称号・お祈りしたいこと・おみくじ・参拝の手引き（note）
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { GuideLinkList } from '../components/GuideLinks'
 import NicknameSettings from '../components/NicknameSettings'
 import PrayerBox from '../components/PrayerBox'
+import Omikuji from '../components/Omikuji'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyRecords } from '../lib/records'
@@ -17,6 +18,7 @@ export default function ProfilePage() {
   const [shrineCount, setShrineCount] = useState(null)
   const [pendingRequests, setPendingRequests] = useState(null) // 管理者のときだけ数が入る
   const [openFeedback, setOpenFeedback] = useState(0)
+  const [omikujiOpen, setOmikujiOpen] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -57,8 +59,8 @@ export default function ProfilePage() {
               {title?.next && <p className="muted small mt8">「{title.next.label}」まで あと{title.next.remaining}社</p>}
             </div>
             <PrayerBox userId={user.id} />
-            {/* おみくじ（内容は後日実装） */}
-            <button className="btn-secondary mt24" onClick={() => alert('おみくじは準備中です')}>おみくじを引く</button>
+            <button className="btn-secondary mt24" onClick={() => setOmikujiOpen(true)}>おみくじを引く</button>
+            {omikujiOpen && <Omikuji onClose={() => setOmikujiOpen(false)} />}
           </>
         )}
 

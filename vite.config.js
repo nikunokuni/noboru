@@ -28,7 +28,7 @@ export default defineConfig({
         // 初めて開いた画面もすぐ service worker の管理下に入れる（そうしないと「更新する」で切り替わらない）
         clientsClaim: true,
         navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,jpg,woff2}'],
         runtimeCaching: [
           {
             // 地図タイル：見た範囲だけキャッシュ
