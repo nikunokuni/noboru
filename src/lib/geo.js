@@ -66,6 +66,21 @@ function loadMuniTable() {
   return muniTable
 }
 
+// 住所 → 座標（国土地理院の住所検索）。番地の代表点なので境内とはずれることがある
+// { lat, lng, title }（title は見つかった住所）。見つからなければ null
+export async function geocodeAddress(address) {
+  try {
+    const res = await fetch(`https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(address)}`)
+    if (!res.ok) return null
+    const [hit] = await res.json()
+    const [lng, lat] = hit?.geometry?.coordinates || []
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+    return { lat, lng, title: hit.properties?.title || '' }
+  } catch {
+    return null
+  }
+}
+
 // 座標 → おおよその住所「東京都世田谷区上町」（国土地理院）。番地までは出ない。取れなければ ''
 export async function reverseGeocode(lat, lng) {
   try {

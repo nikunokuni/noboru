@@ -12,7 +12,7 @@ import {
   countUnpublishedApprovals, rebuildShrineIndex,
 } from '../lib/admin'
 import { nearbyIndex } from '../lib/indexCore'
-import { formatDistance, reverseGeocode } from '../lib/geo'
+import { formatDistance, geocodeAddress, reverseGeocode } from '../lib/geo'
 import { formatDate } from '../lib/format'
 import { PREFECTURES } from '../lib/constants'
 
@@ -223,6 +223,17 @@ function AddForm({ request, index, saving, onApprove, onReject }) {
   const [latLng, setLatLng] = useState(hasPos ? `${request.lat}, ${request.lng}` : '')
   const pos = parseLatLng(latLng)
   const posKey = pos ? `${pos.lat},${pos.lng}` : ''
+  // 住所から調べた結果：'searching' / { title } / 'notfound'
+  const [geocoded, setGeocoded] = useState(null)
+
+  const lookUpAddress = async () => {
+    if (!address.trim()) return window.alert('住所を入力してください（補足に書かれていれば貼り付けてください）')
+    setGeocoded('searching')
+    const hit = await geocodeAddress(address.trim())
+    if (!hit) { setGeocoded('notfound'); return }
+    setLatLng(`${hit.lat.toFixed(6)}, ${hit.lng.toFixed(6)}`)
+    setGeocoded({ title: hit.title })
+  }
 
   // 住所がなければ場所から調べて入れる
   useEffect(() => {
@@ -258,14 +269,22 @@ function AddForm({ request, index, saving, onApprove, onReject }) {
       </div>
       <div className="field-wrap">
         <label className="field-label">場所（緯度, 経度）</label>
-        <input className="field-input" value={latLng} onChange={(e) => setLatLng(e.target.value)} placeholder="例：35.0036, 135.7785" />
+        <input className="field-input" value={latLng} onChange={(e) => { setLatLng(e.target.value); setGeocoded(null) }} placeholder="例：35.0036, 135.7785" />
         {latLng && !pos && <p className="small muted mt8">緯度, 経度の形で入力してください</p>}
-        {!hasPos && <p className="small muted mt8">申請に現在地が付いていません。地図で場所を調べて入力してください</p>}
+        {!hasPos && <p className="small muted mt8">申請に場所が付いていません。下の住所から調べるか、地図で場所を調べて入力してください</p>}
+        {pos && <p className="small mt8"><a className="inline-link" href={mapUrl(pos.lat, pos.lng)} target="_blank" rel="noopener noreferrer">この場所を地図で見る</a></p>}
       </div>
       <div className="field-wrap">
         <label className="field-label">住所</label>
         <input className="field-input" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="例：東京都世田谷区上町" />
         {prefecture && !prefFromAddress && <p className="small muted mt8">都道府県は近くの神社から {prefecture} とします</p>}
+        <button type="button" className="btn-secondary mt8" onClick={lookUpAddress} disabled={geocoded === 'searching'}>
+          {geocoded === 'searching' ? '調べています…' : '住所から場所を調べる'}
+        </button>
+        {geocoded === 'notfound' && <p className="small error mt8">住所から場所が見つかりませんでした。都道府県から書いてあるか確かめてください</p>}
+        {geocoded?.title && (
+          <p className="small muted mt8">「{geocoded.title}」の位置を入れました。番地の代表点なので境内とずれることがあります。地図で確かめてください</p>
+        )}
       </div>
 
       {close.length > 0 && (
