@@ -7,6 +7,7 @@ import PhotoBook, { PhotoBookPicker } from '../components/PhotoBook'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyRecords } from '../lib/records'
+import { fetchMyEditedShrineCount } from '../lib/community'
 import { formatDate } from '../lib/format'
 import { PHOTO_BOOKS, emotionColor, emotionMarks } from '../lib/constants'
 
@@ -25,6 +26,7 @@ export default function RecordsPage() {
   const { pending, syncNow, discard, syncRevision } = usePendingRecords()
   const [records, setRecords] = useState(null)
   const [failed, setFailed] = useState(false)
+  const [editedShrines, setEditedShrines] = useState(null)
   const [filter, setFilter] = useState('all')
   // 御朱印帳など（写真のタグ）。null なら記録の一覧
   const [book, setBook] = useState(null)
@@ -35,6 +37,12 @@ export default function RecordsPage() {
       .then((r) => { setRecords(r); setFailed(false) })
       .catch(() => { setRecords((prev) => prev || []); setFailed(true) })
   }, [user, syncRevision])
+
+  useEffect(() => {
+    setEditedShrines(null)
+    if (!user) return
+    fetchMyEditedShrineCount().then(setEditedShrines).catch(() => {})
+  }, [user])
 
   // 全記録の1枚目の写真を一度に署名
   const thumbs = useSignedUrls((records || []).map((r) => r.photos?.[0]?.path).filter(Boolean))
@@ -60,7 +68,6 @@ export default function RecordsPage() {
   const stats = records && {
     shrines: new Set(records.map((r) => r.shrine_id)).size,
     records: records.length,
-    avg: records.length ? Math.round(records.reduce((s, r) => s + r.emotion_level, 0) / records.length) : 0,
   }
 
   return (
@@ -71,7 +78,7 @@ export default function RecordsPage() {
           <div className="stat-row mb16">
             <div className="stat"><div className="stat-num">{stats?.shrines ?? '—'}</div><div className="stat-label">参拝した神社</div></div>
             <div className="stat"><div className="stat-num">{stats?.records ?? '—'}</div><div className="stat-label">記録</div></div>
-            <div className="stat"><div className="stat-num">{stats?.avg ?? '—'}</div><div className="stat-label">感動の平均</div></div>
+            <div className="stat"><div className="stat-num">{editedShrines ?? '—'}</div><div className="stat-label">情報を追加・訂正した神社</div></div>
           </div>
         )}
         {user && <PhotoBookPicker value={book} onChange={setBook} />}

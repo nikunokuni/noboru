@@ -88,6 +88,13 @@ export async function submitShrineEdits({ shrineId, userId, changes }) {
   if (error) throw error
 }
 
+// 自分が情報を追加・訂正した神社の数（元に戻された変更は数えない）
+export async function fetchMyEditedShrineCount() {
+  const { data, error } = await supabase.rpc('get_my_edited_shrine_count')
+  if (error) throw error
+  return data
+}
+
 export async function submitShrineRequest(request) {
   const { error } = await supabase.from('shrine_requests').insert(request)
   if (error) throw error

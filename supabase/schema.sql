@@ -59,6 +59,7 @@ CREATE TABLE shrines (
   -- 集計（records のトリガーで自動更新）
   record_count        INTEGER NOT NULL DEFAULT 0,
   visitor_count       INTEGER NOT NULL DEFAULT 0,   -- 参拝したユーザー数（重複なし）
+  emotion_avg         INTEGER,                     -- 公開記録の感動の温度の平均（四捨五入）。NULL = 公開記録なし
   first_visited_on    DATE,                        -- 最初の参拝日。NULL = まだ誰も行っていない
   stats_updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),  -- 集計列の更新時刻（端末の差分取得用）
 
@@ -233,11 +234,13 @@ BEGIN
   UPDATE shrines s SET
     record_count     = agg.cnt,
     visitor_count    = agg.users,
+    emotion_avg      = agg.emotion,
     first_visited_on = agg.first_on,
     stats_updated_at = NOW()
   FROM (
     SELECT COUNT(*)::INT AS cnt,
            COUNT(DISTINCT user_id)::INT AS users,
+           ROUND(AVG(emotion_level) FILTER (WHERE is_public))::INT AS emotion,  -- 非公開記録の感動は出さない
            MIN(visited_on) AS first_on
     FROM records WHERE shrine_id = target
   ) agg
@@ -257,7 +260,7 @@ BEGIN
 END $$;
 
 CREATE TRIGGER trg_records_stats
-AFTER INSERT OR UPDATE OF shrine_id, visited_on, user_id OR DELETE ON records
+AFTER INSERT OR UPDATE OF shrine_id, visited_on, user_id, emotion_level, is_public OR DELETE ON records
 FOR EACH ROW EXECUTE FUNCTION on_record_change();
 
 -- 項目ごとに、変更で書き換わる shrines の列
@@ -346,7 +349,16 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   GROUP BY prefecture ORDER BY prefecture;
 $$;
 
+-- 自分が情報を追加・訂正した神社の数（元に戻された変更は数えない）
+CREATE OR REPLACE FUNCTION get_my_edited_shrine_count() RETURNS INT
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT COUNT(DISTINCT shrine_id)::INT FROM shrine_edits
+  WHERE user_id = auth.uid() AND reverted_at IS NULL;
+$$;
+
 GRANT EXECUTE ON FUNCTION get_app_stats(), get_prefecture_progress() TO anon, authenticated;
+REVOKE EXECUTE ON FUNCTION get_my_edited_shrine_count() FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION get_my_edited_shrine_count() TO authenticated;
 REVOKE EXECUTE ON FUNCTION refresh_shrine_stats(BIGINT) FROM PUBLIC, anon, authenticated;
 
 -- ============================================================

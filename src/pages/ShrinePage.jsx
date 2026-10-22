@@ -154,6 +154,7 @@ export default function ShrinePage() {
         <div className="stat-row">
           <div className="stat"><div className="stat-num">{shrine.visitor_count}</div><div className="stat-label">訪れた人</div></div>
           <div className="stat"><div className="stat-num">{shrine.record_count}</div><div className="stat-label">記録</div></div>
+          <div className="stat"><div className="stat-num">{shrine.emotion_avg ?? '—'}</div><div className="stat-label">感動の平均</div></div>
         </div>
 
         <div className="action-row">
