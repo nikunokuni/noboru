@@ -72,7 +72,24 @@ npm run import:shrines -- --pref 11,13,14 --no-transit --gsi-address
 | 駐車場 | OSM に駐車場があるとき |
 | ご祭神・よみがな | OSM に Wikidata の番号がある神社 |
 | 社格・創建・例祭・本殿の様式・由緒 | OSM に Wikidata / Wikipedia の記事がある神社（創建・例祭・本殿の様式は [`supabase/upgrade-import-details.sql`](../supabase/upgrade-import-details.sql) の実行が必要） |
+| 大きさ | 取り込みのたびに判定し直す（下の「神社の大きさ」。[`supabase/upgrade-shrine-size.sql`](../supabase/upgrade-shrine-size.sql) の実行が必要）。情報提供された大きさは変えない |
 | ご利益・御朱印・拝観時間・見どころ・アクセスの補足 | 自動では埋まらない（情報提供で入れる） |
+
+## 神社の大きさ
+
+取り込みのときに、OSM と Wikipedia から3段階に分けます（上から順に当てはめる）。取り込みのログに段階ごとの件数が出ます。
+
+| 大きさ | 決め方 |
+|---|---|
+| 大きな神社 | 社格に一宮・官幣・国幣・別表・勅祭が入っている |
+| 小さな祠 | OSM で祠（`historic=wayside_shrine`）として登録されている、または名前がない |
+| 大きな神社 | 境内（OSM の面）が 1万㎡ 以上 |
+| 小さな祠 | 境内が描かれていない（点だけ）か 100㎡ 未満で、Wikipedia / Wikidata の記事もない |
+| ふつうの神社 | それ以外 |
+
+- `--skip-wiki` / `--shrines-only` のときは社格がわからないので、「ふつうの神社」になるものは決めずに今の値を残す
+- 情報提供で変えた大きさは取り込み直しても変えない（「不明」にすると、次の取り込みで自動の値に戻る）
+- 目安の数字は `scripts/lib/process.mjs` の先頭で変えられる
 
 ## 注意
 

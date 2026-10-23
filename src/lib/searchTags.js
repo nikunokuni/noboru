@@ -12,14 +12,20 @@ export function deityTag(name) {
 }
 
 // match の種類
-//   goshuin / parking: 一覧の値がこのどれかなら当てはまる
+//   size / goshuin / parking: 一覧の値がこのどれかなら当てはまる
 //   benefit: ご利益のどれかにこの文字が入っていれば当てはまる
 //   deity:   このご祭神（別の書き方でも）を祀っていれば当てはまる
 //   rank:    社格の欄にこの文字が入っていれば当てはまる
 //   name:    神社名にこの文字が入っていれば当てはまる（八幡宮・伊勢・稲荷は社格の欄にほぼ入っていないので名前で見る）
-// 項目の順番は神社詳細と同じ（御朱印 → ご祭神 → ご利益 → 社格 → 駐車場）
-// status: 神社詳細から来たとき、その値（goshuin / parking の欄）をこのタグとして選ぶ
+// 項目の順番は、大きさ（はじめての人がまず選ぶ）のあとは神社詳細と同じ（御朱印 → ご祭神 → ご利益 → 社格 → 駐車場）
+// 大きさの「大きな神社」は社格（一宮・別表神社など）からも決めているが、社格のタグとは別の見方（境内の広さ・祠かどうか）で分ける
+// status: 神社詳細から来たとき、その値（shrine_size / goshuin / parking の欄）をこのタグとして選ぶ
 export const SEARCH_TAGS = [
+  { key: 'size', label: '大きさ', tags: [
+    { key: 'large', label: '大きな神社', size: ['large'], status: ['large'] },
+    { key: 'medium', label: 'ふつうの神社', size: ['medium'], status: ['medium'] },
+    { key: 'small', label: '小さな祠', size: ['small'], status: ['small'] },
+  ] },
   { key: 'goshuin', label: '御朱印', tags: [
     { key: 'yes', label: 'あり', goshuin: ['direct_only', 'written_only', 'both', 'available'], status: ['available'] },
     { key: 'direct', label: '直書き', goshuin: ['direct_only', 'both'], status: ['direct_only'] },
@@ -64,7 +70,7 @@ export function tagForValue(group, value) {
   const v = (value || '').trim()
   if (!v) return null
   const tags = SEARCH_TAGS.find((g) => g.key === group)?.tags || []
-  if (group === 'goshuin' || group === 'parking') return tags.find((t) => t.status.includes(v)) || null
+  if (group === 'size' || group === 'goshuin' || group === 'parking') return tags.find((t) => t.status.includes(v)) || null
   if (group === 'deity') {
     const name = canonicalDeity(v)
     return tags.find((t) => t.deity === name) || deityTag(name)
@@ -89,6 +95,8 @@ export function tagsFromParams(params) {
 
 // 一覧ファイルが御朱印・駐車場・ご利益・社格を持っているか（古い一覧ファイルにはない）
 export const hasTagColumns = (index) => Array.isArray(index.raw.gosh)
+// 一覧ファイルが大きさを持っているか（大きさを足す前の一覧ファイルにはない）
+export const hasSizeColumn = (index) => Array.isArray(index.raw.size)
 
 const tableHits = (list, test) => {
   const out = new Set()
@@ -99,6 +107,7 @@ const tableHits = (list, test) => {
 // 1つのタグについて、一覧の位置 i が当てはまるかを返す関数を作る
 function tagTest(index, tag) {
   const r = index.raw
+  if (tag.size) { const hit = tableHits(r.sizes, (v) => tag.size.includes(v)); return (i) => hit.has(r.size?.[i]) }
   if (tag.goshuin) { const hit = tableHits(r.goshs, (v) => tag.goshuin.includes(v)); return (i) => hit.has(r.gosh?.[i]) }
   if (tag.parking) { const hit = tableHits(r.parks, (v) => tag.parking.includes(v)); return (i) => hit.has(r.park?.[i]) }
   if (tag.benefit) {

@@ -19,9 +19,10 @@
 //   parks: ['unknown', 'nearby', ...], park: [0, 1, ...], // 駐車場（parking_status）
 //   bens:  ['縁結び', ...],   ben:  [[0, 3], [], ...],   // ご利益
 //   ranks: ['式内社', ...],   rank: [0, -1, ...],        // 社格。-1 は不明
+//   sizes: ['medium', ...],   size: [0, -1, ...],        // 大きさ（shrine_size）。-1 は不明
 // }
 // munis 以降は後から足した項目。古い一覧ファイルにはないので、ないときは空として扱う
-// goshs 以降（マップのタグで絞り込む項目）がない古い一覧ファイルでは、それらのタグでは絞り込めない
+// goshs 以降（マップのタグで絞り込む項目）がない古い一覧ファイルでは、それらのタグでは絞り込めない（sizes も同じ）
 
 import { distanceM } from './geo.js'
 import { normalizeDeities, deityKey, matchDeityNames } from './deities.js'
@@ -60,7 +61,7 @@ export async function fetchIndexRows(db, onProgress = () => {}) {
   const PAGE = 1000
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await db.from('shrines')
-      .select('id, name, name_kana, prefecture, municipality, locality, deities, lat, lng, first_visited_on, goshuin, parking, benefits, shrine_rank')
+      .select('id, name, name_kana, prefecture, municipality, locality, deities, lat, lng, first_visited_on, goshuin, parking, benefits, shrine_rank, shrine_size')
       .eq('status', 'active').order('id').range(from, from + PAGE - 1)
     if (error) throw error
     rows.push(...data)
@@ -90,11 +91,13 @@ export function encodeIndex(rows, { version, generatedAt = new Date().toISOStrin
   const parks = stringTable()
   const bens = stringTable()
   const ranks = stringTable()
+  const sizes = stringTable()
   const out = {
     format: INDEX_FORMAT, version, generated_at: generatedAt, prefs: prefs.list,
     id: [], name: [], kana: [], lat: [], lng: [], pref: [], vis: [],
     munis: munis.list, muni: [], locs: locs.list, loc: [], deis: deis.list, dei: [],
     goshs: goshs.list, gosh: [], parks: parks.list, park: [], bens: bens.list, ben: [], ranks: ranks.list, rank: [],
+    sizes: sizes.list, size: [],
   }
   for (const r of rows) {
     out.id.push(Number(r.id))
@@ -113,6 +116,7 @@ export function encodeIndex(rows, { version, generatedAt = new Date().toISOStrin
     out.park.push(parks.at(r.parking || 'unknown'))
     out.ben.push([...new Set((r.benefits || []).map((b) => b.trim()).filter(Boolean))].map(bens.at))
     out.rank.push(ranks.at((r.shrine_rank || '').trim()))
+    out.size.push(sizes.at(r.shrine_size))
   }
   return out
 }

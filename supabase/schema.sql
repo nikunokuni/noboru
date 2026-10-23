@@ -40,6 +40,10 @@ CREATE TABLE shrines (
   honden_style        TEXT,                     -- 本殿の様式（「流造」など）
   visiting_hours      TEXT,                     -- 拝観時間
   highlights          TEXT,                     -- 見どころ
+  -- 大きさ：large 大きな神社 / medium ふつうの神社 / small 小さな祠。NULL = 不明
+  -- 取り込みで OSM の境内の広さ・祠かどうか・社格から自動で入れる。情報提供されたら *_by_user = TRUE にして以後は上書きしない
+  shrine_size         TEXT CHECK (shrine_size IN ('large', 'medium', 'small')),
+  shrine_size_by_user BOOLEAN NOT NULL DEFAULT FALSE,
 
   -- アクセス（駅・バス停は取り込み時に OSM から自動計算。情報提供されたら *_by_user = TRUE にして以後は上書きしない）
   nearest_station          TEXT,
@@ -127,7 +131,7 @@ CREATE TABLE shrine_edits (
                'address', 'deities', 'benefits', 'shrine_rank',
                'access_note', 'parking', 'goshuin', 'features', 'name_kana',
                'goshuin_note', 'nearest_station', 'nearest_bus_stop',
-               'founded', 'annual_festival', 'visiting_hours', 'highlights', 'honden_style', 'website')),
+               'founded', 'annual_festival', 'visiting_hours', 'highlights', 'honden_style', 'website', 'shrine_size')),
   value      JSONB NOT NULL,                    -- 文字列 / 文字列配列 / 列挙値
   old_value  JSONB,                             -- 変更前の値（{列名: 値}）。トリガーが入れる。管理者が元に戻すときに使う
   reverted_at TIMESTAMPTZ,                      -- 管理者が元に戻した時刻
@@ -271,6 +275,7 @@ LANGUAGE sql IMMUTABLE AS $$
     WHEN 'features'         THEN ARRAY['features', 'features_source']
     WHEN 'nearest_station'  THEN ARRAY['nearest_station', 'nearest_station_m', 'nearest_station_by_user']
     WHEN 'nearest_bus_stop' THEN ARRAY['nearest_bus_stop', 'nearest_bus_stop_m', 'nearest_bus_stop_by_user']
+    WHEN 'shrine_size'      THEN ARRAY['shrine_size', 'shrine_size_by_user']
     ELSE ARRAY[field]
   END;
 $$;
@@ -315,6 +320,9 @@ BEGIN
     nearest_bus_stop         = CASE WHEN NEW.field = 'nearest_bus_stop' THEN txt ELSE nearest_bus_stop END,
     nearest_bus_stop_m       = CASE WHEN NEW.field = 'nearest_bus_stop' THEN NULL ELSE nearest_bus_stop_m END,
     nearest_bus_stop_by_user = CASE WHEN NEW.field = 'nearest_bus_stop' THEN txt IS NOT NULL ELSE nearest_bus_stop_by_user END,
+    -- 大きさ：「不明」にしたら次の取り込みで自動の値に戻る
+    shrine_size         = CASE WHEN NEW.field = 'shrine_size' THEN NULLIF(txt, 'unknown') ELSE shrine_size END,
+    shrine_size_by_user = CASE WHEN NEW.field = 'shrine_size' THEN NULLIF(txt, 'unknown') IS NOT NULL ELSE shrine_size_by_user END,
     updated_at      = NOW()
   WHERE id = NEW.shrine_id;
   RETURN NEW;
@@ -378,16 +386,16 @@ BEGIN
   INSERT INTO shrines AS s (
     osm_ref, wikidata_id, name, name_kana, prefecture, municipality, locality, address, lat, lng,
     deities, benefits, shrine_rank, founded, annual_festival, honden_style, nearest_station, nearest_station_m,
-    nearest_bus_stop, nearest_bus_stop_m, parking, features, features_source
+    nearest_bus_stop, nearest_bus_stop_m, parking, features, features_source, shrine_size
   )
   SELECT r.osm_ref, r.wikidata_id, r.name, r.name_kana, r.prefecture, r.municipality, r.locality, r.address, r.lat, r.lng,
          r.deities, COALESCE(r.benefits, '{}'), r.shrine_rank, r.founded, r.annual_festival, r.honden_style, r.nearest_station, r.nearest_station_m,
-         r.nearest_bus_stop, r.nearest_bus_stop_m, COALESCE(r.parking, 'unknown'), r.features, r.features_source
+         r.nearest_bus_stop, r.nearest_bus_stop_m, COALESCE(r.parking, 'unknown'), r.features, r.features_source, r.shrine_size
   FROM jsonb_to_recordset(rows) AS r(
     osm_ref TEXT, wikidata_id TEXT, name TEXT, name_kana TEXT, prefecture TEXT, municipality TEXT, locality TEXT,
     address TEXT, lat DOUBLE PRECISION, lng DOUBLE PRECISION, deities TEXT, benefits TEXT[],
     shrine_rank TEXT, founded TEXT, annual_festival TEXT, honden_style TEXT, nearest_station TEXT, nearest_station_m INTEGER, nearest_bus_stop TEXT,
-    nearest_bus_stop_m INTEGER, parking parking_status, features TEXT, features_source TEXT)
+    nearest_bus_stop_m INTEGER, parking parking_status, features TEXT, features_source TEXT, shrine_size TEXT)
   ON CONFLICT (osm_ref) DO UPDATE SET
     wikidata_id        = EXCLUDED.wikidata_id,
     name               = EXCLUDED.name,
@@ -412,6 +420,8 @@ BEGIN
     parking            = CASE WHEN s.parking = 'unknown' THEN EXCLUDED.parking ELSE s.parking END,
     features           = COALESCE(s.features, EXCLUDED.features),
     features_source    = CASE WHEN s.features IS NULL THEN EXCLUDED.features_source ELSE s.features_source END,
+    -- 大きさ：情報提供された値は残す。決められなかったとき（Wikipedia を取らなかったなど）も今の値を残す
+    shrine_size        = CASE WHEN s.shrine_size_by_user OR EXCLUDED.shrine_size IS NULL THEN s.shrine_size ELSE EXCLUDED.shrine_size END,
     updated_at         = NOW();
   GET DIAGNOSTICS n = ROW_COUNT;
   RETURN n;
@@ -518,6 +528,7 @@ BEGIN
     nearest_station_by_user = s.nearest_station_by_user,
     nearest_bus_stop = s.nearest_bus_stop, nearest_bus_stop_m = s.nearest_bus_stop_m,
     nearest_bus_stop_by_user = s.nearest_bus_stop_by_user,
+    shrine_size = s.shrine_size, shrine_size_by_user = s.shrine_size_by_user,
     updated_at = NOW()
   WHERE id = e.shrine_id;
 

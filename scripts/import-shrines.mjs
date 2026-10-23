@@ -21,7 +21,7 @@ import { createClient } from '@supabase/supabase-js'
 import { PREFECTURES, prefectureIso } from '../src/lib/constants.js'
 import { encodeIndex, fetchIndexRows, newIndexVersion, removeOldIndexFiles } from '../src/lib/indexCore.js'
 import { fetchOverpass, PARTS } from './lib/overpass.mjs'
-import { processPrefecture } from './lib/process.mjs'
+import { processPrefecture, classifyShrineSize } from './lib/process.mjs'
 import { enrichWithWiki } from './lib/wiki.mjs'
 import { enrichWithGsi } from './lib/gsi.mjs'
 
@@ -99,7 +99,17 @@ async function importPrefecture(prefIndex, db) {
     })
   }
 
-  const dbRows = rows.map(({ wikipedia_title, ...r }) => r)
+  // 大きさ：社格（Wikipedia から）も見て決める。Wikipedia を取らなかったときは「ふつう」を決めない
+  const rankKnown = !args['skip-wiki'] && !args['shrines-only']
+  const sizeCount = { large: 0, medium: 0, small: 0, null: 0 }
+  for (const r of rows) {
+    r.shrine_size = classifyShrineSize({ ...r.size_signals, shrineRank: r.shrine_rank }, { rankKnown })
+    sizeCount[r.shrine_size]++
+  }
+  log(`  大きさ: 大きな神社 ${sizeCount.large}件 / ふつうの神社 ${sizeCount.medium}件 / 小さな祠 ${sizeCount.small}件`
+    + (sizeCount.null ? ` / 決めず ${sizeCount.null}件` : ''))
+
+  const dbRows = rows.map(({ wikipedia_title, size_signals, ...r }) => r)
 
   if (args['dry-run']) {
     const file = join(HERE, 'out', `${iso}.json`)

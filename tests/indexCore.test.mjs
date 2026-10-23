@@ -139,12 +139,12 @@ test('辞書の別の神様どうしが同じ書き方にならない', () => {
 })
 
 test('マップのタグで絞り込む（同じ項目はどれか、別の項目はすべて）', async () => {
-  const { SEARCH_TAGS, tagFilter, deityTag, hasTagColumns } = await import('../src/lib/searchTags.js')
+  const { SEARCH_TAGS, tagFilter, deityTag, hasTagColumns, hasSizeColumn } = await import('../src/lib/searchTags.js')
   const tag = (group, key) => SEARCH_TAGS.find((g) => g.key === group).tags.find((t) => t.key === key)
   const idx = prepareIndex(encodeIndex([
-    { id: 1, name: '八幡宮', prefecture: '東京都', lat: 35, lng: 139, deities: '応神天皇', goshuin: 'both', parking: 'dedicated', benefits: ['厄除け', '開運招福'], shrine_rank: '式内社（名神大社）' },
-    { id: 2, name: '稲荷神社', prefecture: '東京都', lat: 35, lng: 139, deities: '倉稲魂命', goshuin: 'direct_only', parking: 'none', benefits: ['商売繁盛'], shrine_rank: '式内小社' },
-    { id: 3, name: '神明社', prefecture: '東京都', lat: 35, lng: 139, deities: '天照大神、弁才天', goshuin: 'written_only', benefits: ['縁結び・恋愛成就'] },
+    { id: 1, name: '八幡宮', prefecture: '東京都', lat: 35, lng: 139, deities: '応神天皇', goshuin: 'both', parking: 'dedicated', benefits: ['厄除け', '開運招福'], shrine_rank: '式内社（名神大社）', shrine_size: 'large' },
+    { id: 2, name: '稲荷神社', prefecture: '東京都', lat: 35, lng: 139, deities: '倉稲魂命', goshuin: 'direct_only', parking: 'none', benefits: ['商売繁盛'], shrine_rank: '式内小社', shrine_size: 'small' },
+    { id: 3, name: '神明社', prefecture: '東京都', lat: 35, lng: 139, deities: '天照大神、弁才天', goshuin: 'written_only', benefits: ['縁結び・恋愛成就'], shrine_size: 'medium' },
     { id: 4, name: '須賀神社', prefecture: '東京都', lat: 35, lng: 139, deities: '須佐之男命', goshuin: 'available' },
   ], { version: 'v' }))
   assert.ok(hasTagColumns(idx))
@@ -168,12 +168,18 @@ test('マップのタグで絞り込む（同じ項目はどれか、別の項�
   assert.deepEqual(ids({ deity: [tag('deity', 'deity:天照大御神')] }), [3])
   assert.deepEqual(ids({ deity: [tag('deity', 'deity:弁財天'), tag('deity', 'deity:素戔嗚尊')] }), [3, 4])
   assert.deepEqual(ids({ deity: [deityTag('誉田別命')] }), [1])
+  assert.ok(hasSizeColumn(idx))
+  assert.deepEqual(ids({ size: [tag('size', 'large')] }), [1])
+  assert.deepEqual(ids({ size: [tag('size', 'medium'), tag('size', 'small')] }), [2, 3])   // 不明（4）はどれにも入らない
+  assert.deepEqual(ids({ size: [tag('size', 'large')], goshuin: [tag('goshuin', 'direct')] }), [1])
   // 古い一覧ファイル（タグの項目がない）では、御朱印などのタグに当てはまる神社はない
   const raw = { ...index().raw }
-  for (const k of ['goshs', 'gosh', 'parks', 'park', 'bens', 'ben', 'ranks', 'rank']) delete raw[k]
+  for (const k of ['goshs', 'gosh', 'parks', 'park', 'bens', 'ben', 'ranks', 'rank', 'sizes', 'size']) delete raw[k]
   const old = prepareIndex(raw)
   assert.ok(!hasTagColumns(old))
   assert.equal(tagFilter(old, { goshuin: [tag('goshuin', 'none')] })(0), false)
+  assert.ok(!hasSizeColumn(old))
+  assert.equal(tagFilter(old, { size: [tag('size', 'large')] })(0), false)
 })
 
 test('古い一覧ファイルは新しい方から2つを残して消す', async () => {

@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { processPrefecture, toHiragana, addressOf } from '../scripts/lib/process.mjs'
+import { processPrefecture, toHiragana, addressOf, classifyShrineSize } from '../scripts/lib/process.mjs'
 import { assembleRings, polygonOf, pointInPolygon } from '../scripts/lib/geometry.mjs'
 import { trimExtract, parseShrineInfobox, infoboxColumns, cleanWikiValue } from '../scripts/lib/wiki.mjs'
 import { parseMuniJs, gsiAddress, cleanTownName } from '../scripts/lib/gsi.mjs'
@@ -65,6 +65,33 @@ test('境内社を除外し、アクセス情報を計算する', () => {
   assert.equal(p.parking, 'nearby')
   assert.equal(p.municipality, '山田市')
   assert.equal(p.address, '東京都山田市1-2')
+
+  // 大きさを決める材料
+  assert.equal(a.size_signals.hasPolygon, true)
+  assert.ok(Math.abs(a.size_signals.areaM2 - 1015000) < 20000)   // 約1km四方
+  assert.equal(a.size_signals.hasWiki, true)
+  assert.deepEqual(c.size_signals, { named: false, wayside: true, hasPolygon: false, areaM2: 0, hasWiki: false })
+  assert.equal(p.size_signals.hasPolygon, false)
+})
+
+test('神社の大きさを決める', () => {
+  const base = { named: true, wayside: false, hasPolygon: true, areaM2: 3000, hasWiki: false, shrineRank: null }
+  assert.equal(classifyShrineSize(base), 'medium')
+  // 大きな神社：社格（一宮・旧官幣社／国幣社・別表神社）か、境内が1万㎡以上
+  assert.equal(classifyShrineSize({ ...base, shrineRank: '式内社（名神大）・相模国一宮・旧国幣中社・別表神社' }), 'large')
+  assert.equal(classifyShrineSize({ ...base, hasPolygon: false, shrineRank: '旧官幣大社' }), 'large')
+  assert.equal(classifyShrineSize({ ...base, areaM2: 12000 }), 'large')
+  assert.equal(classifyShrineSize({ ...base, shrineRank: '式内社（小）・旧村社' }), 'medium')   // 式内社・村社だけでは大きくしない
+  // 小さな祠：祠・名前なし・敷地がなく（または100㎡未満で）Wikipedia の記事もない
+  assert.equal(classifyShrineSize({ ...base, wayside: true, areaM2: 20000 }), 'small')
+  assert.equal(classifyShrineSize({ ...base, named: false }), 'small')
+  assert.equal(classifyShrineSize({ ...base, hasPolygon: false, areaM2: 0 }), 'small')
+  assert.equal(classifyShrineSize({ ...base, areaM2: 60 }), 'small')
+  assert.equal(classifyShrineSize({ ...base, hasPolygon: false, areaM2: 0, hasWiki: true }), 'medium')
+  // 社格を調べていないときは「ふつう」を決めない（今の値のまま）
+  assert.equal(classifyShrineSize(base, { rankKnown: false }), null)
+  assert.equal(classifyShrineSize({ ...base, areaM2: 12000 }, { rankKnown: false }), 'large')
+  assert.equal(classifyShrineSize({ ...base, wayside: true }, { rankKnown: false }), 'small')
 })
 
 test('開いたウェイをつないでリングにする', () => {

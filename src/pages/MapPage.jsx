@@ -13,7 +13,7 @@ import { fetchMyShrineIds } from '../lib/records'
 import { getCurrentPosition } from '../lib/geo'
 import { getItem, searchPositions } from '../lib/indexCore'
 import { serverSearch } from '../lib/shrineIndex'
-import { SEARCH_TAGS, hasTagColumns, tagFilter, tagsFromParams } from '../lib/searchTags'
+import { SEARCH_TAGS, hasSizeColumn, hasTagColumns, tagFilter, tagsFromParams } from '../lib/searchTags'
 import { PREFECTURES } from '../lib/constants'
 
 const MODES = [
@@ -270,6 +270,9 @@ export default function MapPage() {
           ))}
           {index && !hasTagColumns(index) && tagCount > 0 && (
             <p className="muted small mt8">神社一覧が古いため、御朱印・ご利益・社格・駐車場のタグでは絞り込めません（管理者が神社一覧を更新すると使えます）</p>
+          )}
+          {index && hasTagColumns(index) && !hasSizeColumn(index) && tags.size?.length > 0 && (
+            <p className="muted small mt8">神社一覧が古いため、大きさのタグでは絞り込めません（管理者が神社一覧を更新すると使えます）</p>
           )}
           {status === 'downloading' && <p className="muted small">神社一覧を準備中…（サーバーで検索しています。タグは準備ができてから使えます）</p>}
 

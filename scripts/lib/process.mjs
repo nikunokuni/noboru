@@ -6,6 +6,27 @@ const STATION_MAX_M = 30000
 const BUS_STOP_MAX_M = 10000
 const PLACE_MAX_M = 3000
 
+// 神社の大きさ（shrine_size）の目安
+const LARGE_AREA_M2 = 10000   // 境内がこれ以上なら大きな神社
+const SMALL_AREA_M2 = 100     // 境内がこれ未満で Wikipedia の記事もなければ小さな祠
+// 社格がこれに当たれば大きな神社（一宮・旧官幣社／国幣社・別表神社・勅祭社）
+const MAJOR_RANK = /一宮|一之宮|一の宮|官幣|国幣|別表|勅祭/
+
+// 多角形の面積（度²）を、その緯度での平方メートルに直す
+const toM2 = (deg2, lat) => deg2 * 111320 * 111320 * Math.cos((lat * Math.PI) / 180)
+
+// 神社の大きさを決める。'large' 大きな神社 / 'medium' ふつうの神社 / 'small' 小さな祠
+//   s: { named, wayside, hasPolygon, areaM2, hasWiki, shrineRank }
+//   rankKnown: 社格を調べたか（Wikipedia を取らなかったときは false）。
+//              false のときは、社格がわからないと決められない「ふつう」を null（今の値のまま）にする
+export function classifyShrineSize(s, { rankKnown = true } = {}) {
+  if (s.shrineRank && MAJOR_RANK.test(s.shrineRank)) return 'large'
+  if (s.wayside || !s.named) return 'small'
+  if (s.hasPolygon && s.areaM2 >= LARGE_AREA_M2) return 'large'
+  if (!s.hasWiki && (!s.hasPolygon || s.areaM2 < SMALL_AREA_M2)) return 'small'
+  return rankKnown ? 'medium' : null
+}
+
 const isShrine = (t) =>
   t.religion === 'shinto' && (t.amenity === 'place_of_worship' || t.historic === 'wayside_shrine')
 
@@ -75,6 +96,7 @@ export function processPrefecture(elements, prefecture) {
     const nearPlace = placeGrid.nearest(lat, lng, PLACE_MAX_M)?.point.name || null
     const locality = t['addr:quarter'] || t['addr:suburb'] || t['addr:neighbourhood'] || nearPlace
 
+    const named = Boolean(nameOf(t))
     let name = nameOf(t)
     if (!name) name = `名称不明の社（${nearPlace || municipality || prefecture}）`
 
@@ -113,6 +135,15 @@ export function processPrefecture(elements, prefecture) {
       parking,
       features: null,
       features_source: null,
+      shrine_size: null,
+      // 大きさを決める材料。社格がわかってから classifyShrineSize で決める（DBには入れない）
+      size_signals: {
+        named,
+        wayside: t.historic === 'wayside_shrine',
+        hasPolygon: Boolean(poly),
+        areaM2: poly ? Math.round(toM2(poly.area, lat)) : 0,
+        hasWiki: Boolean(t.wikipedia || t.wikidata),
+      },
     }
   })
 

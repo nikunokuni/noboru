@@ -18,7 +18,7 @@ import { formatDate, placeLabel, websiteLabel, websiteUrl } from '../lib/format'
 import { normalizeDeities } from '../lib/deities'
 import { deityLabel, splitTags } from '../lib/shrineTags'
 import { tagForValue, tagLink } from '../lib/searchTags'
-import { GOSHUIN_LABELS, PARKING_LABELS, emotionColor, emotionMarks } from '../lib/constants'
+import { GOSHUIN_LABELS, PARKING_LABELS, SIZE_LABELS, emotionColor, emotionMarks } from '../lib/constants'
 
 function Row({ label, children }) {
   return (
@@ -185,6 +185,7 @@ export default function ShrinePage() {
         <section>
           <div className="section-mini">基本情報</div>
           <dl className="info">
+            <Row label="大きさ"><TagChips group="size" values={[{ value: shrine.shrine_size || 'unknown', label: SIZE_LABELS[shrine.shrine_size || 'unknown'] }]} /></Row>
             <Row label="住所">{shrine.address || <Unknown />}</Row>
             {websiteUrl(shrine.website) && (
               <Row label="公式サイト">

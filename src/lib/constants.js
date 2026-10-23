@@ -43,7 +43,7 @@ export const EDIT_FIELD_LABELS = {
   nearest_station: '最寄り駅', nearest_bus_stop: 'バス停', parking: '駐車場', access_note: 'アクセス補足',
   goshuin: '御朱印', goshuin_note: '御朱印のメモ', features: '由緒',
   founded: '創建', annual_festival: '例祭', visiting_hours: '拝観時間', highlights: '見どころ',
-  honden_style: '本殿の様式', website: '公式サイト',
+  honden_style: '本殿の様式', website: '公式サイト', shrine_size: '大きさ',
 }
 
 // 写真のタグ（1枚に1つ）。並びは選ぶ画面・神社詳細の表示順
@@ -63,6 +63,20 @@ export const PARKING_LABELS = {
   nearby: '近くに駐車場あり',
   none: '駐車場なし',
   unknown: '不明',
+}
+
+// 神社の大きさ（shrine_size）。NULL は unknown として扱う
+export const SIZE_LABELS = {
+  large: '大きな神社',
+  medium: 'ふつうの神社',
+  small: '小さな祠',
+  unknown: '不明',
+}
+// 選ぶときの説明
+export const SIZE_HINTS = {
+  large: '有名な神社や境内の広い神社。はじめての参拝にもおすすめ',
+  medium: '社殿のある、ふつうの大きさの神社',
+  small: '小さな鳥居と祠だけのところ',
 }
 
 export const GOSHUIN_LABELS = {

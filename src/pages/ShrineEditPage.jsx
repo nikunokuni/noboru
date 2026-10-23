@@ -9,7 +9,7 @@ import { fetchShrine, submitShrineEdits, isBannedError } from '../lib/community'
 import { normalizeDeities } from '../lib/deities'
 import { formatDistance } from '../lib/geo'
 import { websiteUrl } from '../lib/format'
-import { GOSHUIN_LABELS, PARKING_LABELS, goshuinKinds, goshuinFromKinds } from '../lib/constants'
+import { GOSHUIN_LABELS, PARKING_LABELS, SIZE_HINTS, SIZE_LABELS, goshuinKinds, goshuinFromKinds } from '../lib/constants'
 import {
   RANK_OPTIONS, HONDEN_OPTIONS, BENEFIT_OPTIONS, DEITY_OPTIONS, deityLabel, splitTags, splitDeityTags,
 } from '../lib/shrineTags'
@@ -17,6 +17,7 @@ import {
 // type: text / url / textarea / choice / goshuin / pick（タグを選ぶ。選択肢にないものも書き足せる）
 //   pick の array: 配列で保存（ご利益）。deities: ご祭神の表記をそろえる
 const FIELDS = {
+  shrine_size: { label: '大きさ', type: 'choice', options: SIZE_LABELS, hints: SIZE_HINTS },
   name_kana: { label: 'よみがな', type: 'text', placeholder: 'ひらがなで' },
   address: { label: '住所', type: 'text' },
   website: { label: '公式サイト', type: 'url', placeholder: '例：https://example.jp/' },
@@ -40,7 +41,7 @@ const FIELDS = {
 const SECTIONS = [
   ['参拝の情報', ['visiting_hours', 'goshuin', 'goshuin_note']],
   ['見どころ', ['highlights']],
-  ['基本情報', ['name_kana', 'address', 'website', 'deities', 'benefits', 'shrine_rank', 'founded', 'annual_festival', 'honden_style']],
+  ['基本情報', ['shrine_size', 'name_kana', 'address', 'website', 'deities', 'benefits', 'shrine_rank', 'founded', 'annual_festival', 'honden_style']],
   ['由緒', ['features']],
   ['アクセス', ['nearest_station', 'nearest_bus_stop', 'parking', 'access_note']],
 ]
@@ -145,11 +146,14 @@ function FieldInput({ field, value, onChange }) {
   if (field.type === 'goshuin') return <GoshuinInput value={value} onChange={onChange} />
   if (field.type === 'choice') {
     return (
-      <div className="chip-row">
-        {Object.entries(field.options).map(([v, label]) => (
-          <button key={v} type="button" className={`chip ${value === v ? 'active' : ''}`} onClick={() => onChange(v)}>{label}</button>
-        ))}
-      </div>
+      <>
+        <div className="chip-row">
+          {Object.entries(field.options).map(([v, label]) => (
+            <button key={v} type="button" className={`chip ${value === v ? 'active' : ''}`} onClick={() => onChange(v)}>{label}</button>
+          ))}
+        </div>
+        {field.hints?.[value] && <p className="muted small">{field.hints[value]}</p>}
+      </>
     )
   }
   if (field.type === 'textarea') {
@@ -225,6 +229,7 @@ export default function ShrineEditPage() {
                           <dt>{FIELDS[k].label}</dt>
                           <dd>
                             <FieldInput field={FIELDS[k]} value={inputs[k]} onChange={set(k)} />
+                            {k === 'shrine_size' && !(k in changes) && shrine.shrine_size && !shrine.shrine_size_by_user && <p className="muted small">地図データ（境内の広さ・社格など）から自動で判定した値です。違っていたら直してください</p>}
                             {k === 'website' && inputs.website.trim() && !websiteUrl(inputs.website) && <p className="muted small">https:// から始まるURLで入れてください</p>}
                             {(k === 'nearest_station' || k === 'nearest_bus_stop') && !(k in changes) && <AccessHint shrine={shrine} prefix={k} />}
                           </dd>
