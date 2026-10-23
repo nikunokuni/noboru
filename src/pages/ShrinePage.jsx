@@ -14,7 +14,7 @@ import { useToast } from '../hooks/useToast'
 import { deleteShrine, fetchIsAdmin, rebuildShrineIndex } from '../lib/admin'
 import { fetchMyRecordsForShrine, fetchPublicRecords, fetchShrine } from '../lib/community'
 import { formatDistance, walkMinutes } from '../lib/geo'
-import { formatDate, placeLabel } from '../lib/format'
+import { formatDate, placeLabel, websiteLabel, websiteUrl } from '../lib/format'
 import { normalizeDeities } from '../lib/deities'
 import { deityLabel, splitTags } from '../lib/shrineTags'
 import { tagForValue, tagLink } from '../lib/searchTags'
@@ -186,6 +186,11 @@ export default function ShrinePage() {
           <div className="section-mini">基本情報</div>
           <dl className="info">
             <Row label="住所">{shrine.address || <Unknown />}</Row>
+            {websiteUrl(shrine.website) && (
+              <Row label="公式サイト">
+                <a href={websiteUrl(shrine.website)} target="_blank" rel="noopener noreferrer" className="inline-link">{websiteLabel(websiteUrl(shrine.website))}</a>
+              </Row>
+            )}
             <Row label="ご祭神">
               <TagChips group="deity" values={normalizeDeities(shrine.deities).names.map((n) => ({ value: n, label: deityLabel(n) }))} />
             </Row>

@@ -27,6 +27,7 @@ CREATE TABLE shrines (
   municipality        TEXT,
   locality            TEXT,                     -- 近くの地名（町・字など）。同じ名前の神社を見分ける用
   address             TEXT,
+  website             TEXT CHECK (website ~* '^https?://'),  -- 公式サイト
   lat                 DOUBLE PRECISION NOT NULL,
   lng                 DOUBLE PRECISION NOT NULL,
 
@@ -126,7 +127,7 @@ CREATE TABLE shrine_edits (
                'address', 'deities', 'benefits', 'shrine_rank',
                'access_note', 'parking', 'goshuin', 'features', 'name_kana',
                'goshuin_note', 'nearest_station', 'nearest_bus_stop',
-               'founded', 'annual_festival', 'visiting_hours', 'highlights', 'honden_style')),
+               'founded', 'annual_festival', 'visiting_hours', 'highlights', 'honden_style', 'website')),
   value      JSONB NOT NULL,                    -- 文字列 / 文字列配列 / 列挙値
   old_value  JSONB,                             -- 変更前の値（{列名: 値}）。トリガーが入れる。管理者が元に戻すときに使う
   reverted_at TIMESTAMPTZ,                      -- 管理者が元に戻した時刻
@@ -280,6 +281,9 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   txt TEXT := NULLIF(btrim(NEW.value #>> '{}'), '');   -- 文字列の項目。空なら NULL に戻す
 BEGIN
+  IF NEW.field = 'website' AND txt !~* '^https?://[^[:space:]]+$' THEN
+    RAISE EXCEPTION '公式サイトは http(s):// から始まるURLで入れてください' USING ERRCODE = '22023';
+  END IF;
   NEW.reverted_at := NULL;
   SELECT jsonb_object_agg(e.key, e.value) INTO NEW.old_value
   FROM shrines s, jsonb_each(to_jsonb(s)) AS e
@@ -287,6 +291,7 @@ BEGIN
 
   UPDATE shrines SET
     address         = CASE WHEN NEW.field = 'address'      THEN txt ELSE address END,
+    website         = CASE WHEN NEW.field = 'website'      THEN txt ELSE website END,
     name_kana       = CASE WHEN NEW.field = 'name_kana'    THEN txt ELSE name_kana END,
     deities         = CASE WHEN NEW.field = 'deities'      THEN txt ELSE deities END,
     shrine_rank     = CASE WHEN NEW.field = 'shrine_rank'  THEN txt ELSE shrine_rank END,
@@ -506,7 +511,7 @@ BEGIN
     address = s.address, name_kana = s.name_kana, deities = s.deities, shrine_rank = s.shrine_rank,
     access_note = s.access_note, goshuin_note = s.goshuin_note,
     founded = s.founded, annual_festival = s.annual_festival, visiting_hours = s.visiting_hours, highlights = s.highlights,
-    honden_style = s.honden_style,
+    honden_style = s.honden_style, website = s.website,
     features = s.features, features_source = s.features_source,
     benefits = s.benefits, parking = s.parking, goshuin = s.goshuin,
     nearest_station = s.nearest_station, nearest_station_m = s.nearest_station_m,

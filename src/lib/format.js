@@ -22,3 +22,17 @@ export function percent(part, total) {
   const v = (part / total) * 100
   return v > 0 && v < 0.1 ? '0.1未満' : v.toFixed(1)
 }
+
+// 公式サイトのURL。http(s) で始まるものだけを返す（javascript: などをリンクにしない）
+export function websiteUrl(s) {
+  const t = (s || '').trim()
+  if (!/^https?:\/\/[^\s/?#]+\.[^\s]*$/i.test(t)) return null
+  try { return new URL(t).href } catch { return null }
+}
+
+// 表示用の短い形「hebikubo.jp」（www. と末尾の / を省く）
+export function websiteLabel(url) {
+  const u = new URL(url)
+  const rest = (u.pathname + u.search).replace(/\/$/, '')
+  return u.hostname.replace(/^www\./, '') + rest
+}

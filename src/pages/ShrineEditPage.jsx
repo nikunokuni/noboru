@@ -8,16 +8,18 @@ import { useToast } from '../hooks/useToast'
 import { fetchShrine, submitShrineEdits, isBannedError } from '../lib/community'
 import { normalizeDeities } from '../lib/deities'
 import { formatDistance } from '../lib/geo'
+import { websiteUrl } from '../lib/format'
 import { GOSHUIN_LABELS, PARKING_LABELS, goshuinKinds, goshuinFromKinds } from '../lib/constants'
 import {
   RANK_OPTIONS, HONDEN_OPTIONS, BENEFIT_OPTIONS, DEITY_OPTIONS, deityLabel, splitTags, splitDeityTags,
 } from '../lib/shrineTags'
 
-// type: text / textarea / choice / goshuin / pick（タグを選ぶ。選択肢にないものも書き足せる）
+// type: text / url / textarea / choice / goshuin / pick（タグを選ぶ。選択肢にないものも書き足せる）
 //   pick の array: 配列で保存（ご利益）。deities: ご祭神の表記をそろえる
 const FIELDS = {
   name_kana: { label: 'よみがな', type: 'text', placeholder: 'ひらがなで' },
   address: { label: '住所', type: 'text' },
+  website: { label: '公式サイト', type: 'url', placeholder: '例：https://example.jp/' },
   deities: { label: 'ご祭神', type: 'pick', options: DEITY_OPTIONS, optionLabel: deityLabel, deities: true, placeholder: '例：櫛稲田姫命' },
   benefits: { label: 'ご利益', type: 'pick', options: BENEFIT_OPTIONS, array: true, placeholder: '例：眼病平癒' },
   shrine_rank: { label: '社格', type: 'pick', options: RANK_OPTIONS, placeholder: '例：武蔵国三宮' },
@@ -38,7 +40,7 @@ const FIELDS = {
 const SECTIONS = [
   ['参拝の情報', ['visiting_hours', 'goshuin', 'goshuin_note']],
   ['見どころ', ['highlights']],
-  ['基本情報', ['name_kana', 'address', 'deities', 'benefits', 'shrine_rank', 'founded', 'annual_festival', 'honden_style']],
+  ['基本情報', ['name_kana', 'address', 'website', 'deities', 'benefits', 'shrine_rank', 'founded', 'annual_festival', 'honden_style']],
   ['由緒', ['features']],
   ['アクセス', ['nearest_station', 'nearest_bus_stop', 'parking', 'access_note']],
 ]
@@ -153,6 +155,9 @@ function FieldInput({ field, value, onChange }) {
   if (field.type === 'textarea') {
     return <textarea className="field-textarea edit-textarea" rows={3} placeholder={field.placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
   }
+  if (field.type === 'url') {
+    return <input type="url" inputMode="url" autoCapitalize="off" className="field-input edit-input" placeholder={field.placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+  }
   return <input className="field-input edit-input" placeholder={field.placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
 }
 
@@ -181,6 +186,7 @@ export default function ShrineEditPage() {
 
   const submit = async () => {
     if (!changedCount) { showToast('内容が変わっていません'); return }
+    if (changes.website && !websiteUrl(changes.website)) { showToast('公式サイトは https:// から始まるURLで入れてください'); return }
     setSaving(true)
     try {
       await submitShrineEdits({ shrineId: shrine.id, userId: user.id, changes })
@@ -219,6 +225,7 @@ export default function ShrineEditPage() {
                           <dt>{FIELDS[k].label}</dt>
                           <dd>
                             <FieldInput field={FIELDS[k]} value={inputs[k]} onChange={set(k)} />
+                            {k === 'website' && inputs.website.trim() && !websiteUrl(inputs.website) && <p className="muted small">https:// から始まるURLで入れてください</p>}
                             {(k === 'nearest_station' || k === 'nearest_bus_stop') && !(k in changes) && <AccessHint shrine={shrine} prefix={k} />}
                           </dd>
                         </div>
