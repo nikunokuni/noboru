@@ -4,17 +4,39 @@
 -- 実行後、管理者画面の「神社一覧を更新する」を押すとマップのタグ（ご利益・御朱印）にも入る。
 DO $$
 DECLARE
-  target BIGINT;
+  -- 自動で見つからないときは、エラーに出た候補の id をここに入れて実行し直す（例: target BIGINT := 12345;）
+  target BIGINT := NULL;
   n INTEGER;
+  list TEXT;
 BEGIN
-  -- 二葉4丁目付近の「天祖神社」「蛇窪神社」を探す。見つからない・複数あるときは止める
-  SELECT COUNT(*), MIN(id) INTO n, target FROM shrines
-  WHERE prefecture = '東京都'
-    AND (name LIKE '%蛇窪%' OR name LIKE '%天祖神社%')
-    AND lat BETWEEN 35.603 AND 35.615 AND lng BETWEEN 139.714 AND 139.728
-    AND (municipality IS NULL OR municipality LIKE '%品川%');
-  IF n <> 1 THEN
-    RAISE EXCEPTION '蛇窪神社が % 件見つかりました。神社の id を確かめて target に直接入れてください', n;
+  IF target IS NULL THEN
+    -- 中延駅・西大井駅のあたり（約1.5km以内）で、名前に「蛇窪」「天祖」「神明」が入る神社を探す。
+    -- 「蛇窪」が入るものがあればそちらを優先する
+    WITH c AS (
+      SELECT id, name, (name LIKE '%蛇窪%') AS hebi,
+             round(111000 * sqrt(power(lat - 35.6060, 2) + power((lng - 139.7180) * cos(radians(35.606)), 2))) AS m
+      FROM shrines
+      WHERE (name LIKE '%蛇窪%' OR name LIKE '%天祖%' OR name LIKE '%神明%')
+        AND lat BETWEEN 35.592 AND 35.620 AND lng BETWEEN 139.701 AND 139.735
+    ), pick AS (
+      SELECT * FROM c WHERE hebi OR NOT EXISTS (SELECT 1 FROM c WHERE hebi)
+    )
+    SELECT COUNT(*), MIN(id),
+           string_agg(format('id=%s %s（約%sm）', id, name, m), '、' ORDER BY m)
+      INTO n, target, list FROM pick;
+    IF n <> 1 THEN
+      IF n = 0 THEN
+        SELECT string_agg(format('id=%s %s（約%sm）', id, name, m), '、' ORDER BY m) INTO list FROM (
+          SELECT id, name,
+                 round(111000 * sqrt(power(lat - 35.6060, 2) + power((lng - 139.7180) * cos(radians(35.606)), 2))) AS m
+          FROM shrines
+          WHERE lat BETWEEN 35.592 AND 35.620 AND lng BETWEEN 139.701 AND 139.735
+          ORDER BY m LIMIT 15) x;
+        RAISE EXCEPTION '蛇窪神社が見つかりません。近くの神社: %。どれかが蛇窪神社なら、その id を target に入れて実行し直してください（なければ、まずアプリから神社の追加を申請・承認する）',
+          COALESCE(list, 'なし');
+      END IF;
+      RAISE EXCEPTION '蛇窪神社の候補が % 件あります: %。正しい id を target に入れて実行し直してください', n, list;
+    END IF;
   END IF;
 
   UPDATE shrines SET
@@ -36,6 +58,9 @@ BEGIN
     features_source = 'editor',
     updated_at      = NOW()
   WHERE id = target;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'id = % の神社がありません', target;
+  END IF;
 
   RAISE NOTICE '蛇窪神社（id = %）を更新しました', target;
 END $$;
