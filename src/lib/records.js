@@ -175,6 +175,13 @@ export async function replacePhoto(record, oldPath, blob) {
   return path
 }
 
+// 写真を1枚消す。先に行を消し（見えなくなる）、ファイルはあとから消す
+export async function deletePhoto(path) {
+  const { error } = await supabase.from('photos').delete().eq('path', path)
+  if (error) throw error
+  await supabase.storage.from('photos').remove([path])
+}
+
 export async function deleteRecord(record) {
   const paths = (record.photos || []).map((p) => p.path)
   if (paths.length) await supabase.storage.from('photos').remove(paths)
