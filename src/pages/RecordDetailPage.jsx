@@ -12,24 +12,25 @@ import { compressImage } from '../lib/imageCompress'
 import { formatDate, todayStr } from '../lib/format'
 import { DEFAULT_PHOTO_TAG, MAX_PHOTOS, PHOTO_TAGS, PHOTO_TAG_LABELS, emotionColor, emotionLabel } from '../lib/constants'
 
-// 写真とタグ。onChange があればタグを選べる。onEdit があれば写真を編集でき、onDelete があれば消せる
-function TaggedPhotos({ photos, tags, onChange, onEdit, onDelete, disabled }) {
+// 写真とタグ。onChange があればタグを選べる。onSelect があれば写真を押して選ぶ（編集・削除する写真を選ぶとき）
+function TaggedPhotos({ photos, tags, onChange, onSelect }) {
   const urls = useSignedUrls(photos.map((p) => p.path))
   if (!photos.length) return null
   return (
     <div className="photo-row">
-      {photos.map(({ path }) => (
-        <div key={path} className="tagged-photo">
-          {urls[path] ? <img src={urls[path]} alt="" loading="lazy" className="photo" /> : <div className="photo placeholder" />}
-          {onChange
-            ? <select className="tag-select" value={tags[path]} onChange={(ev) => onChange(path, ev.target.value)}>
-                {PHOTO_TAGS.map(([t, label]) => <option key={t} value={t}>{label}</option>)}
-              </select>
-            : <span className="photo-tag">{PHOTO_TAG_LABELS[tags[path]]}</span>}
-          {onEdit && <button type="button" className="text-btn photo-edit-btn" onClick={() => onEdit(path)} disabled={disabled}>写真を編集</button>}
-          {onDelete && <button type="button" className="text-btn danger photo-edit-btn" onClick={() => onDelete(path)} disabled={disabled}>削除</button>}
-        </div>
-      ))}
+      {photos.map(({ path }) => {
+        const img = urls[path] ? <img src={urls[path]} alt="" loading="lazy" className="photo" /> : <div className="photo placeholder" />
+        return (
+          <div key={path} className="tagged-photo">
+            {onSelect ? <button type="button" className="photo-pick" onClick={() => onSelect(path)}>{img}</button> : img}
+            {onChange && !onSelect
+              ? <select className="tag-select" value={tags[path]} onChange={(ev) => onChange(path, ev.target.value)}>
+                  {PHOTO_TAGS.map(([t, label]) => <option key={t} value={t}>{label}</option>)}
+                </select>
+              : <span className="photo-tag">{PHOTO_TAG_LABELS[tags[path]]}</span>}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -44,6 +45,7 @@ export default function RecordDetailPage() {
   const [editingPhoto, setEditingPhoto] = useState(null)
   const [addingPhotos, setAddingPhotos] = useState(false)
   const [deletingPhoto, setDeletingPhoto] = useState(false)
+  const [pickMode, setPickMode] = useState(null) // 写真を選んでいるところ：'edit' | 'delete'
   const fileRef = useRef(null)
 
   useEffect(() => { fetchRecord(id).then(setRecord).catch(() => setRecord(null)) }, [id])
@@ -117,6 +119,14 @@ export default function RecordDetailPage() {
     }
   }
 
+  // 選んだ写真を編集する・消す。どちらも終わったら（やめても）ふつうの表示に戻る
+  const pickPhoto = (path) => {
+    const mode = pickMode
+    setPickMode(null)
+    if (mode === 'edit') setEditingPhoto(path)
+    else handleDeletePhoto(path)
+  }
+
   // 消した写真もその場で保存する（上限があるので入れ替えたいとき用）
   const handleDeletePhoto = async (path) => {
     if (!confirm('この写真を削除しますか？元に戻せません')) return
@@ -154,6 +164,7 @@ export default function RecordDetailPage() {
   if (record === null) return <div className="app-shell"><TopBar back title="記録" /><div className="page-content"><p className="muted center">記録が見つかりませんでした</p></div></div>
 
   const e = editing
+  const photoBusy = addingPhotos || deletingPhoto
   const set = (patch) => setEditing({ ...e, ...patch })
 
   return (
@@ -194,18 +205,33 @@ export default function RecordDetailPage() {
               })} />
             <div className="field-wrap">
               <label className="field-label">写真とタグ（{record.photos?.length || 0}/{MAX_PHOTOS}）</label>
+              {pickMode && <p className="small">{pickMode === 'edit' ? '編集する' : '削除する'}写真を選んでください</p>}
               <TaggedPhotos photos={record.photos || []} tags={e.tags} onChange={(path, tag) => set({ tags: { ...e.tags, [path]: tag } })}
-                onEdit={setEditingPhoto} onDelete={handleDeletePhoto} disabled={addingPhotos || deletingPhoto} />
-              {(record.photos?.length || 0) < MAX_PHOTOS && (
-                <button type="button" className="btn-secondary mt8" onClick={() => fileRef.current.click()} disabled={addingPhotos || deletingPhoto}>
-                  {addingPhotos ? '写真を追加中…' : '＋ 写真を追加'}
-                </button>
+                onSelect={pickMode && pickPhoto} />
+              {pickMode ? (
+                <button type="button" className="btn-secondary mt8" onClick={() => setPickMode(null)}>やめる</button>
+              ) : (
+                <>
+                  {record.photos?.length > 0 && (
+                    <div className="share-row mt8">
+                      <button type="button" className="btn-secondary" onClick={() => setPickMode('edit')} disabled={photoBusy}>写真を編集</button>
+                      <button type="button" className="btn-secondary" onClick={() => setPickMode('delete')} disabled={photoBusy}>
+                        {deletingPhoto ? '削除中…' : '写真を削除'}
+                      </button>
+                    </div>
+                  )}
+                  {(record.photos?.length || 0) < MAX_PHOTOS && (
+                    <button type="button" className="btn-secondary mt8" onClick={() => fileRef.current.click()} disabled={photoBusy}>
+                      {addingPhotos ? '写真を追加中…' : '＋ 写真を追加'}
+                    </button>
+                  )}
+                </>
               )}
               <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handleAddPhotos} />
-              <p className="muted small">追加・編集・削除した写真はすぐに保存されます（タグは「保存する」で保存）。写真の回転・切り取り・隠す（黒塗り）は「写真を編集」から。{MAX_PHOTOS}枚の上限に達したら、「削除」で1枚消すと入れ替えられます</p>
+              <p className="muted small">追加・編集・削除した写真はすぐに保存されます（タグは「保存する」で保存）。写真の回転・切り取り・隠す（黒塗り）は「写真を編集」から。{MAX_PHOTOS}枚の上限に達したら、「写真を削除」で1枚消すと入れ替えられます</p>
             </div>
-            <button className="btn-primary mt16" onClick={save} disabled={busy || addingPhotos || deletingPhoto}>保存する</button>
-            <button className="text-btn mt16 block" onClick={() => setEditing(null)}>やめる</button>
+            <button className="btn-primary mt16" onClick={save} disabled={busy || photoBusy || !!pickMode}>保存する</button>
+            <button className="text-btn mt16 block" onClick={() => { setPickMode(null); setEditing(null) }}>やめる</button>
           </>
         )}
 
