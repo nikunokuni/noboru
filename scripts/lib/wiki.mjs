@@ -1,6 +1,7 @@
 // Wikidata（ご祭神・読み仮名・Wikipedia記事名）と Wikipedia（特徴の要約）で補う
 import { normalizeDeities } from '../../src/lib/deities.js'
 import { fetchWikidataShrines, matchWikidata } from './wikidata-match.mjs'
+import { fetchMajorShrines, matchMajorShrines, markSeenTitles, rankFromItems } from './major-shrines.mjs'
 
 const WIKIDATA_API = 'https://www.wikidata.org/w/api.php'
 const WIKIPEDIA_API = 'https://ja.wikipedia.org/w/api.php'
@@ -140,7 +141,7 @@ export function nameFromTitle(title) {
   return (title || '').replace(/\s*[(（][^()（）]*[)）]\s*$/, '').trim() || null
 }
 
-export async function enrichWithWiki(rows, { userAgent, log = () => {}, wikidataCacheFile = null }) {
+export async function enrichWithWiki(rows, { userAgent, log = () => {}, wikidataCacheFile = null, majorCacheFile = null }) {
   // 0. OSM で Wikidata とつながっていない神社を、近くの同じ名前の Wikidata の神社とつなぐ
   //    取れなくても取り込みは続ける（つながっている神社だけで補う）
   try {
@@ -148,6 +149,15 @@ export async function enrichWithWiki(rows, { userAgent, log = () => {}, wikidata
     log(`  Wikidata と名前・位置でつないだ神社: ${matchWikidata(rows, items)}件`)
   } catch (e) {
     log(`  ${e.message}。名前・位置でつなぐのは飛ばします`)
+  }
+
+  // 0b. 大きな神社（式内社・別表神社・一宮・二十二社・勅祭社）の記事を、座標の近くの神社とつなぐ
+  let majorItems = []
+  try {
+    majorItems = await fetchMajorShrines({ getJson, api: WIKIPEDIA_API, userAgent, cacheFile: majorCacheFile, log })
+    log(`  大きな神社の記事とつないだ神社: ${matchMajorShrines(rows, majorItems)}件`)
+  } catch (e) {
+    log(`  ${e.message}。大きな神社の記事とつなぐのは飛ばします`)
   }
 
   // 1. Wikidata の項目を取得
@@ -232,5 +242,20 @@ export async function enrichWithWiki(rows, { userAgent, log = () => {}, wikidata
     if (deities || Object.keys(info).length) infoCount++
   }
   log(`  Wikipedia: ${pages.size}件（社格・創建・例祭・本殿の様式など: ${infoCount}件）`)
+
+  // 大きな神社のカテゴリに入っている記事の神社は、社格が空ならカテゴリから入れる。
+  // rank_hint（DB には残さない）は、社格の欄に書かれていなくても大きな神社にするための手がかり
+  const rankOf = rankFromItems(majorItems)
+  let catCount = 0
+  for (const r of rows) {
+    const title = pages.get(r.wikipedia_title)?.title || r.wikipedia_title
+    const cat = title && (rankOf(title) || rankOf(r.wikipedia_title))
+    if (!cat) continue
+    if (!r.shrine_rank) r.shrine_rank = cat
+    r.rank_hint = `${cat}、${r.shrine_rank}`
+    catCount++
+  }
+  if (catCount) log(`  大きな神社のカテゴリに入っている神社: ${catCount}件`)
+  markSeenTitles(rows.flatMap((r) => [r.wikipedia_title, pages.get(r.wikipedia_title)?.title]))
   return rows
 }

@@ -399,12 +399,13 @@ BEGIN
   SELECT r.osm_ref, r.wikidata_id, r.name, r.name_kana, r.prefecture, r.municipality, r.locality, r.address, r.lat, r.lng,
          r.deities, COALESCE(r.benefits, '{}'), r.shrine_rank, r.founded, r.annual_festival, r.honden_style, r.nearest_station, r.nearest_station_m,
          r.nearest_bus_stop, r.nearest_bus_stop_m, COALESCE(r.parking, 'unknown'), r.features, r.features_source,
-         CASE WHEN is_major_rank(r.shrine_rank) THEN 'large' ELSE r.shrine_size END
+         CASE WHEN is_major_rank(r.shrine_rank) OR is_major_rank(r.rank_hint) THEN 'large' ELSE r.shrine_size END
   FROM jsonb_to_recordset(rows) AS r(
     osm_ref TEXT, wikidata_id TEXT, name TEXT, name_kana TEXT, prefecture TEXT, municipality TEXT, locality TEXT,
     address TEXT, lat DOUBLE PRECISION, lng DOUBLE PRECISION, deities TEXT, benefits TEXT[],
     shrine_rank TEXT, founded TEXT, annual_festival TEXT, honden_style TEXT, nearest_station TEXT, nearest_station_m INTEGER, nearest_bus_stop TEXT,
-    nearest_bus_stop_m INTEGER, parking parking_status, features TEXT, features_source TEXT, shrine_size TEXT)
+    nearest_bus_stop_m INTEGER, parking parking_status, features TEXT, features_source TEXT, shrine_size TEXT,
+    rank_hint TEXT)   -- 大きな神社のカテゴリ（式内社など）＋社格。列には入れず、大きさを決めるのにだけ使う
   ON CONFLICT (osm_ref) DO UPDATE SET
     wikidata_id        = EXCLUDED.wikidata_id,
     name               = EXCLUDED.name,
@@ -429,7 +430,8 @@ BEGIN
     parking            = CASE WHEN s.parking = 'unknown' THEN EXCLUDED.parking ELSE s.parking END,
     features           = COALESCE(s.features, EXCLUDED.features),
     features_source    = CASE WHEN s.features IS NULL THEN EXCLUDED.features_source ELSE s.features_source END,
-    -- 大きさ：情報提供された値は残す。社格（入っている値を優先）が当たれば大きな神社、ほかは地図データから
+    -- 大きさ：情報提供された値は残す。社格（入っている値を優先）が当たれば大きな神社、ほかは取り込んだ値
+    -- （取り込んだ値は、大きな神社のカテゴリ（rank_hint）に入っていれば上の SELECT で large にしてある）
     shrine_size        = CASE WHEN s.shrine_size_by_user THEN s.shrine_size
                               WHEN is_major_rank(COALESCE(s.shrine_rank, EXCLUDED.shrine_rank)) THEN 'large'
                               ELSE COALESCE(EXCLUDED.shrine_size, s.shrine_size) END,

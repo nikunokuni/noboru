@@ -23,6 +23,7 @@ import { encodeIndex, fetchIndexRows, newIndexVersion, removeOldIndexFiles } fro
 import { fetchOverpass, PARTS } from './lib/overpass.mjs'
 import { processPrefecture, classifyShrineSize } from './lib/process.mjs'
 import { enrichWithWiki } from './lib/wiki.mjs'
+import { unmatchedMajorShrines } from './lib/major-shrines.mjs'
 import { enrichWithGsi } from './lib/gsi.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -96,6 +97,7 @@ async function importPrefecture(prefIndex, db) {
       userAgent: USER_AGENT, log,
       // Wikidata の神社は全国で1つのファイル
       wikidataCacheFile: args['no-cache'] ? null : join(HERE, '.cache', 'wikidata-shrines.json'),
+      majorCacheFile: args['no-cache'] ? null : join(HERE, '.cache', 'wikipedia-major-shrines.json'),
     })
   }
   if (args['gsi-address']) {
@@ -131,6 +133,20 @@ async function importPrefecture(prefIndex, db) {
   }
   log(`  DBに反映: ${done}件`)
   return dbRows
+}
+
+async function writeUnmatchedMajor() {
+  const list = unmatchedMajorShrines()
+  if (!list.length) return
+  const file = join(HERE, 'out', 'unmatched-major-shrines.csv')
+  const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const lines = [['記事', '社格（カテゴリ）', '緯度', '経度', '地図'].map(cell).join(',')]
+  for (const it of list) {
+    lines.push([it.title, it.ranks.join('、'), it.lat, it.lon, `https://www.openstreetmap.org/?mlat=${it.lat}&mlon=${it.lon}#map=18/${it.lat}/${it.lon}`].map(cell).join(','))
+  }
+  await mkdir(dirname(file), { recursive: true })
+  await writeFile(file, '\uFEFF' + lines.join('\r\n'))   // Excel で文字化けしないよう BOM を付ける
+  log(`■ どの神社ともつながらなかった大きな神社の記事: ${list.length}件 → ${file}`)
 }
 
 async function buildIndex(rows, db) {
@@ -175,6 +191,9 @@ async function main() {
     const rows = await importPrefecture(p, db)
     if (args['dry-run']) dryRows.push(...rows)
   }
+
+  // 全都道府県を取り込んだら、どの神社ともつながらなかった大きな神社の記事を書き出す（手で確かめる用）
+  if (args.all && !args['skip-wiki'] && !args['shrines-only']) await writeUnmatchedMajor()
 
   if (args['no-index']) return
   if (args['dry-run']) {
