@@ -380,9 +380,11 @@ REVOKE EXECUTE ON FUNCTION refresh_shrine_stats(BIGINT) FROM PUBLIC, anon, authe
 --   駅・バス停は情報提供されたもの（*_by_user）を上書きしない
 -- ============================================================
 -- 大きな神社にする社格：勅祭社・二十二社・一宮・別表神社・式内社
+-- 式内社でも、大きな神社の摂社・末社・所管社（伊勢神宮の摂社など）は小さなお社なので入れない（別宮は入れる）
 CREATE OR REPLACE FUNCTION is_major_rank(rank TEXT) RETURNS BOOLEAN
 LANGUAGE sql IMMUTABLE AS $$
-  SELECT COALESCE(rank ~ '(勅祭|二十二社|一宮|一之宮|一の宮|別表|式内)', FALSE);
+  SELECT COALESCE(rank ~ '(勅祭|二十二社|一宮|一之宮|一の宮|別表)'
+               OR (rank ~ '式内' AND rank !~ '(摂社|末社|所管社)'), FALSE);
 $$;
 
 CREATE OR REPLACE FUNCTION import_shrines(rows JSONB) RETURNS INTEGER

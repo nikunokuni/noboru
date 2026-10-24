@@ -1,5 +1,6 @@
 // Wikidata（ご祭神・読み仮名・Wikipedia記事名）と Wikipedia（特徴の要約）で補う
 import { normalizeDeities } from '../../src/lib/deities.js'
+import { fetchWikidataShrines, matchWikidata } from './wikidata-match.mjs'
 
 const WIKIDATA_API = 'https://www.wikidata.org/w/api.php'
 const WIKIPEDIA_API = 'https://ja.wikipedia.org/w/api.php'
@@ -133,7 +134,22 @@ export function infoboxColumns(fields) {
   return out
 }
 
-export async function enrichWithWiki(rows, { userAgent, log = () => {} }) {
+// 名前のない神社（「名称不明の社（〇〇）」）に、Wikipedia の記事名を名前として使う。「八幡神社 (京都市)」の括弧は除く
+export const UNNAMED_PREFIX = '名称不明の社'
+export function nameFromTitle(title) {
+  return (title || '').replace(/\s*[(（][^()（）]*[)）]\s*$/, '').trim() || null
+}
+
+export async function enrichWithWiki(rows, { userAgent, log = () => {}, wikidataCacheFile = null }) {
+  // 0. OSM で Wikidata とつながっていない神社を、近くの同じ名前の Wikidata の神社とつなぐ
+  //    取れなくても取り込みは続ける（つながっている神社だけで補う）
+  try {
+    const items = await fetchWikidataShrines({ userAgent, cacheFile: wikidataCacheFile, log })
+    log(`  Wikidata と名前・位置でつないだ神社: ${matchWikidata(rows, items)}件`)
+  } catch (e) {
+    log(`  ${e.message}。名前・位置でつなぐのは飛ばします`)
+  }
+
   // 1. Wikidata の項目を取得
   const qids = [...new Set(rows.map((r) => r.wikidata_id).filter((q) => /^Q\d+$/.test(q || '')))]
   const entities = new Map()
@@ -166,6 +182,17 @@ export async function enrichWithWiki(rows, { userAgent, log = () => {} }) {
     const title = e.sitelinks?.jawiki?.title
     if (title) r.wikipedia_title = title
   }
+
+  // 名前のない神社に記事名を使う（名前がわかれば小さな祠とはみなさない）
+  let named = 0
+  for (const r of rows) {
+    const name = r.name.startsWith(UNNAMED_PREFIX) && nameFromTitle(r.wikipedia_title)
+    if (!name) continue
+    r.name = name
+    if (r.size_signals) r.size_signals.named = true
+    named++
+  }
+  if (named) log(`  名前のない神社に Wikipedia の記事名を入れました: ${named}件`)
 
   // 3. Wikipedia の冒頭の要約を「特徴」に、インフォボックスから社格・創建・例祭・本殿の様式（ご祭神は Wikidata になければ）
   const titles = [...new Set(rows.map((r) => r.wikipedia_title).filter(Boolean))]

@@ -1,14 +1,16 @@
 -- ============================================================
 -- 大きな神社を社格で決める（勅祭社・二十二社・一宮・別表神社・式内社）
--- upgrade-shrine-size.sql のあとに、SQL Editor から1回実行する（何度実行しても大丈夫）。アプリの更新は要らない
+-- upgrade-shrine-size.sql のあとに、SQL Editor から1回実行する（何度実行しても大丈夫。社格の決め方を変えたら実行し直す）。アプリの更新は要らない
 -- 取り込み直さなくても、入っている社格から大きな神社がすぐに入れ替わる。情報提供で変えた大きさは変えない
 -- 境内の広さで大きな神社にしていたものは「ふつうの神社」に戻す（小さな祠の判定を変えたぶんは、取り込み直すと入る）
 -- ============================================================
 
 -- 大きな神社にする社格：勅祭社・二十二社・一宮・別表神社・式内社
+-- 式内社でも、大きな神社の摂社・末社・所管社（伊勢神宮の摂社など）は小さなお社なので入れない（別宮は入れる）
 CREATE OR REPLACE FUNCTION is_major_rank(rank TEXT) RETURNS BOOLEAN
 LANGUAGE sql IMMUTABLE AS $$
-  SELECT COALESCE(rank ~ '(勅祭|二十二社|一宮|一之宮|一の宮|別表|式内)', FALSE);
+  SELECT COALESCE(rank ~ '(勅祭|二十二社|一宮|一之宮|一の宮|別表)'
+               OR (rank ~ '式内' AND rank !~ '(摂社|末社|所管社)'), FALSE);
 $$;
 
 CREATE OR REPLACE FUNCTION import_shrines(rows JSONB) RETURNS INTEGER

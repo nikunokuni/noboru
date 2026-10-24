@@ -91,7 +91,13 @@ async function importPrefecture(prefIndex, db) {
   const { rows, excluded } = processPrefecture(overpass.elements || [], prefecture)
   log(`  神社: ${rows.length}件（境内社として除外: ${excluded}件）`)
 
-  if (!args['skip-wiki'] && !args['shrines-only']) await enrichWithWiki(rows, { userAgent: USER_AGENT, log })
+  if (!args['skip-wiki'] && !args['shrines-only']) {
+    await enrichWithWiki(rows, {
+      userAgent: USER_AGENT, log,
+      // Wikidata の神社は全国で1つのファイル
+      wikidataCacheFile: args['no-cache'] ? null : join(HERE, '.cache', 'wikidata-shrines.json'),
+    })
+  }
   if (args['gsi-address']) {
     await enrichWithGsi(rows, {
       userAgent: USER_AGENT, log,
