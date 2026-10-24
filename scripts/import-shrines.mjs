@@ -99,15 +99,13 @@ async function importPrefecture(prefIndex, db) {
     })
   }
 
-  // 大きさ：社格（Wikipedia から）も見て決める。Wikipedia を取らなかったときは「ふつう」を決めない
-  const rankKnown = !args['skip-wiki'] && !args['shrines-only']
-  const sizeCount = { large: 0, medium: 0, small: 0, null: 0 }
+  // 大きさ：地図データから小さな祠・ふつうの神社を決める（大きな神社は DB が社格から決める）
+  const sizeCount = { medium: 0, small: 0 }
   for (const r of rows) {
-    r.shrine_size = classifyShrineSize({ ...r.size_signals, shrineRank: r.shrine_rank }, { rankKnown })
+    r.shrine_size = classifyShrineSize(r.size_signals)
     sizeCount[r.shrine_size]++
   }
-  log(`  大きさ: 大きな神社 ${sizeCount.large}件 / ふつうの神社 ${sizeCount.medium}件 / 小さな祠 ${sizeCount.small}件`
-    + (sizeCount.null ? ` / 決めず ${sizeCount.null}件` : ''))
+  log(`  大きさ: ふつうの神社 ${sizeCount.medium}件 / 小さな祠 ${sizeCount.small}件（このうち社格のある神社は DB で大きな神社になる）`)
 
   const dbRows = rows.map(({ wikipedia_title, size_signals, ...r }) => r)
 

@@ -72,24 +72,23 @@ npm run import:shrines -- --pref 11,13,14 --no-transit --gsi-address
 | 駐車場 | OSM に駐車場があるとき |
 | ご祭神・よみがな | OSM に Wikidata の番号がある神社 |
 | 社格・創建・例祭・本殿の様式・由緒 | OSM に Wikidata / Wikipedia の記事がある神社（創建・例祭・本殿の様式は [`supabase/upgrade-import-details.sql`](../supabase/upgrade-import-details.sql) の実行が必要） |
-| 大きさ | 取り込みのたびに判定し直す（下の「神社の大きさ」。[`supabase/upgrade-shrine-size.sql`](../supabase/upgrade-shrine-size.sql) の実行が必要）。情報提供された大きさは変えない |
+| 大きさ | 取り込みのたびに判定し直す（下の「神社の大きさ」。[`supabase/upgrade-shrine-size.sql`](../supabase/upgrade-shrine-size.sql) と [`supabase/upgrade-shrine-size-rank.sql`](../supabase/upgrade-shrine-size-rank.sql) の実行が必要）。情報提供された大きさは変えない |
 | ご利益・御朱印・拝観時間・見どころ・アクセスの補足 | 自動では埋まらない（情報提供で入れる） |
 
 ## 神社の大きさ
 
-取り込みのときに、OSM と Wikipedia から3段階に分けます（上から順に当てはめる）。取り込みのログに段階ごとの件数が出ます。
+3段階に分けます（上から順に当てはめる）。
 
 | 大きさ | 決め方 |
 |---|---|
-| 大きな神社 | 社格に一宮・官幣・国幣・別表・勅祭が入っている |
-| 小さな祠 | OSM で祠（`historic=wayside_shrine`）として登録されている、または名前がない |
-| 大きな神社 | 境内（OSM の面）が 1万㎡ 以上。Wikipedia / Wikidata の記事があれば 3,000㎡ 以上 |
-| 小さな祠 | 形が 30㎡ 未満（祠の建物だけ）で、Wikipedia / Wikidata の記事もない |
+| 大きな神社 | 社格に勅祭・二十二社・一宮・別表・式内が入っている（DB の `is_major_rank`。前の取り込みや情報提供で入った社格も見る） |
+| 小さな祠 | OSM で祠（`historic=wayside_shrine`）として登録されている、名前がない、または形が 30㎡ 未満（祠の建物だけ）で Wikipedia / Wikidata の記事もない |
 | ふつうの神社 | それ以外。点だけの神社や、社殿の建物だけが描かれた神社は大きさがわからないので、ここに入れる |
 
-- `--skip-wiki` / `--shrines-only` のときは社格がわからないので、「ふつうの神社」になるものは決めずに今の値を残す
 - 情報提供で変えた大きさは取り込み直しても変えない（「不明」にすると、次の取り込みで自動の値に戻る）
-- 目安の数字は `scripts/lib/process.mjs` の先頭で変えられる。`npm run size-stats` で、保存済みの地図データから材料ごとの件数と判定の結果を数えられる（ネットワーク・DBを使わない）
+- 社格は Wikipedia のインフォボックスから入るので、OSM に Wikipedia / Wikidata の記事がつながっていない神社は大きな神社にならない（情報提供で社格か大きさを入れる）
+- 小さな祠の目安は `scripts/lib/process.mjs`、大きな神社にする社格は `supabase/schema.sql` の `is_major_rank` で変えられる
+- `npm run size-stats` で、保存済みの地図データから材料ごとの件数と、小さな祠・ふつうの神社の件数を数えられる（ネットワーク・DBを使わない）
 
 ## 注意
 

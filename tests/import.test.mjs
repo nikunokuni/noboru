@@ -74,16 +74,10 @@ test('境内社を除外し、アクセス情報を計算する', () => {
   assert.equal(p.size_signals.hasPolygon, false)
 })
 
-test('神社の大きさを決める', () => {
-  const base = { named: true, wayside: false, hasPolygon: true, areaM2: 3000, hasWiki: false, shrineRank: null }
+test('神社の大きさを決める（小さな祠かふつうか。大きな神社は DB が社格で決める）', () => {
+  const base = { named: true, wayside: false, hasPolygon: true, areaM2: 3000, hasWiki: false }
   assert.equal(classifyShrineSize(base), 'medium')
-  // 大きな神社：社格（一宮・旧官幣社／国幣社・別表神社）か、境内が1万㎡以上
-  assert.equal(classifyShrineSize({ ...base, shrineRank: '式内社（名神大）・相模国一宮・旧国幣中社・別表神社' }), 'large')
-  assert.equal(classifyShrineSize({ ...base, hasPolygon: false, shrineRank: '旧官幣大社' }), 'large')
-  assert.equal(classifyShrineSize({ ...base, areaM2: 12000 }), 'large')
-  assert.equal(classifyShrineSize({ ...base, areaM2: 5000, hasWiki: true }), 'large')   // 記事があれば3,000㎡から
-  assert.equal(classifyShrineSize({ ...base, areaM2: 5000 }), 'medium')
-  assert.equal(classifyShrineSize({ ...base, shrineRank: '式内社（小）・旧村社' }), 'medium')   // 式内社・村社だけでは大きくしない
+  assert.equal(classifyShrineSize({ ...base, areaM2: 20000 }), 'medium')   // 境内が広いだけでは大きな神社にしない
   // 小さな祠：祠・名前なし・形が30㎡未満で Wikipedia の記事もない
   assert.equal(classifyShrineSize({ ...base, wayside: true, areaM2: 20000 }), 'small')
   assert.equal(classifyShrineSize({ ...base, named: false }), 'small')
@@ -92,11 +86,6 @@ test('神社の大きさを決める', () => {
   // 点だけ・社殿の建物だけの形は大きさがわからないので「ふつう」
   assert.equal(classifyShrineSize({ ...base, hasPolygon: false, areaM2: 0 }), 'medium')
   assert.equal(classifyShrineSize({ ...base, areaM2: 60 }), 'medium')
-  // 社格を調べていないときは「ふつう」を決めない（今の値のまま）
-  assert.equal(classifyShrineSize(base, { rankKnown: false }), null)
-  assert.equal(classifyShrineSize({ ...base, areaM2: 12000 }, { rankKnown: false }), 'large')
-  assert.equal(classifyShrineSize({ ...base, wayside: true }, { rankKnown: false }), 'small')
-  assert.equal(classifyShrineSize({ ...base, hasPolygon: false, areaM2: 0 }, { rankKnown: false }), null)
 })
 
 test('開いたウェイをつないでリングにする', () => {

@@ -7,27 +7,20 @@ const BUS_STOP_MAX_M = 10000
 const PLACE_MAX_M = 3000
 
 // 神社の大きさ（shrine_size）の目安
-const LARGE_AREA_M2 = 10000       // 境内がこれ以上なら大きな神社
-const WIKI_LARGE_AREA_M2 = 3000    // Wikipedia の記事があれば、境内がこれ以上で大きな神社
-const SMALL_AREA_M2 = 30           // 形がこれ未満（祠の建物だけ）で Wikipedia の記事もなければ小さな祠
-// 点だけの神社・小さな形の神社（社殿の建物だけ描かれていることが多い）は大きさがわからないので「ふつう」にする
-// 社格がこれに当たれば大きな神社（一宮・旧官幣社／国幣社・別表神社・勅祭社）
-const MAJOR_RANK = /一宮|一之宮|一の宮|官幣|国幣|別表|勅祭/
+// 大きな神社は社格（勅祭社・二十二社・一宮・別表神社・式内社）で決める。
+// 社格は DB に入っている値（前の取り込み・情報提供の分も）で見るため、DB の import_shrines / is_major_rank で決める
+const SMALL_AREA_M2 = 30   // 形がこれ未満（祠の建物だけ）で Wikipedia の記事もなければ小さな祠
 
 // 多角形の面積（度²）を、その緯度での平方メートルに直す
 const toM2 = (deg2, lat) => deg2 * 111320 * 111320 * Math.cos((lat * Math.PI) / 180)
 
-// 神社の大きさを決める。'large' 大きな神社 / 'medium' ふつうの神社 / 'small' 小さな祠
-//   s: { named, wayside, hasPolygon, areaM2, hasWiki, shrineRank }
-//   rankKnown: 社格を調べたか（Wikipedia を取らなかったときは false）。
-//              false のときは、社格がわからないと決められない「ふつう」を null（今の値のまま）にする
-export function classifyShrineSize(s, { rankKnown = true } = {}) {
-  if (s.shrineRank && MAJOR_RANK.test(s.shrineRank)) return 'large'
+// 地図データから、小さな祠かふつうの神社かを決める。'medium' ふつうの神社 / 'small' 小さな祠
+//   s: { named, wayside, hasPolygon, areaM2, hasWiki }
+//   点だけの神社・小さな形の神社（社殿の建物だけ描かれていることが多い）は大きさがわからないので「ふつう」にする
+export function classifyShrineSize(s) {
   if (s.wayside || !s.named) return 'small'
-  if (s.hasPolygon && s.areaM2 >= LARGE_AREA_M2) return 'large'
-  if (s.hasPolygon && s.hasWiki && s.areaM2 >= WIKI_LARGE_AREA_M2) return 'large'
   if (s.hasPolygon && !s.hasWiki && s.areaM2 < SMALL_AREA_M2) return 'small'
-  return rankKnown ? 'medium' : null
+  return 'medium'
 }
 
 const isShrine = (t) =>

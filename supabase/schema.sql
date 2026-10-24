@@ -41,7 +41,7 @@ CREATE TABLE shrines (
   visiting_hours      TEXT,                     -- 拝観時間
   highlights          TEXT,                     -- 見どころ
   -- 大きさ：large 大きな神社 / medium ふつうの神社 / small 小さな祠。NULL = 不明
-  -- 取り込みで OSM の境内の広さ・祠かどうか・社格から自動で入れる。情報提供されたら *_by_user = TRUE にして以後は上書きしない
+  -- 取り込みで自動で入れる（大きな神社は社格から is_major_rank で、小さな祠・ふつうは OSM から）。情報提供されたら *_by_user = TRUE にして以後は上書きしない
   shrine_size         TEXT CHECK (shrine_size IN ('large', 'medium', 'small')),
   shrine_size_by_user BOOLEAN NOT NULL DEFAULT FALSE,
 
@@ -379,6 +379,12 @@ REVOKE EXECUTE ON FUNCTION refresh_shrine_stats(BIGINT) FROM PUBLIC, anon, authe
 --   OSM 由来の列は毎回上書き。ユーザーが情報提供できる列は「空のときだけ」埋める
 --   駅・バス停は情報提供されたもの（*_by_user）を上書きしない
 -- ============================================================
+-- 大きな神社にする社格：勅祭社・二十二社・一宮・別表神社・式内社
+CREATE OR REPLACE FUNCTION is_major_rank(rank TEXT) RETURNS BOOLEAN
+LANGUAGE sql IMMUTABLE AS $$
+  SELECT COALESCE(rank ~ '(勅祭|二十二社|一宮|一之宮|一の宮|別表|式内)', FALSE);
+$$;
+
 CREATE OR REPLACE FUNCTION import_shrines(rows JSONB) RETURNS INTEGER
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE n INTEGER;
@@ -390,7 +396,8 @@ BEGIN
   )
   SELECT r.osm_ref, r.wikidata_id, r.name, r.name_kana, r.prefecture, r.municipality, r.locality, r.address, r.lat, r.lng,
          r.deities, COALESCE(r.benefits, '{}'), r.shrine_rank, r.founded, r.annual_festival, r.honden_style, r.nearest_station, r.nearest_station_m,
-         r.nearest_bus_stop, r.nearest_bus_stop_m, COALESCE(r.parking, 'unknown'), r.features, r.features_source, r.shrine_size
+         r.nearest_bus_stop, r.nearest_bus_stop_m, COALESCE(r.parking, 'unknown'), r.features, r.features_source,
+         CASE WHEN is_major_rank(r.shrine_rank) THEN 'large' ELSE r.shrine_size END
   FROM jsonb_to_recordset(rows) AS r(
     osm_ref TEXT, wikidata_id TEXT, name TEXT, name_kana TEXT, prefecture TEXT, municipality TEXT, locality TEXT,
     address TEXT, lat DOUBLE PRECISION, lng DOUBLE PRECISION, deities TEXT, benefits TEXT[],
@@ -420,8 +427,10 @@ BEGIN
     parking            = CASE WHEN s.parking = 'unknown' THEN EXCLUDED.parking ELSE s.parking END,
     features           = COALESCE(s.features, EXCLUDED.features),
     features_source    = CASE WHEN s.features IS NULL THEN EXCLUDED.features_source ELSE s.features_source END,
-    -- 大きさ：情報提供された値は残す。決められなかったとき（Wikipedia を取らなかったなど）も今の値を残す
-    shrine_size        = CASE WHEN s.shrine_size_by_user OR EXCLUDED.shrine_size IS NULL THEN s.shrine_size ELSE EXCLUDED.shrine_size END,
+    -- 大きさ：情報提供された値は残す。社格（入っている値を優先）が当たれば大きな神社、ほかは地図データから
+    shrine_size        = CASE WHEN s.shrine_size_by_user THEN s.shrine_size
+                              WHEN is_major_rank(COALESCE(s.shrine_rank, EXCLUDED.shrine_rank)) THEN 'large'
+                              ELSE COALESCE(EXCLUDED.shrine_size, s.shrine_size) END,
     updated_at         = NOW();
   GET DIAGNOSTICS n = ROW_COUNT;
   RETURN n;

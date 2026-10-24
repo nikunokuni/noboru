@@ -3,7 +3,7 @@
 // scripts/.cache/ に保存した Overpass の神社データから、大きさを決める材料ごとの件数を全国でまとめて出す
 //
 // 使い方: npm run size-stats
-//   社格は Wikipedia から取るため、ここでは数えない（「大きな神社」は社格の分だけ実際より少なく出る）
+//   大きな神社は社格で決める（DB で数える）ため、ここではふつうの神社・小さな祠だけを数える
 
 import { readFile, readdir } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
@@ -23,7 +23,7 @@ const add = (key, wiki) => {
   if (wiki) c.wiki++
   count.set(key, c)
 }
-const sizes = { large: 0, medium: 0, small: 0 }
+const sizes = { medium: 0, small: 0 }
 const missing = []
 let total = 0
 
@@ -36,7 +36,7 @@ for (const [i, prefecture] of PREFECTURES.entries()) {
   for (const r of rows) {
     const s = r.size_signals
     total++
-    sizes[classifyShrineSize({ ...s, shrineRank: null })]++
+    sizes[classifyShrineSize(s)]++
     if (s.wayside) add('祠（wayside_shrine）', s.hasWiki)
     else if (!s.named) add('名前なし', s.hasWiki)
     else if (!s.hasPolygon) add('点だけ', s.hasWiki)
@@ -52,6 +52,6 @@ for (const key of order) {
   const c = count.get(key) || { all: 0, wiki: 0 }
   console.log(`  ${key}: ${c.all.toLocaleString()}件 ${pct(c.all)}（うち ${c.wiki.toLocaleString()}件）`)
 }
-console.log('\n今の判定（社格を除く）')
-console.log(`  大きな神社 ${sizes.large}件 ${pct(sizes.large)} / ふつうの神社 ${sizes.medium}件 ${pct(sizes.medium)} / 小さな祠 ${sizes.small}件 ${pct(sizes.small)}`)
+console.log('\n今の判定（大きな神社は社格で決めるので、ここには出ない）')
+console.log(`  ふつうの神社 ${sizes.medium}件 ${pct(sizes.medium)} / 小さな祠 ${sizes.small}件 ${pct(sizes.small)}`)
 if (missing.length) console.log(`\n神社のデータがない都道府県: ${missing.join('、')}`)

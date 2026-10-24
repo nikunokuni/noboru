@@ -49,6 +49,7 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 | [`supabase/upgrade-shrine-emotion.sql`](supabase/upgrade-shrine-emotion.sql) | 神社詳細の「感動の平均」（公開記録から神社ごとに計算）と、自分の記録の「情報を追加・訂正した神社」の数。アプリの更新より先に実行する |
 | [`supabase/upgrade-website.sql`](supabase/upgrade-website.sql) | 神社詳細の「公式サイト」（情報提供でも入れられる）。`upgrade-import-details.sql` を先に実行しておく。アプリの更新より先に実行する |
 | [`supabase/upgrade-shrine-size.sql`](supabase/upgrade-shrine-size.sql) | 神社の大きさ（大きな神社・ふつうの神社・小さな祠）。マップのタグで絞り込める。情報提供でも変えられる。`upgrade-website.sql` を先に実行しておく。アプリの更新より先に実行する。実行後に取り込みをやり直す（例: `npm run import:shrines -- --pref 11,13,14 --no-transit --gsi-address`）と大きさが入り、一覧ファイルも作り直される |
+| [`supabase/upgrade-shrine-size-rank.sql`](supabase/upgrade-shrine-size-rank.sql) | 大きな神社を社格（勅祭社・二十二社・一宮・別表神社・式内社）で決める。`upgrade-shrine-size.sql` のあとに実行する。実行するとすぐに大きな神社が入れ替わる（アプリの更新・取り込みは要らない。マップに出すには「神社一覧を更新する」） |
 
 「次回へのメモ」はアプリから外した。以前のプロジェクトの `records.next_memo` 列は使われないまま残る（消すならアプリの更新後に `ALTER TABLE records DROP COLUMN next_memo;`）
 
