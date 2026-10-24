@@ -7,8 +7,10 @@ const BUS_STOP_MAX_M = 10000
 const PLACE_MAX_M = 3000
 
 // 神社の大きさ（shrine_size）の目安
-const LARGE_AREA_M2 = 10000   // 境内がこれ以上なら大きな神社
-const SMALL_AREA_M2 = 100     // 境内がこれ未満で Wikipedia の記事もなければ小さな祠
+const LARGE_AREA_M2 = 10000       // 境内がこれ以上なら大きな神社
+const WIKI_LARGE_AREA_M2 = 3000    // Wikipedia の記事があれば、境内がこれ以上で大きな神社
+const SMALL_AREA_M2 = 30           // 形がこれ未満（祠の建物だけ）で Wikipedia の記事もなければ小さな祠
+// 点だけの神社・小さな形の神社（社殿の建物だけ描かれていることが多い）は大きさがわからないので「ふつう」にする
 // 社格がこれに当たれば大きな神社（一宮・旧官幣社／国幣社・別表神社・勅祭社）
 const MAJOR_RANK = /一宮|一之宮|一の宮|官幣|国幣|別表|勅祭/
 
@@ -23,7 +25,8 @@ export function classifyShrineSize(s, { rankKnown = true } = {}) {
   if (s.shrineRank && MAJOR_RANK.test(s.shrineRank)) return 'large'
   if (s.wayside || !s.named) return 'small'
   if (s.hasPolygon && s.areaM2 >= LARGE_AREA_M2) return 'large'
-  if (!s.hasWiki && (!s.hasPolygon || s.areaM2 < SMALL_AREA_M2)) return 'small'
+  if (s.hasPolygon && s.hasWiki && s.areaM2 >= WIKI_LARGE_AREA_M2) return 'large'
+  if (s.hasPolygon && !s.hasWiki && s.areaM2 < SMALL_AREA_M2) return 'small'
   return rankKnown ? 'medium' : null
 }
 

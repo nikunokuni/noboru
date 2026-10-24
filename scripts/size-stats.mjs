@@ -12,8 +12,8 @@ import { PREFECTURES, prefectureIso } from '../src/lib/constants.js'
 import { processPrefecture, classifyShrineSize } from './lib/process.mjs'
 
 const CACHE = join(dirname(fileURLToPath(import.meta.url)), '.cache')
-const AREA_BUCKETS = [100, 300, 1000, 3000, 10000, Infinity]   // ㎡ の上限
-const areaLabel = (i) => (i === 0 ? '〜100㎡' : AREA_BUCKETS[i] === Infinity ? `${AREA_BUCKETS[i - 1].toLocaleString()}㎡〜` : `${AREA_BUCKETS[i - 1].toLocaleString()}〜${AREA_BUCKETS[i].toLocaleString()}㎡`)
+const AREA_BUCKETS = [10, 30, 100, 300, 1000, 3000, 10000, Infinity]   // ㎡ の上限
+const areaLabel = (i) => (i === 0 ? `〜${AREA_BUCKETS[0]}㎡` : AREA_BUCKETS[i] === Infinity ? `${AREA_BUCKETS[i - 1].toLocaleString()}㎡〜` : `${AREA_BUCKETS[i - 1].toLocaleString()}〜${AREA_BUCKETS[i].toLocaleString()}㎡`)
 
 const files = new Set(await readdir(CACHE).catch(() => []))
 const count = new Map()
