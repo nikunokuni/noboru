@@ -26,6 +26,10 @@ out geom;`],
   ['municipalities', '市区町村の境界', 'rel["boundary"="administrative"]["admin_level"="7"](area.a);\nout geom;'],
 ]
 
+// 都道府県に1件もないはずがない種類。0件ならサーバーの不調とみなして取り直す（保存もしない）
+export const NEVER_EMPTY = ['shrines', 'places', 'municipalities']
+const looksBroken = (key, json) => NEVER_EMPTY.includes(key) && !json?.elements?.length
+
 export function buildQuery(iso, body) {
   return `[out:json][timeout:300];
 area["ISO3166-2"="${iso}"]["admin_level"="4"]->.a;
@@ -63,7 +67,7 @@ async function request(endpoint, query, userAgent) {
 }
 
 // 全サーバーを順に試し、だめなら少し待ってもう一巡（最大3巡）
-async function fetchPart(iso, body, { endpoints, userAgent, log }) {
+async function fetchPart(iso, key, body, { endpoints, userAgent, log }) {
   let lastError
   for (let round = 0; round < 3; round++) {
     if (round) {
@@ -73,6 +77,8 @@ async function fetchPart(iso, body, { endpoints, userAgent, log }) {
     for (const endpoint of endpoints) {
       try {
         const json = await request(endpoint, buildQuery(iso, body), userAgent)
+        // 混雑したサーバーはエラーにせず空の結果を返すことがある
+        if (looksBroken(key, json)) throw new Error('0件でした（サーバーの不調とみなします）')
         // つながったサーバーを次の問い合わせから先に使う
         endpoints.splice(endpoints.indexOf(endpoint), 1)
         endpoints.unshift(endpoint)
@@ -95,11 +101,15 @@ export async function fetchOverpass(iso, { endpoint, cacheFile = null, userAgent
     if (parts && !parts.includes(key)) continue
     const partFile = cacheFile && cacheFile.replace(/\.json$/, `.${key}.json`)
     let json = partFile && await readJson(partFile)
+    if (json && looksBroken(key, json)) {
+      log(`  ${label}: 保存済みのデータが0件のため取り直します`)
+      json = null
+    }
     if (json) {
       log(`  ${label}: 保存済みのデータを使用（${json.elements.length}件）`)
     } else {
       log(`  ${label}を取得中…`)
-      json = await fetchPart(iso, body, { endpoints, userAgent, log })
+      json = await fetchPart(iso, key, body, { endpoints, userAgent, log })
       log(`  ${label}: ${json.elements.length}件取得`)
       if (partFile) await writeJson(partFile, json)
     }
