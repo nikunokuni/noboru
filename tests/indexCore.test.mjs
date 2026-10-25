@@ -189,3 +189,24 @@ test('古い一覧ファイルは新しい方から2つを残して消す', asyn
   assert.deepEqual(staleIndexFiles(names), ['shrines-index.20260101000000.json.gz', 'shrines-index.20251201000000.json.gz'])
   assert.deepEqual(staleIndexFiles(names.slice(0, 2)), [])
 })
+
+test('大きな神社のご祭神・ご利益を多い順にタグにする（決まったタグと同じものは除く）', async () => {
+  const { largeShrineTags, tagFilter } = await import('../src/lib/searchTags.js')
+  const idx = prepareIndex(encodeIndex([
+    { id: 1, name: 'A宮', prefecture: '東京都', lat: 35, lng: 139, deities: '大国主命、天照大神、少彦名命', benefits: ['国土安穏', '縁結び'], goshuin: 'both', shrine_size: 'large' },
+    { id: 2, name: 'B社', prefecture: '東京都', lat: 35, lng: 139, deities: '大己貴命、少彦名命', benefits: ['国土安穏', '病気平癒'], shrine_size: 'large' },
+    { id: 3, name: 'C社', prefecture: '東京都', lat: 35, lng: 139, deities: '少彦名命', benefits: ['病気平癒', 'とても長いご利益の説明文がここに入っています'], shrine_size: 'large' },
+    { id: 4, name: 'D社', prefecture: '東京都', lat: 35, lng: 139, deities: '少彦名命、知らない神', benefits: ['安産'], shrine_size: 'medium' },
+  ], { version: 'v1' }))
+  const { deity, benefit } = largeShrineTags(idx)
+  // 天照大御神は決まったタグにあるので出さない。大きくない D社 だけのものも出さない
+  assert.deepEqual(deity.map((t) => t.deity), ['少彦名命', '大国主命'])
+  assert.deepEqual(benefit.map((t) => t.label), ['国土安穏', '病気平癒'])
+  // 集めたタグでも絞り込める（大きくない神社も当てはまる）
+  const f = tagFilter(idx, { deity: [deity[0]] })
+  assert.deepEqual(idx.raw.id.filter((_, i) => f(i)), [1, 2, 3, 4])
+
+  const old = encodeIndex([{ id: 1, name: 'A', prefecture: '東京都', lat: 35, lng: 139, shrine_size: 'large' }], { version: 'v1' })
+  delete old.sizes; delete old.size
+  assert.deepEqual(largeShrineTags(prepareIndex(old)), { deity: [], benefit: [] })
+})

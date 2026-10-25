@@ -13,7 +13,7 @@ import { fetchMyShrineIds } from '../lib/records'
 import { getCurrentPosition } from '../lib/geo'
 import { getItem, searchPositions } from '../lib/indexCore'
 import { serverSearch } from '../lib/shrineIndex'
-import { SEARCH_TAGS, hasSizeColumn, hasTagColumns, tagFilter, tagsFromParams } from '../lib/searchTags'
+import { SEARCH_TAGS, hasSizeColumn, hasTagColumns, largeShrineTags, tagFilter, tagsFromParams } from '../lib/searchTags'
 import { PREFECTURES } from '../lib/constants'
 
 const MODES = [
@@ -25,6 +25,8 @@ const MODES = [
 
 const JAPAN = { center: [36.5, 138.0], zoom: 5 }
 const LIST_LIMIT = 100
+// 大きな神社から集めたご祭神・ご利益のタグは、閉じているときはこの数だけ出す
+const MORE_FOLDED = 8
 
 // 地図の高さの割合（地図＋検索の高さに対して）。端末に覚えておく
 const SPLIT_KEY = 'noboru.mapSplit'
@@ -85,6 +87,7 @@ export default function MapPage() {
   const [query, setQuery] = useState('')
   const [prefecture, setPrefecture] = useState('')
   const [tags, setTags] = useState(() => tagsFromParams(params))
+  const [unfolded, setUnfolded] = useState({}) // 大きな神社から集めたタグを全部出している項目
   const [serverResults, setServerResults] = useState(null)
   const [serverIds, setServerIds] = useState([])
   const [split, setSplit] = useState(loadSplit)
@@ -148,10 +151,15 @@ export default function MapPage() {
     const next = list.some((t) => t.key === tag.key) ? list.filter((t) => t.key !== tag.key) : [...list, tag]
     return { ...prev, [group]: next }
   })
-  // 神社詳細から来たご祭神・ご利益・社格など、決まったタグにないものも選べるように並べる
+  // ご祭神・ご利益は、決まったタグのあとに大きな神社から集めたものを多い順に並べる（閉じているときは途中まで）
+  // 神社詳細から来たご祭神・ご利益・社格など、どちらにもないものも選べるように並べる
+  const largeTags = useMemo(() => (index ? largeShrineTags(index) : {}), [index])
   const tagGroups = SEARCH_TAGS.map((g) => {
-    const extra = (tags[g.key] || []).filter((t) => !g.tags.some((x) => x.key === t.key))
-    return { ...g, tags: [...g.tags, ...extra] }
+    const more = largeTags[g.key] || []
+    const selected = tags[g.key] || []
+    const shown = unfolded[g.key] ? more : more.filter((t, i) => i < MORE_FOLDED || selected.some((x) => x.key === t.key))
+    const extra = selected.filter((t) => !g.tags.some((x) => x.key === t.key) && !more.some((x) => x.key === t.key))
+    return { ...g, tags: [...g.tags, ...shown, ...extra], hidden: more.length - shown.length }
   })
 
   const results = useMemo(
@@ -265,6 +273,11 @@ export default function MapPage() {
                   const on = (tags[g.key] || []).some((x) => x.key === t.key)
                   return <button key={t.key} className={`chip ${on ? 'active' : ''}`} aria-pressed={on} onClick={() => toggleTag(g.key, t)}>{t.label}</button>
                 })}
+                {(g.hidden > 0 || unfolded[g.key]) && (
+                  <button className="text-btn tag-more" onClick={() => setUnfolded((u) => ({ ...u, [g.key]: !u[g.key] }))}>
+                    {unfolded[g.key] ? '閉じる' : `もっと見る（ほか${g.hidden}）`}
+                  </button>
+                )}
               </div>
             </div>
           ))}

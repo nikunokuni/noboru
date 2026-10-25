@@ -98,6 +98,37 @@ export const hasTagColumns = (index) => Array.isArray(index.raw.gosh)
 // 一覧ファイルが大きさを持っているか（大きさを足す前の一覧ファイルにはない）
 export const hasSizeColumn = (index) => Array.isArray(index.raw.size)
 
+// ご利益の欄に文章が入っていることもあるので、タグにするのはこの文字数まで
+const MAX_BENEFIT_LABEL = 12
+
+// 大きな神社に入っているご祭神・ご利益を、祀る（掲げる）大きな神社が多い順にタグにする: { deity: [タグ], benefit: [タグ] }
+// 上の決まったタグと同じもの（ご利益は決まったタグの言葉を含むもの）は除く。大きさ・ご利益のない古い一覧ファイルでは空
+export function largeShrineTags(index) {
+  const r = index.raw
+  const empty = { deity: [], benefit: [] }
+  if (!hasTagColumns(index) || !hasSizeColumn(index)) return empty
+  const large = r.sizes.indexOf('large')
+  if (large < 0) return empty
+  const deiCount = new Map()
+  const benCount = new Map()
+  r.size.forEach((s, i) => {
+    if (s !== large) return
+    for (const j of r.dei?.[i] || []) deiCount.set(j, (deiCount.get(j) || 0) + 1)
+    for (const j of r.ben?.[i] || []) benCount.set(j, (benCount.get(j) || 0) + 1)
+  })
+  const byCount = (m) => [...m].sort((a, b) => b[1] - a[1]).map(([j]) => j)
+  const fixed = (group) => SEARCH_TAGS.find((g) => g.key === group).tags
+  const uniq = (tags, seen) => tags.filter((t) => !seen.has(t.key) && seen.add(t.key))
+
+  const deity = uniq(byCount(deiCount).map((j) => r.deis[j]).filter(Boolean).map(deityTag),
+    new Set(fixed('deity').map((t) => t.key)))
+  const fixedWords = fixed('benefit').flatMap((t) => t.benefit.map(normalize))
+  const benefit = uniq(byCount(benCount).map((j) => r.bens[j])
+    .filter((v) => v && v.length <= MAX_BENEFIT_LABEL && !fixedWords.some((w) => normalize(v).includes(w)))
+    .map((v) => tagForValue('benefit', v)), new Set(fixed('benefit').map((t) => t.key)))
+  return { deity, benefit }
+}
+
 const tableHits = (list, test) => {
   const out = new Set()
   ;(list || []).forEach((v, j) => { if (test(v)) out.add(j) })
