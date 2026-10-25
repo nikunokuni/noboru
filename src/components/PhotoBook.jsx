@@ -1,7 +1,8 @@
-// 御朱印帳・鳥居帳・狛犬帳：タグごとの写真を並べる。押すと大きく出し、神社や記録へ行ける
+// 御朱印帳・鳥居帳・狛犬帳：タグごとの写真を並べる。押すと大きく出し（＜ ＞ で送れる）、神社や記録へ行ける
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSignedUrls } from './Photos'
+import Lightbox from './Lightbox'
 import { PHOTO_BOOKS } from '../lib/constants'
 
 // 帳面を選ぶボタン。もう一度押すと閉じる
@@ -26,22 +27,22 @@ export default function PhotoBook({ items, emptyText }) {
   return (
     <>
       <div className="photo-grid book-grid">
-        {items.map((p) => (
-          <button key={p.path} type="button" className="book-cell" onClick={() => setOpen(p)}>
+        {items.map((p, i) => (
+          <button key={p.path} type="button" className="book-cell" onClick={() => setOpen(i)}>
             {urls[p.path] ? <img src={urls[p.path]} alt="" loading="lazy" className="photo" /> : <div className="photo placeholder" />}
             <span className="book-caption">{p.title}</span>
           </button>
         ))}
       </div>
-      {open && (
-        <div className="lightbox book-lightbox" onClick={() => setOpen(null)} role="dialog" aria-label="写真">
-          {urls[open.path] && <img src={urls[open.path]} alt="" />}
-          <div className="book-lightbox-info" onClick={(e) => e.stopPropagation()}>
-            <div>{open.title}</div>
-            {open.sub && <div className="small">{open.sub}</div>}
-            <Link to={open.to} className="inline-link small">{open.linkLabel} ›</Link>
-          </div>
-        </div>
+      {open !== null && (
+        <Lightbox urls={items.map((p) => urls[p.path])} start={open} onClose={() => setOpen(null)}
+          info={(i) => (
+            <div className="book-lightbox-info">
+              <div>{items[i].title}</div>
+              {items[i].sub && <div className="small">{items[i].sub}</div>}
+              <Link to={items[i].to} className="inline-link small">{items[i].linkLabel} ›</Link>
+            </div>
+          )} />
       )}
     </>
   )

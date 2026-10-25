@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { useSignedUrls } from '../components/Photos'
+import Lightbox from '../components/Lightbox'
 import EmotionSlider from '../components/EmotionSlider'
 import PhotoEditor from '../components/PhotoEditor'
 import { MemoFields, VisibilityPicker } from '../components/MemoFields'
@@ -13,13 +14,18 @@ import { formatDate, todayStr } from '../lib/format'
 import { DEFAULT_PHOTO_TAG, MAX_PHOTOS, PHOTO_TAGS, PHOTO_TAG_LABELS, emotionColor, emotionLabel } from '../lib/constants'
 
 // 写真とタグ。onChange があればタグを選べる。onSelect があれば写真を押して選ぶ（編集・削除する写真を選ぶとき）
+// どちらもなければ、写真を押すと大きく出す
 function TaggedPhotos({ photos, tags, onChange, onSelect }) {
   const urls = useSignedUrls(photos.map((p) => p.path))
+  const [zoom, setZoom] = useState(null)
   if (!photos.length) return null
+  const zoomable = !onChange && !onSelect
   return (
     <div className="photo-row">
-      {photos.map(({ path }) => {
-        const img = urls[path] ? <img src={urls[path]} alt="" loading="lazy" className="photo" /> : <div className="photo placeholder" />
+      {photos.map(({ path }, i) => {
+        const img = urls[path]
+          ? <img src={urls[path]} alt="" loading="lazy" className={`photo ${zoomable ? 'zoomable' : ''}`} onClick={zoomable ? () => setZoom(i) : undefined} />
+          : <div className="photo placeholder" />
         return (
           <div key={path} className="tagged-photo">
             {onSelect ? <button type="button" className="photo-pick" onClick={() => onSelect(path)}>{img}</button> : img}
@@ -31,6 +37,7 @@ function TaggedPhotos({ photos, tags, onChange, onSelect }) {
           </div>
         )
       })}
+      {zoom !== null && <Lightbox urls={photos.map((p) => urls[p.path])} start={zoom} onClose={() => setZoom(null)} />}
     </div>
   )
 }

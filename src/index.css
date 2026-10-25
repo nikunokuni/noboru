@@ -271,8 +271,19 @@ a { color: inherit; }
 .photo-tags { justify-content: center; }
 .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
 .photo-grid .photo { width: 100%; height: auto; aspect-ratio: 1; cursor: zoom-in; }
-.lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); display: flex; align-items: center; justify-content: center; z-index: 3000; cursor: zoom-out; }
-.lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); display: flex; flex-direction: column; z-index: 3000; cursor: zoom-out; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+.lightbox-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: pan-y pinch-zoom; }
+.lightbox-track { display: flex; height: 100%; will-change: transform; }
+.lightbox-slide { flex: 0 0 100%; min-width: 0; display: flex; align-items: center; justify-content: center; }
+.lightbox-slide img { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; -webkit-user-select: none; }
+.lightbox-count { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 13px; letter-spacing: 0.1em; background: rgba(0, 0, 0, 0.35); padding: 2px 10px; border-radius: 12px; pointer-events: none; }
+.lightbox-nav, .lightbox-close { position: absolute; width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(255, 255, 255, 0.18); color: #fff; font-size: 28px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; }
+.lightbox-nav { top: 50%; transform: translateY(-50%); }
+.lightbox-nav.prev { left: 8px; }
+.lightbox-nav.next { right: 8px; }
+.lightbox-close { top: 8px; right: 8px; font-size: 24px; }
+.lightbox-info { padding: 12px 16px 16px; cursor: default; }
+.photo.zoomable { cursor: zoom-in; }
 .feedback-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
 .check-row input { width: 18px; height: 18px; accent-color: var(--vermillion); }
@@ -341,9 +352,7 @@ a { color: inherit; }
 .book-cell { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 0; background: none; border: none; text-align: left; cursor: zoom-in; }
 .book-grid .photo { width: 100%; height: auto; aspect-ratio: 1; }
 .book-caption { font-size: 11px; color: rgba(26, 18, 8, 0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.book-lightbox { flex-direction: column; gap: 12px; padding: 16px; }
-.book-lightbox img { max-height: calc(100% - 96px); }
-.book-lightbox-info { color: #fff; text-align: center; font-family: var(--font-mincho); letter-spacing: 0.06em; cursor: default; display: flex; flex-direction: column; gap: 4px; }
+.book-lightbox-info { color: #fff; text-align: center; font-family: var(--font-mincho); letter-spacing: 0.06em; display: flex; flex-direction: column; gap: 4px; }
 .book-lightbox-info .inline-link { color: #fff; }
 
 /* 新しい版のお知らせ */
