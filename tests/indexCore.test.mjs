@@ -194,14 +194,14 @@ test('大きな神社のご祭神・ご利益を多い順にタグにする（�
   const { largeShrineTags, tagFilter } = await import('../src/lib/searchTags.js')
   const idx = prepareIndex(encodeIndex([
     { id: 1, name: 'A宮', prefecture: '東京都', lat: 35, lng: 139, deities: '大国主命、天照大神、少彦名命', benefits: ['国土安穏', '縁結び'], goshuin: 'both', shrine_size: 'large' },
-    { id: 2, name: 'B社', prefecture: '東京都', lat: 35, lng: 139, deities: '大己貴命、少彦名命、地元の神', benefits: ['国土安穏', '病気平癒'], shrine_size: 'large' },
-    { id: 3, name: 'C社', prefecture: '東京都', lat: 35, lng: 139, deities: '少彦名命', benefits: ['病気平癒', 'とても長いご利益の説明文がここに入っています'], shrine_size: 'large' },
+    { id: 2, name: 'B社', prefecture: '東京都', lat: 35, lng: 139, deities: '大己貴命、少彦名命、地元の神', benefits: ['国土安穏', '方除け'], shrine_size: 'large' },
+    { id: 3, name: 'C社', prefecture: '東京都', lat: 35, lng: 139, deities: '少彦名命', benefits: ['方除け', '病気平癒', 'とても長いご利益の説明文がここに入っています'], shrine_size: 'large' },
     { id: 4, name: 'D社', prefecture: '東京都', lat: 35, lng: 139, deities: '少彦名命、知らない神', benefits: ['安産'], shrine_size: 'medium' },
   ], { version: 'v1' }))
   const { deity, benefit } = largeShrineTags(idx)
   // 天照大御神は決まったタグにあるので出さない。大きくない D社 だけのものも、辞書にない神様も出さない
   assert.deepEqual(deity.map((t) => t.deity), ['少彦名命', '大国主命'])
-  assert.deepEqual(benefit.map((t) => t.label), ['国土安穏', '病気平癒'])
+  assert.deepEqual(benefit.map((t) => t.label), ['国土安穏', '方除け'])   // 病気平癒は決まったタグ（健康・病気平癒）にある
   // 集めたタグでも絞り込める（大きくない神社も当てはまる）
   const f = tagFilter(idx, { deity: [deity[0]] })
   assert.deepEqual(idx.raw.id.filter((_, i) => f(i)), [1, 2, 3, 4])
@@ -209,4 +209,21 @@ test('大きな神社のご祭神・ご利益を多い順にタグにする（�
   const old = encodeIndex([{ id: 1, name: 'A', prefecture: '東京都', lat: 35, lng: 139, shrine_size: 'large' }], { version: 'v1' })
   delete old.sizes; delete old.size
   assert.deepEqual(largeShrineTags(prepareIndex(old)), { deity: [], benefit: [] })
+})
+
+test('ご神徳のタグは、ご祭神（別の書き方でも）か神社名で当てはめる', async () => {
+  const { SEARCH_TAGS, tagFilter } = await import('../src/lib/searchTags.js')
+  const tag = (key) => SEARCH_TAGS.find((g) => g.key === 'shintoku').tags.find((t) => t.key === key)
+  const idx = prepareIndex(encodeIndex([
+    { id: 1, name: '天満宮', prefecture: '東京都', lat: 35, lng: 139, deities: '菅原道真' },
+    { id: 2, name: '稲荷神社', prefecture: '東京都', lat: 35, lng: 139 },
+    { id: 3, name: '某神社', prefecture: '東京都', lat: 35, lng: 139, deities: '倉稲魂命' },
+    { id: 4, name: '宗像神社', prefecture: '東京都', lat: 35, lng: 139, deities: '市寸島比売命' },
+    { id: 5, name: '八坂神社', prefecture: '東京都', lat: 35, lng: 139, deities: '須佐之男命' },
+  ], { version: 'v1' }))
+  const ids = (selected) => { const f = tagFilter(idx, selected); return idx.raw.id.filter((_, i) => f(i)) }
+  assert.deepEqual(ids({ shintoku: [tag('gakugyo')] }), [1])
+  assert.deepEqual(ids({ shintoku: [tag('shobai')] }), [2, 3])
+  assert.deepEqual(ids({ shintoku: [tag('kokai')] }), [4])
+  assert.deepEqual(ids({ shintoku: [tag('gakugyo'), tag('kokai')] }), [1, 4])
 })

@@ -14,7 +14,7 @@ test('情報提供のタグ：文字の欄をタグに分け、ご祭神は表�
 
 test('マップの検索タグ：神社詳細の値から同じタグを選ぶ', async () => {
   const { SEARCH_TAGS, tagForValue, tagsFromParams } = await import('../src/lib/searchTags.js')
-  assert.deepEqual(SEARCH_TAGS.map((g) => g.key), ['size', 'goshuin', 'deity', 'benefit', 'rank', 'parking'])
+  assert.deepEqual(SEARCH_TAGS.map((g) => g.key), ['size', 'goshuin', 'deity', 'benefit', 'shintoku', 'rank', 'parking'])
   assert.equal(tagForValue('goshuin', 'available').label, 'あり')
   assert.ok(tagForValue('goshuin', 'available').goshuin.includes('both'))
   assert.equal(tagForValue('goshuin', 'unknown'), null)

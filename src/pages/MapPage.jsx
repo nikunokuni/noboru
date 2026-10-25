@@ -278,6 +278,7 @@ export default function MapPage() {
                     {unfolded[g.key] ? '閉じる' : `もっと見る（ほか${g.hidden}）`}
                   </button>
                 )}
+                {g.note && <p className="muted small tag-note">{g.note}</p>}
               </div>
             </div>
           ))}

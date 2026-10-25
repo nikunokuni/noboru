@@ -15,9 +15,11 @@ export function deityTag(name) {
 //   size / goshuin / parking: 一覧の値がこのどれかなら当てはまる
 //   benefit: ご利益のどれかにこの文字が入っていれば当てはまる
 //   deity:   このご祭神（別の書き方でも）を祀っていれば当てはまる
+//   deities: このご祭神のどれかを祀っていれば当てはまる（ご神徳。name もあれば、神社名に当たっても当てはまる）
 //   rank:    社格の欄にこの文字が入っていれば当てはまる
 //   name:    神社名にこの文字が入っていれば当てはまる（八幡宮・伊勢・稲荷は社格の欄にほぼ入っていないので名前で見る）
 // 項目の順番は、大きさ（はじめての人がまず選ぶ）のあとは神社詳細と同じ（御朱印 → ご祭神 → ご利益 → 社格 → 駐車場）
+// ご神徳は神社詳細にない項目で、ご利益のすぐあとに置く
 // 大きさの「大きな神社」は社格（一宮・別表神社など）からも決めているが、社格のタグとは別の見方（境内の広さ・祠かどうか）で分ける
 // status: 神社詳細から来たとき、その値（shrine_size / goshuin / parking の欄）をこのタグとして選ぶ
 export const SEARCH_TAGS = [
@@ -48,6 +50,26 @@ export const SEARCH_TAGS = [
     { key: 'shigoto', label: '仕事運', benefit: ['仕事', '出世'] },
     { key: 'shobai', label: '商売繁盛', benefit: ['商売'] },
     { key: 'gakugyo', label: '学業成就', benefit: ['学業', '合格'] },
+    { key: 'kinun', label: '金運', benefit: ['金運', '財運'] },
+    { key: 'kanai', label: '家内安全', benefit: ['家内安全'] },
+    { key: 'fufu', label: '夫婦円満', benefit: ['夫婦円満'] },
+    { key: 'anzan', label: '安産・子授け', benefit: ['安産', '子授', '子宝'] },
+    { key: 'kenko', label: '健康・病気平癒', benefit: ['健康', '病気', '無病息災', '長寿', '延命'] },
+    { key: 'shoun', label: '勝運・必勝', benefit: ['勝運', '必勝'] },
+    { key: 'gokoku', label: '五穀豊穣', benefit: ['五穀', '豊作', '農業'] },
+    { key: 'kokai', label: '航海安全・大漁', benefit: ['航海', '海上安全', '漁業', '大漁'] },
+    { key: 'hibuse', label: '火難除け', benefit: ['火防', '火伏', '防火', '火難', '火除'] },
+    { key: 'geino', label: '芸能上達', benefit: ['芸能', '芸事'] },
+  ] },
+  // ご祭神から見た一般的なご神徳。神社が掲げるご利益ではないので、ご利益とは分ける
+  // 神様とご神徳の結びつきがまず外れないものだけを入れる（大国主命・素戔嗚尊のようにご神徳が多い神様は入れない）
+  { key: 'shintoku', label: 'ご神徳', note: 'ご祭神から見た一般的なご神徳です。その神社が掲げるご利益とは限りません', tags: [
+    { key: 'gakugyo', label: '学業成就（天神さま）', deities: ['菅原道真公'] },
+    { key: 'shobai', label: '商売繁盛（お稲荷さま）', deities: ['宇迦之御魂神'], name: ['稲荷'] },
+    { key: 'gokoku', label: '五穀豊穣（食物の神）', deities: ['宇迦之御魂神', '豊受大御神', '保食神', '大気都比売神'], name: ['稲荷'] },
+    { key: 'kokai', label: '航海安全（海の神）', deities: ['田心姫命', '湍津姫命', '市杵島姫命', '底筒男命', '中筒男命', '表筒男命', '大綿津見神'] },
+    { key: 'hibuse', label: '火伏せ（火の神）', deities: ['軻遇突智神'] },
+    { key: 'geino', label: '芸能上達（天鈿女命）', deities: ['天鈿女命'] },
   ] },
   { key: 'rank', label: '社格', tags: [
     { key: 'myojin', label: '名神大社', rank: ['名神'] },
@@ -151,6 +173,11 @@ function tagTest(index, tag) {
     const words = tag.rank.map(normalize)
     const hit = tableHits(r.ranks, (v) => words.some((w) => normalize(v).includes(w)))
     return (i) => hit.has(r.rank?.[i])
+  }
+  if (tag.deities) {
+    const hit = new Set(tag.deities.flatMap((d) => [...matchingDeities(index, d)]))
+    const words = (tag.name || []).map(normalize)
+    return (i) => (r.dei?.[i] || []).some((j) => hit.has(j)) || words.some((w) => index.keys[i].includes(w))
   }
   if (tag.name) { const words = tag.name.map(normalize); return (i) => words.some((w) => index.keys[i].includes(w)) }
   if (tag.deity) { const hit = matchingDeities(index, tag.deity); return (i) => (r.dei?.[i] || []).some((j) => hit.has(j)) }
