@@ -98,6 +98,8 @@ for (const names of DEITIES) {
 // 代表の表記 → 別の書き方（検索のヒント用）
 const ALIASES = new Map(DEITIES.map((names) => [names[0], names.slice(1)]))
 export const deityAliases = (canonical) => ALIASES.get(canonical) || []
+// 辞書にある（よく祀られる）神様か。代表の表記で聞く
+export const isKnownDeity = (canonical) => ALIASES.has(canonical)
 
 // 1柱の名前を代表の表記に。辞書になければ書かれたまま（前後の空白は除く）
 export function canonicalDeity(name) {

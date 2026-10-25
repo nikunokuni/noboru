@@ -2,7 +2,7 @@
 // ブラウザとテストの両方から使うため、外部依存なし
 
 import { matchingDeities, normalize } from './indexCore.js'
-import { canonicalDeity } from './deities.js'
+import { canonicalDeity, isKnownDeity } from './deities.js'
 import { deityLabel } from './shrineTags.js'
 
 // ご祭神のタグ。表記は情報提供と同じ「天照大御神（アマテラス）」
@@ -102,6 +102,7 @@ export const hasSizeColumn = (index) => Array.isArray(index.raw.size)
 const MAX_BENEFIT_LABEL = 12
 
 // 大きな神社に入っているご祭神・ご利益を、祀る（掲げる）大きな神社が多い順にタグにする: { deity: [タグ], benefit: [タグ] }
+// ご祭神は数百柱になるので、辞書にある（よく祀られる）神様だけにする
 // 上の決まったタグと同じもの（ご利益は決まったタグの言葉を含むもの）は除く。大きさ・ご利益のない古い一覧ファイルでは空
 export function largeShrineTags(index) {
   const r = index.raw
@@ -120,7 +121,7 @@ export function largeShrineTags(index) {
   const fixed = (group) => SEARCH_TAGS.find((g) => g.key === group).tags
   const uniq = (tags, seen) => tags.filter((t) => !seen.has(t.key) && seen.add(t.key))
 
-  const deity = uniq(byCount(deiCount).map((j) => r.deis[j]).filter(Boolean).map(deityTag),
+  const deity = uniq(byCount(deiCount).map((j) => r.deis[j]).filter(isKnownDeity).map(deityTag),
     new Set(fixed('deity').map((t) => t.key)))
   const fixedWords = fixed('benefit').flatMap((t) => t.benefit.map(normalize))
   const benefit = uniq(byCount(benCount).map((j) => r.bens[j])
