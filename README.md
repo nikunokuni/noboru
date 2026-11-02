@@ -100,3 +100,4 @@ npm run move:photos
 | `npm test` | テスト（取り込み処理・検索） |
 | `npm run import:shrines -- --pref 13` | 神社マスタの取り込み |
 | `npm run move:photos` | 写真のパスから `user_id` を外す（1回だけ。上の「写真のパスを移す」） |
+| `npm run signboard -- fetch` / `apply` | 「案内板」タグの写真を集め、読んだ内容を神社詳細の空欄に入れる（Claude Code のスキル [`signboard-to-shrine`](.claude/skills/signboard-to-shrine/SKILL.md) から使う） |
