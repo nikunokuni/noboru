@@ -42,6 +42,8 @@ description: 投稿された「案内板」タグの写真（photos.tag = 'signb
 - クラウド環境では、ネットワーク設定で `<プロジェクトID>.supabase.co` を許可してもらう必要がある
 - 情報提供者として記録するユーザー: 管理者が1人ならその人。複数なら `SIGNBOARD_EDITOR_USER_ID` を設定してもらう
 - `node_modules` がなければ `npm install`
+- クラウド環境では Node の fetch がプロキシを通らず `getaddrinfo ENOTFOUND <プロジェクトID>.supabase.co` になる。
+  以下の `npm run signboard` はすべて `NODE_USE_ENV_PROXY=1 NODE_NO_WARNINGS=1` を前に付けて実行する（手元のPCでは要らない）
 
 ### 1. 写真を集める
 
