@@ -20,11 +20,12 @@ function shrineIcon(shrine) {
 const hereIcon = L.divIcon({ html: '<div class="here-dot"></div>', className: '', iconSize: [14, 14], iconAnchor: [7, 7] })
 const newPinIcon = L.divIcon({ html: '<div class="new-pin"></div>', className: '', iconSize: [24, 32], iconAnchor: [12, 32] })
 
-export default function NearbyMap({ position, bounds, shrines, onPick, placing, newPin, onPlace }) {
+export default function NearbyMap({ position, accuracy, bounds, shrines, onPick, placing, newPin, onPlace }) {
   const mapEl = useRef(null)
   const mapRef = useRef(null)
   const shrineLayer = useRef(null)
   const hereMarker = useRef(null)
+  const hereCircle = useRef(null)
   const newPinMarker = useRef(null)
   const boundsRef = useRef(bounds)
   const placingRef = useRef(placing)
@@ -62,7 +63,15 @@ export default function NearbyMap({ position, bounds, shrines, onPick, placing, 
     const at = [position.lat, position.lng]
     if (hereMarker.current) hereMarker.current.setLatLng(at)
     else hereMarker.current = L.marker(at, { icon: hereIcon, interactive: false, keyboard: false }).addTo(map)
-  }, [bounds, position])
+    // 誤差の円（この中のどこかにいる）
+    const radius = accuracy || 0
+    if (hereCircle.current) hereCircle.current.setLatLng(at).setRadius(radius)
+    else {
+      hereCircle.current = L.circle(at, {
+        radius, interactive: false, color: '#2b7bd9', weight: 1, opacity: 0.5, fillColor: '#2b7bd9', fillOpacity: 0.1,
+      }).addTo(map)
+    }
+  }, [bounds, position, accuracy])
 
   // ピンを置く間だけ拡大・移動できる。最初の範囲より外・より縮小はできない
   useEffect(() => {

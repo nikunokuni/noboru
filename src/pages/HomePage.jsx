@@ -5,8 +5,9 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import ShrineRow from '../components/ShrineRow'
 import TodayShrine from '../components/TodayShrine'
 import { useShrineIndex } from '../hooks/useShrineIndex'
+import { GOOD_ACCURACY_M, useLivePosition } from '../hooks/useLivePosition'
 import { nearbyIndex } from '../lib/indexCore'
-import { formatDistance, getCurrentPosition, inBounds, squareBounds } from '../lib/geo'
+import { formatDistance, inBounds, squareBounds } from '../lib/geo'
 import { fetchAppStats } from '../lib/community'
 import { NEARBY_HALF_M } from '../lib/constants'
 
@@ -22,24 +23,42 @@ function RecentVisitors() {
   return <p className="quiet-count">この30日で、全国 {count.toLocaleString()}人 が参拝しています</p>
 }
 
+// 誤差がこれより大きいと、地図が神社からずれていることが多い
+const ROUGH_ACCURACY_M = 300
+
+// 地図の下に、いまの位置の確かさ。おおまかなら、端末の設定を案内する
+function LocationNote({ position, locating, onRefresh }) {
+  const rough = position.accuracy > ROUGH_ACCURACY_M
+  return (
+    <div className="location-note">
+      <p className="muted small">
+        {locating && position.accuracy > GOOD_ACCURACY_M ? '現在地を確認中…' : '現在地'}（誤差 約{formatDistance(position.accuracy)}）
+        <button type="button" className="text-btn small" onClick={onRefresh}>測り直す</button>
+      </p>
+      {rough && !locating && (
+        <p className="muted small">
+          位置がおおまかです。空の見える場所で「測り直す」を押してください。
+          iPhone は「設定 › プライバシーとセキュリティ › 位置情報サービス」で、使っているブラウザ（Safari など）の「正確な位置情報」をオンに。
+          Android は位置情報の設定で「Google 位置情報の精度」をオンにすると正確になります
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const { index, status, revision } = useShrineIndex()
-  const [position, setPosition] = useState(null)
-  const [locating, setLocating] = useState(true)
+  const { position, locating, denied, refresh } = useLivePosition()
   // マップにない神社の申請：地図を押してピンを立てる
   const [placing, setPlacing] = useState(false)
   const [newPin, setNewPin] = useState(null)
 
-  // 位置の取得は待たずに画面を出す
-  useEffect(() => {
-    let alive = true
-    getCurrentPosition().then((p) => { if (alive) { setPosition(p); setLocating(false) } })
-    return () => { alive = false }
-  }, [])
-
-  const bounds = useMemo(() => (position ? squareBounds(position.lat, position.lng, NEARBY_HALF_M) : null), [position])
+  // ピンを置いている間は、位置が更新されても地図を動かさない
+  const [frozen, setFrozen] = useState(null)
+  const center = placing && frozen ? frozen : position
+  const bounds = useMemo(() => (center ? squareBounds(center.lat, center.lng, NEARBY_HALF_M) : null), [center])
 
   // 四角の角まで含めて探し、四角の中だけ残す
   const shrines = useMemo(
@@ -55,7 +74,7 @@ export default function HomePage() {
   if (legacy) return <Navigate to={`/record/${legacy}`} replace />
 
   const pick = (s) => navigate(`/record/${s.id}`)
-  const startPlacing = () => { setNewPin({ lat: position.lat, lng: position.lng }); setPlacing(true) }
+  const startPlacing = () => { setFrozen(position); setNewPin({ lat: position.lat, lng: position.lng }); setPlacing(true) }
   const cancelPlacing = () => { setPlacing(false); setNewPin(null) }
   const request = () => navigate(`/request?lat=${newPin.lat.toFixed(6)}&lng=${newPin.lng.toFixed(6)}`)
 
@@ -72,7 +91,7 @@ export default function HomePage() {
           <div className="nearby-map-wrap">
             <Suspense fallback={<div className="nearby-map"><div className="spinner" /></div>}>
               <NearbyMap
-                position={position} bounds={bounds} shrines={shrines} onPick={pick}
+                position={position} accuracy={position.accuracy} bounds={bounds} shrines={shrines} onPick={pick}
                 placing={placing} newPin={newPin} onPlace={(ll) => setNewPin({ lat: ll.lat, lng: ll.lng })}
               />
             </Suspense>
@@ -81,9 +100,14 @@ export default function HomePage() {
         ) : (
           <div className="nearby-map nearby-map-empty">
             {locating ? <><div className="spinner" /><p className="muted small">現在地を確認中…</p></>
-              : <p className="muted small">現在地を取得できませんでした。<br />位置情報の利用を許可してください（「マップ」の下の検索から名前でも探せます）</p>}
+              : <>
+                <p className="muted small">現在地を取得できませんでした。<br />{denied ? '位置情報の利用を許可してください' : '空の見える場所で、もう一度お試しください'}（「マップ」の下の検索から名前でも探せます）</p>
+                <button type="button" className="text-btn mt8" onClick={refresh}>もう一度試す</button>
+              </>}
           </div>
         )}
+
+        {position && !placing && <LocationNote position={position} locating={locating} onRefresh={refresh} />}
 
         {position && (placing ? (
           <div className="place-actions">

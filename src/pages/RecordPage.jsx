@@ -11,7 +11,8 @@ import { MemoFields, VisibilityPicker } from '../components/MemoFields'
 import { GuideInlineLink } from '../components/GuideLinks'
 import PhotoTagger from '../components/PhotoTagger'
 import { compressImage } from '../lib/imageCompress'
-import { distanceM, formatDistance, getCurrentPosition, inBounds, squareBounds } from '../lib/geo'
+import { distanceM, formatDistance, inBounds, squareBounds } from '../lib/geo'
+import { useLivePosition } from '../hooks/useLivePosition'
 import { getById } from '../lib/indexCore'
 import { serverGetShrineItem } from '../lib/shrineIndex'
 import { placeLabel, todayStr } from '../lib/format'
@@ -47,20 +48,14 @@ export default function RecordPage() {
   const { addRecord } = usePendingRecords()
   const shrine = useShrine(shrineId)
   const [form, setForm] = useState(emptyForm)
-  const [position, setPosition] = useState(null)
+  // 「現地で記録」の判定に使う。待たずに入力でき、入力している間により正確な位置に差し替わる
+  const { position } = useLivePosition()
   const [saving, setSaving] = useState(false)
   // form: 入力 → tagging: 写真のタグを1枚ずつ
   const [step, setStep] = useState('form')
   const [tagIndex, setTagIndex] = useState(0)
   const fileRef = useRef(null)
   const update = (patch) => setForm((f) => ({ ...f, ...patch }))
-
-  // 「現地で記録」の判定に使う。待たずに入力できる
-  useEffect(() => {
-    let alive = true
-    getCurrentPosition().then((p) => alive && setPosition(p))
-    return () => { alive = false }
-  }, [])
 
   // プレビュー用URLの後始末
   const photosRef = useRef(form.photos)

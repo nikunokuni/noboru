@@ -246,6 +246,8 @@ a { color: inherit; }
 .nearby-pin-label { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-family: var(--font-mincho); font-size: 11px; font-weight: 600; color: var(--ink); text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
 .here-dot { width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: #2b7bd9; border: 2px solid #fff; box-shadow: 0 0 0 4px rgba(43, 123, 217, 0.25); }
 .new-pin { width: 24px; height: 32px; background: var(--vermillion); clip-path: path('M12 32C12 32 0 18 0 12a12 12 0 0 1 24 0c0 6-12 20-12 20z'); }
+.location-note { margin-top: 6px; text-align: center; line-height: 1.7; }
+.location-note .text-btn { margin-left: 8px; }
 .place-actions { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; }
 
 /* 写真のタグ */
