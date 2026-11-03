@@ -43,7 +43,7 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 | [`supabase/upgrade-timeline.sql`](supabase/upgrade-timeline.sql) | 「みんなの参拝」タブのタイムライン（全国の公開記録）と、ご意見・ご要望の画面「みんなの参拝」。`upgrade-nickname.sql` を先に実行しておく。アプリの更新より先に実行する |
 | [`supabase/upgrade-request-visit.sql`](supabase/upgrade-request-visit.sql) | 「記録する」の地図から申請した神社が承認されたら、申請した人の参拝記録（現地で記録）を作る。アプリの更新より先に実行する |
 | [`supabase/upgrade-delete-shrine.sql`](supabase/upgrade-delete-shrine.sql) | 管理者が神社詳細から神社を完全に削除する（参拝記録・写真・情報提供ごと）。アプリの更新より先に実行する |
-| [`supabase/upgrade-photo-books.sql`](supabase/upgrade-photo-books.sql) | 「みんなの参拝」の御朱印帳・鳥居帳・狛犬帳（みんなの公開写真をタグごとに見る）。`upgrade-nickname.sql` を先に実行しておく。アプリの更新より先に実行する |
+| [`supabase/upgrade-photo-books.sql`](supabase/upgrade-photo-books.sql) | 「みんなの参拝」の御朱印帳・鳥居帳・狛犬帳（みんなの公開写真をタグごとに見る。自分の公開記録の写真も出す）。以前に実行したプロジェクトも、もう一度実行する。`upgrade-nickname.sql` を先に実行しておく。アプリの更新より先に実行する |
 | [`supabase/upgrade-index-cleanup.sql`](supabase/upgrade-index-cleanup.sql) | 「神社一覧を更新する」で古い一覧ファイルを消す（新しい方から2つは残す）。たまった古いファイルは、実行後に一度「神社一覧を更新する」を押すと消える |
 | [`supabase/upgrade-import-details.sql`](supabase/upgrade-import-details.sql) | 神社詳細の「本殿の様式」と、取り込みで Wikipedia の神社の表から創建・例祭・本殿の様式を入れる。`upgrade-shrine-details.sql` を先に実行しておく。アプリの更新より先に実行する。実行後に取り込みをやり直すと空欄が埋まる（[`scripts/README.md`](scripts/README.md) の「空欄を埋め直す」） |
 | [`supabase/upgrade-shrine-emotion.sql`](supabase/upgrade-shrine-emotion.sql) | 神社詳細の「感動の平均」（公開記録から神社ごとに計算）と、自分の記録の「情報を追加・訂正した神社」の数。アプリの更新より先に実行する |

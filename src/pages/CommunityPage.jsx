@@ -64,7 +64,7 @@ function TimelineRow({ item, url, onClick }) {
   )
 }
 
-// 御朱印帳など：みんなの公開記録の写真のうち、そのタグのもの（自分の写真は除く）
+// 御朱印帳など：みんなの公開記録の写真のうち、そのタグのもの（自分の公開記録の写真も出す）
 function PublicBook({ tag }) {
   const [rows, setRows] = useState(null)
   const [hasMore, setHasMore] = useState(false)

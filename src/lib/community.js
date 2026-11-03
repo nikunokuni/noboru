@@ -44,7 +44,7 @@ export async function fetchPublicTimeline({ limit = 30, offset = 0 } = {}) {
   return data
 }
 
-// 御朱印帳など：公開記録の写真のうち、そのタグのもの（参拝日の新しい順。自分の写真は除く）
+// 御朱印帳など：公開記録の写真のうち、そのタグのもの（参拝日の新しい順。自分の公開記録の写真も出す）
 // [{ path, shrine_id, shrine_name, visited_on, author }]
 export async function fetchPublicPhotosByTag(tag, { limit = 60, offset = 0 } = {}) {
   const { data, error } = await supabase.rpc('get_public_photos_by_tag', { photo_tag: tag, max_rows: limit, skip: offset })

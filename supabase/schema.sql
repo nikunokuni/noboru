@@ -627,14 +627,13 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
 $$;
 
 -- 神社の写真（公開記録のものだけ・新しい順）
--- 御朱印帳など：公開記録の写真のうち、そのタグのもの（参拝日の新しい順）。見ている人自身の写真は除く
+-- 御朱印帳など：公開記録の写真のうち、そのタグのもの（参拝日の新しい順）。見ている人自身の公開記録の写真も出す
 CREATE OR REPLACE FUNCTION get_public_photos_by_tag(photo_tag TEXT, max_rows INT DEFAULT 60, skip INT DEFAULT 0)
 RETURNS TABLE (path TEXT, shrine_id BIGINT, shrine_name TEXT, visited_on DATE, author TEXT)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT p.path, s.id, s.name, r.visited_on, display_name(r.user_id)
   FROM photos p JOIN records r ON r.id = p.record_id JOIN shrines s ON s.id = r.shrine_id
   WHERE p.tag = photo_tag AND r.is_public AND s.status = 'active'
-    AND r.user_id IS DISTINCT FROM auth.uid()
   ORDER BY r.visited_on DESC, p.created_at DESC, p.path
   LIMIT LEAST(GREATEST(max_rows, 1), 100) OFFSET GREATEST(skip, 0);
 $$;
