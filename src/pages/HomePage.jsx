@@ -25,6 +25,9 @@ function RecentVisitors() {
   return <p className="quiet-count">この30日で、全国 {count.toLocaleString()}人 が参拝しています</p>
 }
 
+// 近い順の一覧に出す数（誤差が大きく地図を広げると、街なかでは何百社にもなるので）
+const LIST_MAX = 50
+
 // 誤差がこれより大きいと、地図が神社からずれていることが多い
 const ROUGH_ACCURACY_M = 300
 
@@ -159,7 +162,8 @@ export default function HomePage() {
             <div className="section-mini">近い順</div>
             {!index && <p className="muted small">{status === 'unavailable' ? '神社一覧を取得できませんでした' : '神社一覧を準備中…'}</p>}
             {index && shrines.length === 0 && <p className="muted small">このあたりに登録された神社はありません</p>}
-            {shrines.map((s) => <ShrineRow key={s.id} item={s} onClick={() => pick(s)} right={formatDistance(s.distance)} />)}
+            {shrines.slice(0, LIST_MAX).map((s) => <ShrineRow key={s.id} item={s} onClick={() => pick(s)} right={formatDistance(s.distance)} />)}
+            {shrines.length > LIST_MAX && <p className="muted small center mt8">近い{LIST_MAX}社まで出しています（ほか{shrines.length - LIST_MAX}社は地図の点を押す）</p>}
           </div>
         )}
       </div>

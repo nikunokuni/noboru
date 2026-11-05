@@ -5,17 +5,25 @@ import React, { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
-function shrineIcon(shrine) {
+// 神社が多いと名前が重なって読めないので、名前は近い順にこの数と☆の神社だけに出す（ほかは点だけ）
+const LABEL_MAX = 12
+
+// 神社がこれより多いときは、点を小さくする
+const SMALL_PIN_FROM = 60
+
+function shrineIcon(shrine, showLabel, small) {
   const el = document.createElement('div')
-  el.className = 'nearby-pin'
+  el.className = small ? 'nearby-pin small' : 'nearby-pin'
   const dot = document.createElement('span')
   dot.className = `pin pin-${shrine.visited ? 'visited' : 'nobody'}`
   const label = document.createElement('span')
   label.className = 'nearby-pin-label'
   label.textContent = shrine.wish ? `★ ${shrine.name}` : shrine.name
   if (shrine.wish) label.classList.add('wish')
-  el.append(dot, label)
-  return L.divIcon({ html: el, className: '', iconSize: [16, 16], iconAnchor: [8, 8] })
+  el.append(dot)
+  if (showLabel) el.append(label)
+  const size = small ? 10 : 16
+  return L.divIcon({ html: el, className: '', iconSize: [size, size], iconAnchor: [size / 2, size / 2] })
 }
 
 const hereIcon = L.divIcon({ html: '<div class="here-dot"></div>', className: '', iconSize: [14, 14], iconAnchor: [7, 7] })
@@ -103,11 +111,12 @@ export default function NearbyMap({ position, accuracy, bounds, shrines, onPick,
   useEffect(() => {
     const layer = shrineLayer.current
     layer.clearLayers()
-    for (const s of shrines) {
-      const m = L.marker([s.lat, s.lng], { icon: shrineIcon(s), title: s.name, interactive: !placing, keyboard: !placing })
+    // shrines は近い順に並んでいる
+    shrines.forEach((s, i) => {
+      const m = L.marker([s.lat, s.lng], { icon: shrineIcon(s, i < LABEL_MAX || s.wish, shrines.length > SMALL_PIN_FROM), title: s.name, interactive: !placing, keyboard: !placing })
       m.on('click', () => handlers.current.onPick(s))
       m.addTo(layer)
-    }
+    })
   }, [shrines, placing])
 
   // 申請用のピン

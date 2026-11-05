@@ -262,6 +262,9 @@ a { color: inherit; }
 .nearby-map-hint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(245, 240, 232, 0.95); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-family: var(--font-mincho); letter-spacing: 0.08em; z-index: 600; box-shadow: 0 2px 8px rgba(26, 18, 8, 0.15); white-space: nowrap; pointer-events: none; }
 .nearby-pin { position: relative; width: 16px; height: 16px; }
 .nearby-pin .pin { position: absolute; inset: 0; box-sizing: border-box; }
+.nearby-pin.small { width: 10px; height: 10px; }
+.nearby-pin.small .pin { border-width: 1px; }
+.nearby-pin.small .nearby-pin-label { left: 12px; }
 .nearby-pin-label { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-family: var(--font-mincho); font-size: 11px; font-weight: 600; color: var(--ink); text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
 .here-dot { width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: #2b7bd9; border: 2px solid #fff; box-shadow: 0 0 0 4px rgba(43, 123, 217, 0.25); }
 .new-pin { width: 24px; height: 32px; background: var(--vermillion); clip-path: path('M12 32C12 32 0 18 0 12a12 12 0 0 1 24 0c0 6-12 20-12 20z'); }
