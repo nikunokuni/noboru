@@ -198,6 +198,20 @@ export async function signedPhotoUrls(paths) {
 }
 
 // 自分が参拝した神社のID（マップ・称号用）。未送信分も含める
+// 行きたい神社（本人だけが読み書きできる）
+export async function fetchMyWishIds(userId) {
+  const { data, error } = await supabase.from('wishes').select('shrine_id').eq('user_id', userId)
+  if (error) throw error
+  return data.map((r) => r.shrine_id)
+}
+
+export async function setWish({ userId, shrineId, on }) {
+  const { error } = on
+    ? await supabase.from('wishes').upsert({ user_id: userId, shrine_id: shrineId }, { ignoreDuplicates: true })
+    : await supabase.from('wishes').delete().eq('user_id', userId).eq('shrine_id', shrineId)
+  if (error) throw error
+}
+
 export async function fetchMyShrineIds(userId) {
   const { data, error } = await supabase.from('records').select('shrine_id').eq('user_id', userId)
   if (error) throw error

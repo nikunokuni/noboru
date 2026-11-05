@@ -204,6 +204,14 @@ CREATE TABLE prayers (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 行きたい神社（神社詳細で印を付け、マップで絞り込む。本人だけが読み書きできる。管理者も読めない）
+CREATE TABLE wishes (
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  shrine_id  BIGINT NOT NULL REFERENCES shrines(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, shrine_id)
+);
+
 -- ============================================================
 -- 4. 参拝の手引き（note 記事へのリンク）
 --    context: 'general'=マイページ一覧 / 'etiquette'=記録画面 / 'goshuin'=御朱印欄 など
@@ -738,6 +746,7 @@ ALTER TABLE banned_editors       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE prayers              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wishes               ENABLE ROW LEVEL SECURITY;
 
 -- 神社：誰でも読める。書き込みは取り込み処理（service_role）とトリガーのみ
 CREATE POLICY shrines_read ON shrines FOR SELECT USING (status = 'active');
@@ -784,6 +793,10 @@ CREATE POLICY profiles_update ON profiles FOR UPDATE USING (auth.uid() = user_id
 
 -- 神社でお祈りしたいこと：本人のみ
 CREATE POLICY prayers_owner ON prayers FOR ALL
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+-- 行きたい神社：本人のみ
+CREATE POLICY wishes_owner ON wishes FOR ALL
   USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 -- ご意見・ご要望：ログインユーザーが送れる（止められたユーザーを除く）。読む・対応済みにするのは管理者だけ

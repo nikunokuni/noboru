@@ -9,7 +9,7 @@ import ShrineRow from '../components/ShrineRow'
 import { useAuth } from '../hooks/useAuth'
 import { useShrineIndex } from '../hooks/useShrineIndex'
 import { usePendingRecords } from '../hooks/usePendingRecords'
-import { fetchMyShrineIds } from '../lib/records'
+import { fetchMyShrineIds, fetchMyWishIds } from '../lib/records'
 import { getCurrentPosition } from '../lib/geo'
 import { getItem, searchPositions } from '../lib/indexCore'
 import { serverSearch } from '../lib/shrineIndex'
@@ -21,6 +21,7 @@ const MODES = [
   { key: 'mine', label: '自分の参拝' },
   { key: 'notmine', label: '未参拝' },
   { key: 'nobody', label: 'まだ誰も' },
+  { key: 'wish', label: '行きたい' },
 ]
 
 const JAPAN = { center: [36.5, 138.0], zoom: 5 }
@@ -109,6 +110,13 @@ export default function MapPage() {
     fetchMyShrineIds(user.id).then(setServerIds).catch(() => {})
   }, [user, syncRevision])
 
+  // 行きたい神社。神社詳細で変えてから戻ってくると、開き直すので読み直される
+  const [wishIds, setWishIds] = useState(() => new Set())
+  useEffect(() => {
+    if (!user) { setWishIds(new Set()); return }
+    fetchMyWishIds(user.id).then((ids) => setWishIds(new Set(ids.map(Number)))).catch(() => {})
+  }, [user])
+
   const myIds = useMemo(() => new Set([...serverIds, ...pending.map((p) => p.shrine_id)].map(Number)), [serverIds, pending])
 
   // 地図の初期化
@@ -139,11 +147,13 @@ export default function MapPage() {
   const include = useMemo(() => {
     if (!index) return null
     const ids = index.raw.id
-    const mineTest = mode === 'mine' ? (i) => myIds.has(ids[i]) : mode === 'notmine' ? (i) => !myIds.has(ids[i]) : null
+    const mineTest = mode === 'mine' ? (i) => myIds.has(ids[i])
+      : mode === 'notmine' ? (i) => !myIds.has(ids[i])
+        : mode === 'wish' ? (i) => wishIds.has(ids[i]) : null
     const tagTest = tagFilter(index, tags)
     if (mineTest && tagTest) return (i) => mineTest(i) && tagTest(i)
     return mineTest || tagTest
-  }, [index, mode, myIds, tags])
+  }, [index, mode, myIds, wishIds, tags])
   const active = Boolean(query.trim() || prefecture || mode !== 'all' || tagCount)
 
   // 条件に合う神社の一覧の位置（全件。地図に出す）
@@ -267,6 +277,9 @@ export default function MapPage() {
           )}
           {!placing && index && mode === 'mine' && myIds.size === 0 && (
             <div className="map-overlay">{user ? 'まだ参拝の記録がありません' : 'ログインすると自分の参拝が表示されます'}</div>
+          )}
+          {!placing && index && mode === 'wish' && wishIds.size === 0 && (
+            <div className="map-overlay">{user ? '神社詳細の「☆ 行きたい」で入れられます' : 'ログインすると行きたい神社が表示されます'}</div>
           )}
         </div>
         <SplitHandle containerRef={splitEl} onChange={changeSplit} onEnd={() => saveSplit(splitRef.current)} />

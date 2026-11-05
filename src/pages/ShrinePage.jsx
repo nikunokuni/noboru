@@ -13,6 +13,7 @@ import { useShrineIndex } from '../hooks/useShrineIndex'
 import { useToast } from '../hooks/useToast'
 import { deleteShrine, fetchIsAdmin, rebuildShrineIndex } from '../lib/admin'
 import { fetchMyRecordsForShrine, fetchPublicRecords, fetchShrine } from '../lib/community'
+import { fetchMyWishIds, setWish } from '../lib/records'
 import { formatDistance, walkMinutes } from '../lib/geo'
 import { formatDate, placeLabel, websiteLabel, websiteUrl } from '../lib/format'
 import { normalizeDeities } from '../lib/deities'
@@ -95,6 +96,31 @@ export default function ShrinePage() {
   const [deleting, setDeleting] = useState(null)
   const { refreshIndex } = useShrineIndex()
   const { showToast } = useToast()
+  // 行きたい神社の印（null は読み込み中・未ログイン）
+  const [wish, setWishState] = useState(null)
+  const [wishSaving, setWishSaving] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    setWishState(null)
+    if (user) fetchMyWishIds(user.id).then((ids) => alive && setWishState(ids.map(Number).includes(Number(id)))).catch(() => {})
+    return () => { alive = false }
+  }, [id, user])
+
+  const toggleWish = async () => {
+    if (!user) { showToast('ログインすると「行きたい」に入れられます'); return }
+    if (wish === null) return
+    setWishSaving(true)
+    try {
+      await setWish({ userId: user.id, shrineId: Number(id), on: !wish })
+      showToast(wish ? '「行きたい」から外しました' : '「行きたい」に入れました。マップで絞り込めます')
+      setWishState(!wish)
+    } catch {
+      showToast('保存できませんでした。電波の届く場所でお試しください')
+    } finally {
+      setWishSaving(false)
+    }
+  }
 
   useEffect(() => {
     let alive = true
@@ -160,6 +186,10 @@ export default function ShrinePage() {
 
         <div className="action-row">
           <button className="btn-primary" onClick={() => navigate(`/record/${shrine.id}`)}>ここを記録する</button>
+          <button type="button" className={`btn-secondary mt8 wish-btn ${wish ? 'on' : ''}`} aria-pressed={!!wish}
+            onClick={toggleWish} disabled={wishSaving || (user && wish === null)}>
+            {wish ? '★ 行きたい（外す）' : '☆ 行きたい'}
+          </button>
           <ShareButtons className="mt8" url={shareUrl(`/shrine/${shrine.id}`)} text={`⛩ ${shrine.name}（${placeLabel(shrine)}）`} />
         </div>
 
