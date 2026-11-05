@@ -1,4 +1,4 @@
-import { PREFECTURES, WALK_M_PER_MIN } from './constants.js'
+import { NEARBY_HALF_M, NEARBY_MAX_HALF_M, PREFECTURES, WALK_M_PER_MIN } from './constants.js'
 
 const R = 6371000
 
@@ -36,6 +36,13 @@ export function getCurrentPosition({ timeout = 20000, maximumAge = 60000 } = {})
       { enableHighAccuracy: true, timeout, maximumAge },
     )
   })
+}
+
+// 「記録する」の地図の範囲（現在地から東西南北それぞれの距離 m）
+// 誤差（accuracy）が大きいときは、誤差の円が入るまで広げる。誤差がわからない（地図で直した）ときはいつもの広さ
+export function nearbyHalfM(accuracy) {
+  if (!accuracy) return NEARBY_HALF_M
+  return Math.min(NEARBY_MAX_HALF_M, Math.max(NEARBY_HALF_M, Math.round(accuracy * 1.2)))
 }
 
 // 中心から東西南北に halfM ずつの四角（[[南, 西], [北, 東]]）

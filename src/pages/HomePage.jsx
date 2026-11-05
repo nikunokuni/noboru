@@ -1,5 +1,6 @@
 // 記録する（ホーム）：参拝したときにさっと記録するための画面
-// 現在地のまわり約2km四方の地図と、近い順の一覧。押すと記録画面へ
+// 現在地のまわり約2km四方（誤差が大きいときは広げる）の地図と、近い順の一覧。押すと記録画面へ
+// GPS がずれるときは「地図で直す」で、いまいる場所を地図で押して直せる
 import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import ShrineRow from '../components/ShrineRow'
@@ -8,9 +9,9 @@ import { useShrineIndex } from '../hooks/useShrineIndex'
 import { useWishes } from '../hooks/useWishes'
 import { GOOD_ACCURACY_M, useLivePosition } from '../hooks/useLivePosition'
 import { nearbyIndex } from '../lib/indexCore'
-import { formatDistance, inBounds, squareBounds } from '../lib/geo'
+import { formatDistance, inBounds, nearbyHalfM, squareBounds } from '../lib/geo'
 import { fetchAppStats } from '../lib/community'
-import { NEARBY_HALF_M } from '../lib/constants'
+import { NEARBY_MAX_HALF_M } from '../lib/constants'
 
 // 地図ライブラリは大きいので、現在地が取れてから読み込む
 const NearbyMap = lazy(() => import('../components/NearbyMap'))
@@ -27,20 +28,32 @@ function RecentVisitors() {
 // 誤差がこれより大きいと、地図が神社からずれていることが多い
 const ROUGH_ACCURACY_M = 300
 
-// 地図の下に、いまの位置の確かさ。おおまかなら、端末の設定を案内する
-function LocationNote({ position, locating, onRefresh }) {
+// 地図の下に、いまの位置の確かさ。ずれているときは「地図で直す」で、いまいる場所を押して直せる
+function LocationNote({ position, locating, onRefresh, onFix }) {
+  if (position.manual) {
+    return (
+      <div className="location-note">
+        <p className="muted small">
+          地図で直した現在地
+          <button type="button" className="text-btn small" onClick={onFix}>直し直す</button>
+          <button type="button" className="text-btn small" onClick={onRefresh}>GPS に戻す</button>
+        </p>
+      </div>
+    )
+  }
   const rough = position.accuracy > ROUGH_ACCURACY_M
   return (
     <div className="location-note">
       <p className="muted small">
         {locating && position.accuracy > GOOD_ACCURACY_M ? '現在地を確認中…' : '現在地'}（誤差 約{formatDistance(position.accuracy)}）
         <button type="button" className="text-btn small" onClick={onRefresh}>測り直す</button>
+        <button type="button" className="text-btn small" onClick={onFix}>地図で直す</button>
       </p>
       {rough && !locating && (
         <p className="muted small">
-          位置がおおまかです。空の見える場所で「測り直す」を押してください。
-          iPhone は「設定 › プライバシーとセキュリティ › 位置情報サービス」で、使っているブラウザ（Safari など）の「正確な位置情報」をオンに。
-          Android は位置情報の設定で「Google 位置情報の精度」をオンにすると正確になります
+          位置がおおまかなので、地図を広めに出しています。
+          ずれているときは「地図で直す」で、いまいる場所を押してください。
+          空の見える場所で「測り直す」を押すと、正確になることもあります
         </p>
       )}
     </div>
@@ -51,26 +64,42 @@ export default function HomePage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const { index, status, revision } = useShrineIndex()
-  const { position, locating, denied, refresh } = useLivePosition()
-  // マップにない神社の申請：地図を押してピンを立てる
-  const [placing, setPlacing] = useState(false)
+  const live = useLivePosition()
+  // 「地図で直す」で押した現在地。GPS より優先する。「GPS に戻す」・アプリを開き直すと消える
+  const [manual, setManual] = useState(null)
+  const position = manual || live.position
+  const { locating, denied } = live
+  const refresh = () => { setManual(null); live.refresh() }
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') setManual(null) }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
+  // 地図を押してピンを立てる：'request'（マップにない神社の申請）／'fix'（現在地を地図で直す）
+  const [placing, setPlacing] = useState(null)
   const [newPin, setNewPin] = useState(null)
 
   // ピンを置いている間は、位置が更新されても地図を動かさない
+  // 現在地を直すときは、本当の場所が入るように広めに出す
   const [frozen, setFrozen] = useState(null)
   const center = placing && frozen ? frozen : position
-  const bounds = useMemo(() => (center ? squareBounds(center.lat, center.lng, NEARBY_HALF_M) : null), [center])
+  const halfM = nearbyHalfM(center?.accuracy)
+  const bounds = useMemo(
+    () => (center ? squareBounds(center.lat, center.lng, placing === 'fix' ? Math.min(halfM * 2, NEARBY_MAX_HALF_M) : halfM) : null),
+    [center, placing, halfM],
+  )
 
   // 四角の角まで含めて探し、四角の中だけ残す
   // ☆を付けた神社は地図の名前に★を付ける（参拝しに来たときに見つけやすく）
   const { ids: wishIds } = useWishes()
   const shrines = useMemo(
     () => (index && position
-      ? nearbyIndex(index, position.lat, position.lng, { radiusM: NEARBY_HALF_M * Math.SQRT2, limit: Infinity })
+      ? nearbyIndex(index, position.lat, position.lng, { radiusM: halfM * Math.SQRT2, limit: Infinity })
         .filter((s) => inBounds(bounds, s.lat, s.lng))
         .map((s) => ({ ...s, wish: wishIds.has(Number(s.id)) }))
       : []),
-    [index, revision, position, bounds, wishIds],
+    [index, revision, position, bounds, halfM, wishIds],
   )
 
   // 以前の「/?shrine=ID」（記録画面がホームだったころ）のリンク
@@ -78,9 +107,10 @@ export default function HomePage() {
   if (legacy) return <Navigate to={`/record/${legacy}`} replace />
 
   const pick = (s) => navigate(`/record/${s.id}`)
-  const startPlacing = () => { setFrozen(position); setNewPin({ lat: position.lat, lng: position.lng }); setPlacing(true) }
-  const cancelPlacing = () => { setPlacing(false); setNewPin(null) }
+  const startPlacing = (kind) => { setFrozen(position); setNewPin({ lat: position.lat, lng: position.lng }); setPlacing(kind) }
+  const cancelPlacing = () => { setPlacing(null); setNewPin(null) }
   const request = () => navigate(`/request?lat=${newPin.lat.toFixed(6)}&lng=${newPin.lng.toFixed(6)}`)
+  const fix = () => { setManual({ lat: newPin.lat, lng: newPin.lng, accuracy: null, manual: true }); cancelPlacing() }
 
   return (
     <div className="app-shell">
@@ -96,10 +126,10 @@ export default function HomePage() {
             <Suspense fallback={<div className="nearby-map"><div className="spinner" /></div>}>
               <NearbyMap
                 position={position} accuracy={position.accuracy} bounds={bounds} shrines={shrines} onPick={pick}
-                placing={placing} newPin={newPin} onPlace={(ll) => setNewPin({ lat: ll.lat, lng: ll.lng })}
+                placing={!!placing} newPin={newPin} onPlace={(ll) => setNewPin({ lat: ll.lat, lng: ll.lng })}
               />
             </Suspense>
-            {placing && <div className="nearby-map-hint">拡大して、神社の場所をタップ</div>}
+            {placing && <div className="nearby-map-hint">{placing === 'fix' ? '拡大して、いまいる場所をタップ' : '拡大して、神社の場所をタップ'}</div>}
           </div>
         ) : (
           <div className="nearby-map nearby-map-empty">
@@ -111,15 +141,17 @@ export default function HomePage() {
           </div>
         )}
 
-        {position && !placing && <LocationNote position={position} locating={locating} onRefresh={refresh} />}
+        {position && !placing && <LocationNote position={position} locating={locating} onRefresh={refresh} onFix={() => startPlacing('fix')} />}
 
         {position && (placing ? (
           <div className="place-actions">
-            <button type="button" className="btn-primary" onClick={request}>この場所で申請する</button>
+            {placing === 'fix'
+              ? <button type="button" className="btn-primary" onClick={fix}>ここにいる</button>
+              : <button type="button" className="btn-primary" onClick={request}>この場所で申請する</button>}
             <button type="button" className="text-btn" onClick={cancelPlacing}>やめる</button>
           </div>
         ) : (
-          <button type="button" className="btn-secondary mt8" onClick={startPlacing}>マップにない神社を申請する</button>
+          <button type="button" className="btn-secondary mt8" onClick={() => startPlacing('request')}>マップにない神社を申請する</button>
         ))}
 
         {position && !placing && (

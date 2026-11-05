@@ -16,6 +16,8 @@ export const prefectureIso = (index) => `JP-${String(index + 1).padStart(2, '0')
 // 「記録する」のマップに出す範囲（現在地から東西南北それぞれの距離 m。約2km四方）
 // この範囲に入る神社の記録には「現地で記録」の印を付ける
 export const NEARBY_HALF_M = 1000
+// 現在地の誤差が大きいときは、本当の場所の神社が入るように範囲を広げる（この距離まで。約10km四方）
+export const NEARBY_MAX_HALF_M = 5000
 
 // 徒歩の目安（m/分）
 export const WALK_M_PER_MIN = 80

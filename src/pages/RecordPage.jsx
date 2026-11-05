@@ -11,12 +11,12 @@ import { MemoFields, VisibilityPicker } from '../components/MemoFields'
 import { GuideInlineLink } from '../components/GuideLinks'
 import PhotoTagger from '../components/PhotoTagger'
 import { compressImage } from '../lib/imageCompress'
-import { distanceM, formatDistance, inBounds, squareBounds } from '../lib/geo'
+import { distanceM, formatDistance, inBounds, nearbyHalfM, squareBounds } from '../lib/geo'
 import { useLivePosition } from '../hooks/useLivePosition'
 import { getById } from '../lib/indexCore'
 import { serverGetShrineItem } from '../lib/shrineIndex'
 import { placeLabel, todayStr } from '../lib/format'
-import { DEFAULT_PHOTO_TAG, MAX_PHOTOS, NEARBY_HALF_M } from '../lib/constants'
+import { DEFAULT_PHOTO_TAG, MAX_PHOTOS } from '../lib/constants'
 
 const emptyForm = () => ({
   visitedOn: todayStr(), emotion: 50,
@@ -105,9 +105,10 @@ export default function RecordPage() {
   const save = async (photos) => {
     setSaving(true)
     try {
-      // 「記録する」の地図（現在地のまわり約2km四方）に入る神社なら現地とみなす。GPSの誤差を見込んで広めにしている
+      // 「記録する」の地図（現在地のまわり約2km四方。誤差が大きいときは広げる）に入る神社なら現地とみなす
+      // 判定は GPS の位置だけで行う（記録するの地図で手で直した位置は使わない）
       const onsite = !!position && form.visitedOn === todayStr()
-        && inBounds(squareBounds(position.lat, position.lng, NEARBY_HALF_M), shrine.lat, shrine.lng)
+        && inBounds(squareBounds(position.lat, position.lng, nearbyHalfM(position.accuracy)), shrine.lat, shrine.lng)
       await addRecord({
         id: crypto.randomUUID(),
         user_id: user.id,

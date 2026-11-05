@@ -53,7 +53,11 @@ export default function NearbyMap({ position, accuracy, bounds, shrines, onPick,
       if (!placingRef.current) map.fitBounds(boundsRef.current, { animate: false })
     })
     ro.observe(mapEl.current)
-    return () => { ro.disconnect(); map.remove(); mapRef.current = null }
+    return () => {
+      ro.disconnect(); map.remove(); mapRef.current = null
+      // 消した地図の印を使い回さない（作り直した地図に出なくなるので）
+      hereMarker.current = null; hereCircle.current = null; newPinMarker.current = null; zoomControl.current = null
+    }
   }, [])
 
   // 表示範囲と現在地
