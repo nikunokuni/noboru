@@ -219,6 +219,18 @@ a { color: inherit; }
 .tag-group-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .tag-more { font-size: 11px; padding: 5px 4px; }
 .tag-note { flex-basis: 100%; margin: 0; font-size: 10px; }
+.wish-star { flex: none; width: 36px; height: 36px; background: none; border: none; font-size: 18px; line-height: 1; color: var(--mist); cursor: pointer; padding: 0; }
+.wish-star.on { color: var(--vermillion); }
+.shrine-row-wrap, .timeline-row-wrap { display: flex; align-items: center; border-bottom: 1px solid rgba(26, 18, 8, 0.07); }
+.shrine-row-wrap .shrine-row, .timeline-row-wrap .timeline-row { flex: 1; min-width: 0; border-bottom: none; }
+.shrine-row-wrap .wish-star { margin-left: -6px; }
+.map-popup-actions { display: flex; align-items: center; gap: 6px; }
+.map-popup-star { width: 30px; height: 30px; }
+.pin { position: relative; }
+.pin-star { position: absolute; top: -9px; right: -9px; font-size: 11px; line-height: 1; color: var(--vermillion); text-shadow: 0 0 2px #fff, 0 0 2px #fff; }
+.nearby-pin-label.wish { color: var(--vermillion); }
+.book-lightbox-star { width: 28px; height: 24px; vertical-align: middle; }
+.book-lightbox-info .wish-star:not(.on) { color: inherit; opacity: 0.8; }
 .wish-btn { font-size: 18px; letter-spacing: 0; padding: 8px; }
 .wish-btn.on { color: var(--vermillion); border-color: var(--vermillion); }
 .map-request-btn { position: absolute; bottom: 28px; left: 12px; z-index: 600; background: rgba(245, 240, 232, 0.95); border: 1px solid var(--line); border-radius: 20px; padding: 8px 14px; font-size: 12px; font-family: var(--font-mincho); letter-spacing: 0.08em; color: var(--ink); box-shadow: 0 2px 8px rgba(26, 18, 8, 0.15); cursor: pointer; }

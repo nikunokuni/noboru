@@ -5,6 +5,7 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import ShrineRow from '../components/ShrineRow'
 import TodayShrine from '../components/TodayShrine'
 import { useShrineIndex } from '../hooks/useShrineIndex'
+import { useWishes } from '../hooks/useWishes'
 import { GOOD_ACCURACY_M, useLivePosition } from '../hooks/useLivePosition'
 import { nearbyIndex } from '../lib/indexCore'
 import { formatDistance, inBounds, squareBounds } from '../lib/geo'
@@ -61,12 +62,15 @@ export default function HomePage() {
   const bounds = useMemo(() => (center ? squareBounds(center.lat, center.lng, NEARBY_HALF_M) : null), [center])
 
   // 四角の角まで含めて探し、四角の中だけ残す
+  // ☆を付けた神社は地図の名前に★を付ける（参拝しに来たときに見つけやすく）
+  const { ids: wishIds } = useWishes()
   const shrines = useMemo(
     () => (index && position
       ? nearbyIndex(index, position.lat, position.lng, { radiusM: NEARBY_HALF_M * Math.SQRT2, limit: Infinity })
         .filter((s) => inBounds(bounds, s.lat, s.lng))
+        .map((s) => ({ ...s, wish: wishIds.has(Number(s.id)) }))
       : []),
-    [index, revision, position, bounds],
+    [index, revision, position, bounds, wishIds],
   )
 
   // 以前の「/?shrine=ID」（記録画面がホームだったころ）のリンク

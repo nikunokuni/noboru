@@ -9,7 +9,8 @@ import ShrineRow from '../components/ShrineRow'
 import { useAuth } from '../hooks/useAuth'
 import { useShrineIndex } from '../hooks/useShrineIndex'
 import { usePendingRecords } from '../hooks/usePendingRecords'
-import { fetchMyShrineIds, fetchMyWishIds } from '../lib/records'
+import { fetchMyShrineIds } from '../lib/records'
+import { useWishes } from '../hooks/useWishes'
 import { getCurrentPosition } from '../lib/geo'
 import { getItem, searchPositions } from '../lib/indexCore'
 import { serverSearch } from '../lib/shrineIndex'
@@ -54,7 +55,10 @@ const clusterIcon = (count, mode) => {
   })
 }
 
-const pinIcon = (kind) => L.divIcon({ html: `<div class="pin pin-${kind}"></div>`, className: '', iconSize: [16, 16] })
+// ☆を付けた神社は、ピンに小さな★を重ねる
+const pinIcon = (kind, wish) => L.divIcon({
+  html: `<div class="pin pin-${kind}">${wish ? '<span class="pin-star">★</span>' : ''}</div>`, className: '', iconSize: [16, 16],
+})
 
 // 地図と検索の間のバー。指で上下に動かす
 function SplitHandle({ containerRef, onChange, onEnd }) {
@@ -110,12 +114,12 @@ export default function MapPage() {
     fetchMyShrineIds(user.id).then(setServerIds).catch(() => {})
   }, [user, syncRevision])
 
-  // 行きたい神社。神社詳細で変えてから戻ってくると、開き直すので読み直される
-  const [wishIds, setWishIds] = useState(() => new Set())
-  useEffect(() => {
-    if (!user) { setWishIds(new Set()); return }
-    fetchMyWishIds(user.id).then((ids) => setWishIds(new Set(ids.map(Number)))).catch(() => {})
-  }, [user])
+  // ☆（行きたい神社）。ピンの描き直しでは最新のものを読む（☆を押すたびに描き直すと吹き出しが閉じるので）
+  const wishes = useWishes()
+  // ☆で絞り込んでいるときだけ、☆の変化で絞り込みをやり直す
+  const wishIds = mode === 'wish' ? wishes.ids : null
+  const wishRef = useRef(wishes)
+  wishRef.current = wishes
 
   const myIds = useMemo(() => new Set([...serverIds, ...pending.map((p) => p.shrine_id)].map(Number)), [serverIds, pending])
 
@@ -134,7 +138,8 @@ export default function MapPage() {
     map.once('movestart', () => { moved = true })
     getCurrentPosition({ timeout: 10000 }).then((p) => {
       // 先にユーザーが地図を動かしていたら、現在地へは飛ばない
-      if (p && mapRef.current && !moved) map.setView([p.lat, p.lng], 13)
+      // 位置が届く前に画面を離れて開き直したときは、前の（消した）地図は動かさない
+      if (p && mapRef.current === map && !moved) map.setView([p.lat, p.lng], 13)
     })
     // 地図の広さが変わったら（バーを動かした・画面の向き）、表示を合わせる
     const ro = new ResizeObserver(() => map.invalidateSize({ pan: false }))
@@ -149,7 +154,7 @@ export default function MapPage() {
     const ids = index.raw.id
     const mineTest = mode === 'mine' ? (i) => myIds.has(ids[i])
       : mode === 'notmine' ? (i) => !myIds.has(ids[i])
-        : mode === 'wish' ? (i) => wishIds.has(ids[i]) : null
+        : wishIds ? (i) => wishIds.has(ids[i]) : null
     const tagTest = tagFilter(index, tags)
     if (mineTest && tagTest) return (i) => mineTest(i) && tagTest(i)
     return mineTest || tagTest
@@ -238,15 +243,34 @@ export default function MapPage() {
           btn.className = 'map-popup-btn'
           btn.textContent = '詳しく見る'
           btn.onclick = () => navigate(`/shrine/${r.id[i]}`)
-          popup.append(title, sub, btn)
-          L.marker([lat, lng], { icon: pinIcon(pin) }).bindPopup(popup).addTo(layer)
+          // ☆：吹き出しから付け外しする。押したらボタンとピンの★をその場で変える
+          const shrineId = r.id[i]
+          const star = document.createElement('button')
+          const wishOn = () => wishRef.current.ids.has(Number(shrineId))
+          const paint = (on) => {
+            star.className = `wish-star map-popup-star ${on ? 'on' : ''}`
+            star.textContent = on ? '★' : '☆'
+            star.setAttribute('aria-label', on ? '☆を外す' : '☆を付ける')
+          }
+          paint(wishOn())
+          const actions = document.createElement('div')
+          actions.className = 'map-popup-actions'
+          actions.append(btn, star)
+          popup.append(title, sub, actions)
+          const marker = L.marker([lat, lng], { icon: pinIcon(pin, wishOn()) }).bindPopup(popup).addTo(layer)
+          star.onclick = async () => {
+            const was = wishOn()
+            await wishRef.current.toggle(shrineId)
+            const now = wishOn()
+            if (now !== was) { paint(now); marker.setIcon(pinIcon(pin, now)) }
+          }
         }
       }
     }
     render()
     map.on('moveend', render)
     return () => { map.off('moveend', render) }
-  }, [cluster, index, mode, navigate])
+  }, [cluster, index, mode, navigate, wishes.ready])
 
   const changeSplit = (v) => { splitRef.current = v; setSplit(v) }
 
@@ -278,8 +302,8 @@ export default function MapPage() {
           {!placing && index && mode === 'mine' && myIds.size === 0 && (
             <div className="map-overlay">{user ? 'まだ参拝の記録がありません' : 'ログインすると自分の参拝が表示されます'}</div>
           )}
-          {!placing && index && mode === 'wish' && wishIds.size === 0 && (
-            <div className="map-overlay">{user ? '神社詳細の「☆」で付けられます' : 'ログインすると☆を付けた神社が表示されます'}</div>
+          {!placing && index && mode === 'wish' && wishes.ids.size === 0 && (
+            <div className="map-overlay">{user ? '神社の吹き出し・一覧・神社詳細の☆で付けられます' : 'ログインすると☆を付けた神社が表示されます'}</div>
           )}
         </div>
         <SplitHandle containerRef={splitEl} onChange={changeSplit} onEnd={() => saveSplit(splitRef.current)} />

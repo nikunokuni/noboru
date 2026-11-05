@@ -1,5 +1,6 @@
 // 御朱印帳・鳥居帳・狛犬帳：タグごとの写真を並べる。押すと大きく出し（＜ ＞ で送れる）、神社や記録へ行ける
 import React, { useState } from 'react'
+import WishStar from './WishStar'
 import { Link } from 'react-router-dom'
 import { useSignedUrls } from './Photos'
 import Lightbox from './Lightbox'
@@ -17,7 +18,7 @@ export function PhotoBookPicker({ value, onChange }) {
   )
 }
 
-// items: [{ path, title, sub, to, linkLabel }]
+// items: [{ path, title, sub, to, linkLabel, shrineId? }]。shrineId があれば拡大画面に☆を出す
 export default function PhotoBook({ items, emptyText }) {
   const urls = useSignedUrls(items.map((p) => p.path))
   const [open, setOpen] = useState(null)
@@ -38,7 +39,7 @@ export default function PhotoBook({ items, emptyText }) {
         <Lightbox urls={items.map((p) => urls[p.path])} start={open} onClose={() => setOpen(null)}
           info={(i) => (
             <div className="book-lightbox-info">
-              <div>{items[i].title}</div>
+              <div>{items[i].title}{items[i].shrineId && <WishStar shrineId={items[i].shrineId} className="book-lightbox-star" />}</div>
               {items[i].sub && <div className="small">{items[i].sub}</div>}
               <Link to={items[i].to} className="inline-link small">{items[i].linkLabel} ›</Link>
             </div>

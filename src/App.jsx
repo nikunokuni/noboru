@@ -4,6 +4,7 @@ import { AuthProvider } from './hooks/useAuth'
 import { ToastProvider } from './hooks/useToast'
 import { ShrineIndexProvider } from './hooks/useShrineIndex'
 import { PendingRecordsProvider } from './hooks/usePendingRecords'
+import { WishesProvider } from './hooks/useWishes'
 import BottomNav from './components/BottomNav'
 import UpdateBanner from './components/UpdateBanner'
 import HomePage from './pages/HomePage'
@@ -42,6 +43,7 @@ export default function App() {
       <AuthProvider>
         <ShrineIndexProvider>
           <PendingRecordsProvider>
+          <WishesProvider>
             <BrowserRouter>
               <Routes>
                 <Route element={<TabLayout />}>
@@ -66,6 +68,7 @@ export default function App() {
               </Routes>
             </BrowserRouter>
             <UpdateBanner />
+          </WishesProvider>
           </PendingRecordsProvider>
         </ShrineIndexProvider>
       </AuthProvider>

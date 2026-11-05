@@ -12,7 +12,8 @@ function shrineIcon(shrine) {
   dot.className = `pin pin-${shrine.visited ? 'visited' : 'nobody'}`
   const label = document.createElement('span')
   label.className = 'nearby-pin-label'
-  label.textContent = shrine.name
+  label.textContent = shrine.wish ? `★ ${shrine.name}` : shrine.name
+  if (shrine.wish) label.classList.add('wish')
   el.append(dot, label)
   return L.divIcon({ html: el, className: '', iconSize: [16, 16], iconAnchor: [8, 8] })
 }

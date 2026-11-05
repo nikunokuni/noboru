@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { useSignedUrls } from '../components/Photos'
 import PhotoBook, { PhotoBookPicker } from '../components/PhotoBook'
+import WishStar from '../components/WishStar'
 import { ANONYMOUS_NAME, fetchAppStats, fetchPrefectureProgress, fetchPublicPhotosByTag, fetchPublicTimeline } from '../lib/community'
 import { formatDate, percent } from '../lib/format'
 import { PHOTO_BOOKS, PREFECTURES } from '../lib/constants'
@@ -51,6 +52,7 @@ function Progress() {
 
 function TimelineRow({ item, url, onClick }) {
   return (
+    <div className="timeline-row-wrap">
     <button type="button" className="timeline-row" onClick={onClick}>
       {item.photo && url
         ? <img src={url} alt="" loading="lazy" className="timeline-photo" />
@@ -61,6 +63,8 @@ function TimelineRow({ item, url, onClick }) {
       </span>
       <span className="muted small">›</span>
     </button>
+    <WishStar shrineId={item.shrine_id} />
+    </div>
   )
 }
 
@@ -96,7 +100,7 @@ function PublicBook({ tag }) {
   const label = PHOTO_BOOKS.find(([t]) => t === tag)[1].replace(/帳$/, '')
   const items = rows.map((r) => ({
     path: r.path, title: r.shrine_name, sub: `${formatDate(r.visited_on)}・${r.author || ANONYMOUS_NAME}`,
-    to: `/shrine/${r.shrine_id}`, linkLabel: '神社を見る',
+    to: `/shrine/${r.shrine_id}`, linkLabel: '神社を見る', shrineId: r.shrine_id,
   }))
   return (
     <>
