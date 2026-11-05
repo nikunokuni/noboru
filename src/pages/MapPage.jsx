@@ -21,7 +21,7 @@ const MODES = [
   { key: 'mine', label: '自分の参拝' },
   { key: 'notmine', label: '未参拝' },
   { key: 'nobody', label: 'まだ誰も' },
-  { key: 'wish', label: '行きたい' },
+  { key: 'wish', label: '☆', aria: '☆を付けた神社' },
 ]
 
 const JAPAN = { center: [36.5, 138.0], zoom: 5 }
@@ -279,14 +279,14 @@ export default function MapPage() {
             <div className="map-overlay">{user ? 'まだ参拝の記録がありません' : 'ログインすると自分の参拝が表示されます'}</div>
           )}
           {!placing && index && mode === 'wish' && wishIds.size === 0 && (
-            <div className="map-overlay">{user ? '神社詳細の「☆ 行きたい」で入れられます' : 'ログインすると行きたい神社が表示されます'}</div>
+            <div className="map-overlay">{user ? '神社詳細の「☆」で付けられます' : 'ログインすると☆を付けた神社が表示されます'}</div>
           )}
         </div>
         <SplitHandle containerRef={splitEl} onChange={changeSplit} onEnd={() => saveSplit(splitRef.current)} />
         <div className="map-search">
           <div className="chip-row map-modes">
             {MODES.map((m) => (
-              <button key={m.key} className={`chip ${mode === m.key ? 'active' : ''}`} onClick={() => setMode(m.key)}>{m.label}</button>
+              <button key={m.key} className={`chip ${mode === m.key ? 'active' : ''}`} aria-label={m.aria} onClick={() => setMode(m.key)}>{m.label}</button>
             ))}
             <span className="muted small map-count">{positions ? `${positions.length.toLocaleString()}社` : ''}</span>
           </div>

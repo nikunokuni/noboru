@@ -108,12 +108,12 @@ export default function ShrinePage() {
   }, [id, user])
 
   const toggleWish = async () => {
-    if (!user) { showToast('ログインすると「行きたい」に入れられます'); return }
+    if (!user) { showToast('ログインすると☆を付けられます'); return }
     if (wish === null) return
     setWishSaving(true)
     try {
       await setWish({ userId: user.id, shrineId: Number(id), on: !wish })
-      showToast(wish ? '「行きたい」から外しました' : '「行きたい」に入れました。マップで絞り込めます')
+      showToast(wish ? '☆を外しました' : '☆を付けました。マップで絞り込めます')
       setWishState(!wish)
     } catch {
       showToast('保存できませんでした。電波の届く場所でお試しください')
@@ -186,9 +186,9 @@ export default function ShrinePage() {
 
         <div className="action-row">
           <button className="btn-primary" onClick={() => navigate(`/record/${shrine.id}`)}>ここを記録する</button>
-          <button type="button" className={`btn-secondary mt8 wish-btn ${wish ? 'on' : ''}`} aria-pressed={!!wish}
+          <button type="button" className={`btn-secondary mt8 wish-btn ${wish ? 'on' : ''}`} aria-pressed={!!wish} aria-label={wish ? '☆を外す' : '☆を付ける'}
             onClick={toggleWish} disabled={wishSaving || (user && wish === null)}>
-            {wish ? '★ 行きたい（外す）' : '☆ 行きたい'}
+            {wish ? '★' : '☆'}
           </button>
           <ShareButtons className="mt8" url={shareUrl(`/shrine/${shrine.id}`)} text={`⛩ ${shrine.name}（${placeLabel(shrine)}）`} />
         </div>
