@@ -105,7 +105,7 @@ export default function RecordPage() {
   const save = async (photos) => {
     setSaving(true)
     try {
-      // 「記録する」の地図（現在地のまわり約2km四方。誤差が大きいときは広げる）に入る神社なら現地とみなす
+      // 現在地のまわり約2km四方（誤差が大きいときは広げる）に入る神社なら現地とみなす（「記録する」の地図を動かしても変わらない）
       // 判定は GPS の位置だけで行う（記録するの地図で手で直した位置は使わない）
       const onsite = !!position && form.visitedOn === todayStr()
         && inBounds(squareBounds(position.lat, position.lng, nearbyHalfM(position.accuracy)), shrine.lat, shrine.lng)

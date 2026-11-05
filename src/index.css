@@ -229,6 +229,18 @@ a { color: inherit; }
 .pin { position: relative; }
 .pin-star { position: absolute; top: -9px; right: -9px; font-size: 11px; line-height: 1; color: var(--vermillion); text-shadow: 0 0 2px #fff, 0 0 2px #fff; }
 .nearby-pin-label.wish { color: var(--vermillion); }
+.nearby-pin.selected .pin { box-shadow: 0 0 0 3px var(--vermillion), 0 1px 3px rgba(0, 0, 0, 0.35); }
+.nearby-pin.selected .nearby-pin-label { font-size: 12px; }
+.nearby-home-btn { position: absolute; right: 10px; top: 86px; z-index: 600; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: #fff; color: var(--mist); border: 2px solid rgba(0, 0, 0, 0.2); border-radius: 4px; background-clip: padding-box; cursor: pointer; padding: 0; }
+.nearby-home-btn.moved { color: #2b7bd9; }
+.nearby-card { margin-top: 8px; padding: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 2px 8px rgba(26, 18, 8, 0.08); }
+.nearby-card-head { display: flex; align-items: flex-start; gap: 4px; margin-bottom: 10px; }
+.nearby-card-head .wish-star { margin-left: -6px; margin-top: -6px; }
+.nearby-card-title { flex: 1; min-width: 0; line-height: 1.6; }
+.nearby-card-name { font-family: var(--font-mincho); font-size: 16px; font-weight: 600; }
+.nearby-card-close { flex: none; width: 32px; height: 32px; margin: -6px -6px 0 0; background: none; border: none; font-size: 20px; color: var(--mist); cursor: pointer; }
+.nearby-card-links { display: flex; gap: 8px; margin-top: 8px; }
+.nearby-card-links .btn-secondary { flex: 1; width: auto; }
 .book-lightbox-star { width: 28px; height: 24px; vertical-align: middle; }
 .book-lightbox-info .wish-star:not(.on) { color: inherit; opacity: 0.8; }
 .wish-btn { font-size: 18px; letter-spacing: 0; padding: 8px; }
@@ -253,9 +265,9 @@ a { color: inherit; }
 .map-popup-sub { font-size: 11px; color: var(--mist); margin-bottom: 8px; }
 .map-popup-btn { background: var(--ink); color: var(--paper); border: none; border-radius: 4px; padding: 6px 12px; font-size: 11px; cursor: pointer; font-family: var(--font-mincho); letter-spacing: 0.1em; }
 
-/* 記録する：現在地まわりの小さな地図（約2km四方・固定） */
+/* 記録する：現在地まわりの地図（開くと約2km四方。指で動かせる） */
 .nearby-map-wrap { position: relative; }
-.nearby-map { width: 100%; aspect-ratio: 1 / 1; border-radius: 6px; overflow: hidden; background: var(--paper2); border: 1px solid var(--line); z-index: 0; }
+.nearby-map { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 6px; overflow: hidden; background: var(--paper2); border: 1px solid var(--line); z-index: 0; }
 .nearby-map-canvas { width: 100%; height: 100%; }
 .nearby-map.placing { cursor: crosshair; outline: 2px solid var(--vermillion); outline-offset: -2px; }
 .nearby-map-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 24px; text-align: center; line-height: 1.8; }

@@ -38,7 +38,7 @@ export function getCurrentPosition({ timeout = 20000, maximumAge = 60000 } = {})
   })
 }
 
-// 「記録する」の地図の範囲（現在地から東西南北それぞれの距離 m）
+// 「現地で記録」の範囲（現在地から東西南北それぞれの距離 m）。「記録する」の現在地を直す地図の広さにも使う
 // 誤差（accuracy）が大きいときは、誤差の円が入るまで広げる。誤差がわからない（地図で直した）ときはいつもの広さ
 export function nearbyHalfM(accuracy) {
   if (!accuracy) return NEARBY_HALF_M
