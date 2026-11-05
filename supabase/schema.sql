@@ -154,7 +154,7 @@ CREATE TABLE shrine_requests (
   lat        DOUBLE PRECISION,
   lng        DOUBLE PRECISION,
   note       TEXT NOT NULL DEFAULT '',
-  from_map   BOOLEAN NOT NULL DEFAULT FALSE,                    -- 「記録する」の地図でピンを立てて申請（現地にいた）
+  from_map   BOOLEAN NOT NULL DEFAULT FALSE,                    -- 「記録する」の地図でピンを立てて申請（現地にいた）。マップのタブからの申請は FALSE
   status     request_status NOT NULL DEFAULT 'pending',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   reviewed_at TIMESTAMPTZ                                        -- 承認・却下した時刻

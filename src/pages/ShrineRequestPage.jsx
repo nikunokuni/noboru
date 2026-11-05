@@ -9,12 +9,13 @@ import { getCurrentPosition, reverseGeocode } from '../lib/geo'
 
 const HIDE_REASONS = ['境内社です', '同じ神社が重複しています', '現存しません', '神社ではありません']
 
-// 「記録する」の地図で立てたピンの座標（?lat=..&lng=..）
+// 地図で選んだ座標（?lat=..&lng=..）
+// 「記録する」の地図（現在地のまわり）から来たときは現地にいる。マップのタブから来たとき（&from=map）は現地とは限らない
 function pinFromParams(params) {
   const lat = Number(params.get('lat'))
   const lng = Number(params.get('lng'))
   if (!params.get('lat') || !params.get('lng') || !Number.isFinite(lat) || !Number.isFinite(lng)) return null
-  return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng, accuracy: null } : null
+  return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng, accuracy: null, onsite: params.get('from') !== 'map' } : null
 }
 
 export default function ShrineRequestPage() {
@@ -58,7 +59,7 @@ export default function ShrineRequestPage() {
     try {
       await submitShrineRequest(hideId
         ? { user_id: user.id, kind: 'hide', shrine_id: Number(hideId), name: target?.name || '', note: `${reason}　${note}`.trim() }
-        : { user_id: user.id, kind: 'add', name: name.trim(), note: note.trim(), lat: position?.lat ?? null, lng: position?.lng ?? null, from_map: !!pin })
+        : { user_id: user.id, kind: 'add', name: name.trim(), note: note.trim(), lat: position?.lat ?? null, lng: position?.lng ?? null, from_map: !!pin?.onsite })
       showToast('ありがとうございます。確認して反映します', 3500)
       navigate(-1)
     } catch (e) {
@@ -104,7 +105,7 @@ export default function ShrineRequestPage() {
                       ? `地図で選んだ場所を添付します（${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}）`
                       : `現在地を添付します（誤差 約${position.accuracy}m）`}</p>
                     : <button type="button" className="btn-secondary" onClick={locate} disabled={locating}>{locating ? '取得中…' : '現在地を添付する'}</button>}
-                  {pin && <p className="muted small mt8">承認されると、この神社の参拝記録（現地で記録・非公開）が自動で作られます</p>}
+                  {pin?.onsite && <p className="muted small mt8">承認されると、この神社の参拝記録（現地で記録・非公開）が自動で作られます</p>}
                 </div>
               </>
             )}

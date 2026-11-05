@@ -24,6 +24,8 @@ const MODES = [
 ]
 
 const JAPAN = { center: [36.5, 138.0], zoom: 5 }
+// マップにない神社の申請：この拡大より手前では場所が粗すぎるので申請させない
+const PLACE_MIN_ZOOM = 15
 const LIST_LIMIT = 100
 // 大きな神社から集めたご祭神・ご利益のタグは、閉じているときはこの数だけ出す
 const MORE_FOLDED = 8
@@ -96,6 +98,9 @@ export default function MapPage() {
   const mapEl = useRef(null)
   const mapRef = useRef(null)
   const layerRef = useRef(null)
+  // マップにない神社の申請：地図を動かして、真ん中の印を神社に合わせる
+  const [placing, setPlacing] = useState(false)
+  const [zoom, setZoom] = useState(JAPAN.zoom)
 
   useEffect(() => { refreshVisited() }, [refreshVisited])
 
@@ -116,6 +121,7 @@ export default function MapPage() {
     L.control.zoom({ position: 'bottomright' }).addTo(map)
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
+    map.on('zoomend', () => setZoom(map.getZoom()))
     let moved = false
     map.once('movestart', () => { moved = true })
     getCurrentPosition({ timeout: 10000 }).then((p) => {
@@ -234,17 +240,32 @@ export default function MapPage() {
 
   const changeSplit = (v) => { splitRef.current = v; setSplit(v) }
 
+  const request = () => {
+    const c = mapRef.current.getCenter()
+    navigate(`/request?lat=${c.lat.toFixed(6)}&lng=${c.lng.toFixed(6)}&from=map`)
+  }
+
   return (
     <div className="app-shell map-shell">
       <div ref={splitEl} className="map-split">
         <div className="map-pane" style={{ height: `${split * 100}%` }}>
           <div ref={mapEl} className="map" />
-          {!index && (
+          {!placing && !index && (
             <div className="map-overlay">
               {status === 'unavailable' ? '神社一覧を取得できませんでした' : '神社一覧を準備中…'}
             </div>
           )}
-          {index && mode === 'mine' && myIds.size === 0 && (
+          {placing ? (<>
+            <div className="map-center-pin"><div className="new-pin" /></div>
+            <div className="map-overlay">{zoom < PLACE_MIN_ZOOM ? '神社のあたりまで拡大してください' : '地図を動かして、印を神社に合わせる'}</div>
+            <div className="map-place-actions">
+              <button type="button" className="btn-primary" onClick={request} disabled={zoom < PLACE_MIN_ZOOM}>この場所で申請する</button>
+              <button type="button" className="btn-secondary" onClick={() => setPlacing(false)}>やめる</button>
+            </div>
+          </>) : (
+            <button type="button" className="map-request-btn" onClick={() => setPlacing(true)}>マップにない神社を申請</button>
+          )}
+          {!placing && index && mode === 'mine' && myIds.size === 0 && (
             <div className="map-overlay">{user ? 'まだ参拝の記録がありません' : 'ログインすると自分の参拝が表示されます'}</div>
           )}
         </div>
