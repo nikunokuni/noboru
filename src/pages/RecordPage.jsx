@@ -7,7 +7,7 @@ import { useToast } from '../hooks/useToast'
 import { useShrineIndex } from '../hooks/useShrineIndex'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import EmotionSlider from '../components/EmotionSlider'
-import { MemoFields, VisibilityPicker } from '../components/MemoFields'
+import { MemoFields, VisibilityChips, VisibilityNote } from '../components/MemoFields'
 import { GuideInlineLink } from '../components/GuideLinks'
 import PhotoTagger from '../components/PhotoTagger'
 import { compressImage } from '../lib/imageCompress'
@@ -170,18 +170,21 @@ export default function RecordPage() {
         ) : (
           <>
             <div className="field-wrap">
-              <label className="field-label" htmlFor="visited-on">参拝日</label>
-              <input id="visited-on" type="date" className="field-input" value={form.visitedOn} max={todayStr()}
-                onChange={(e) => update({ visitedOn: e.target.value || todayStr() })} />
+              <div className="date-visibility-row">
+                <div className="date-col">
+                  <label className="field-label" htmlFor="visited-on">参拝日</label>
+                  <input id="visited-on" type="date" className="field-input" value={form.visitedOn} max={todayStr()}
+                    onChange={(e) => update({ visitedOn: e.target.value || todayStr() })} />
+                </div>
+                <VisibilityChips isPublic={form.isPublic} onChange={(isPublic) => update({ isPublic })} />
+              </div>
+              <VisibilityNote isPublic={form.isPublic} />
             </div>
 
             <div className="field-wrap">
               <label className="field-label">感動の温度</label>
               <EmotionSlider value={form.emotion} onChange={(emotion) => update({ emotion })} />
             </div>
-
-            <VisibilityPicker isPublic={form.isPublic} onChange={(isPublic) => update({ isPublic })} />
-            <MemoFields isPublic={form.isPublic} publicMemo={form.publicMemo} privateMemo={form.privateMemo} onChange={update} />
 
             <div className="field-wrap">
               <label className="field-label">写真（{form.photos.length}/{MAX_PHOTOS}）</label>
@@ -198,6 +201,8 @@ export default function RecordPage() {
               </div>
               <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handlePhotos} />
             </div>
+
+            <MemoFields isPublic={form.isPublic} publicMemo={form.publicMemo} privateMemo={form.privateMemo} onChange={update} />
 
             <button className="btn-primary mt16" onClick={handleSave} disabled={saving || !user}>
               {saving ? '保存中…' : '記録する'}

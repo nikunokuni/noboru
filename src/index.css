@@ -86,6 +86,10 @@ a { color: inherit; }
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .chip { font-size: 11px; padding: 5px 12px; border-radius: 20px; background: var(--paper2); color: rgba(26, 18, 8, 0.6); border: 1px solid transparent; font-family: var(--font-mincho); letter-spacing: 0.08em; cursor: pointer; white-space: nowrap; }
 .chip.active { background: var(--vermillion-bg); color: var(--vermillion); border-color: rgba(192, 57, 43, 0.25); }
+.date-visibility-row { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 8px; }
+.date-visibility-row .date-col { flex: 1; min-width: 0; }
+.date-visibility-row .visibility-chips { margin-bottom: 4px; flex-wrap: nowrap; }
+.date-visibility-row .visibility-chips .chip { padding: 8px 14px; font-size: 12px; }
 .filter-row { display: flex; gap: 8px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
 
 /* カード・ラベル */
