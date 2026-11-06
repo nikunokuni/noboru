@@ -50,7 +50,7 @@ export default function RecordsPage() {
   const items = [
     ...pending.map((p) => ({
       id: p.id, pending: true, error: p.last_error, shrineName: p.shrine_name, visited_on: p.visited_on,
-      emotion_level: p.emotion_level, public_memo: p.public_memo, is_public: p.is_public, photoCount: p.photos?.length || 0,
+      emotion_level: p.emotion_level, public_memo: p.public_memo, is_public: p.is_public, onsite: p.onsite, photoCount: p.photos?.length || 0,
     })),
     ...(records || []).map((r) => ({
       id: r.id, shrineName: r.shrines?.name, visited_on: r.visited_on, emotion_level: r.emotion_level,
