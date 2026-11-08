@@ -21,16 +21,6 @@ export function VisibilityNote({ isPublic }) {
   )
 }
 
-export function VisibilityPicker({ isPublic, onChange }) {
-  return (
-    <div className="field-wrap">
-      <label className="field-label">この記録を見られる人</label>
-      <VisibilityChips isPublic={isPublic} onChange={onChange} />
-      <VisibilityNote isPublic={isPublic} />
-    </div>
-  )
-}
-
 export function MemoFields({ isPublic, publicMemo, privateMemo, onChange }) {
   return (
     <>

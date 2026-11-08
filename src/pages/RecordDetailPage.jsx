@@ -6,7 +6,7 @@ import { useSignedUrls } from '../components/Photos'
 import Lightbox from '../components/Lightbox'
 import EmotionSlider from '../components/EmotionSlider'
 import PhotoEditor from '../components/PhotoEditor'
-import { MemoFields, VisibilityPicker } from '../components/MemoFields'
+import { MemoFields, VisibilityChips, VisibilityNote } from '../components/MemoFields'
 import { useToast } from '../hooks/useToast'
 import { addPhoto, deletePhoto, deleteRecord, fetchRecord, replacePhoto, updatePhotoTags, updateRecord } from '../lib/records'
 import { compressImage } from '../lib/imageCompress'
@@ -197,19 +197,19 @@ export default function RecordDetailPage() {
         ) : (
           <>
             <div className="field-wrap mt16">
-              <label className="field-label" htmlFor="ed-date">参拝日</label>
-              <input id="ed-date" type="date" className="field-input" value={e.visited_on} max={todayStr()} onChange={(ev) => set({ visited_on: ev.target.value || e.visited_on })} />
+              <div className="date-visibility-row">
+                <div className="date-col">
+                  <label className="field-label" htmlFor="ed-date">参拝日</label>
+                  <input id="ed-date" type="date" className="field-input" value={e.visited_on} max={todayStr()} onChange={(ev) => set({ visited_on: ev.target.value || e.visited_on })} />
+                </div>
+                <VisibilityChips isPublic={e.is_public} onChange={(v) => set({ is_public: v })} />
+              </div>
+              <VisibilityNote isPublic={e.is_public} />
             </div>
             <div className="field-wrap">
               <label className="field-label">感動の温度</label>
               <EmotionSlider value={e.emotion_level} onChange={(v) => set({ emotion_level: v })} />
             </div>
-            <VisibilityPicker isPublic={e.is_public} onChange={(v) => set({ is_public: v })} />
-            <MemoFields isPublic={e.is_public} publicMemo={e.public_memo} privateMemo={e.private_memo}
-              onChange={(p) => set({
-                ...('publicMemo' in p && { public_memo: p.publicMemo }),
-                ...('privateMemo' in p && { private_memo: p.privateMemo }),
-              })} />
             <div className="field-wrap">
               <label className="field-label">写真とタグ（{record.photos?.length || 0}/{MAX_PHOTOS}）</label>
               {pickMode && <p className="small">{pickMode === 'edit' ? '編集する' : '削除する'}写真を選んでください</p>}
@@ -237,6 +237,11 @@ export default function RecordDetailPage() {
               <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handleAddPhotos} />
               <p className="muted small">追加・編集・削除した写真はすぐに保存されます（タグは「保存する」で保存）。写真の回転・切り取り・隠す（黒塗り）は「編集」から。{MAX_PHOTOS}枚の上限に達したら、「削除」で1枚消すと入れ替えられます</p>
             </div>
+            <MemoFields isPublic={e.is_public} publicMemo={e.public_memo} privateMemo={e.private_memo}
+              onChange={(p) => set({
+                ...('publicMemo' in p && { public_memo: p.publicMemo }),
+                ...('privateMemo' in p && { private_memo: p.privateMemo }),
+              })} />
             <button className="btn-primary mt16" onClick={save} disabled={busy || photoBusy || !!pickMode}>保存する</button>
             <button className="text-btn mt16 block" onClick={() => { setPickMode(null); setEditing(null) }}>やめる</button>
           </>
