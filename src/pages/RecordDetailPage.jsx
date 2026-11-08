@@ -218,24 +218,24 @@ export default function RecordDetailPage() {
               {pickMode ? (
                 <button type="button" className="btn-secondary mt8" onClick={() => setPickMode(null)}>やめる</button>
               ) : (
-                <>
+                <div className="photo-actions mt8">
                   {record.photos?.length > 0 && (
-                    <div className="share-row mt8">
-                      <button type="button" className="btn-secondary" onClick={() => setPickMode('edit')} disabled={photoBusy}>写真を編集</button>
+                    <>
+                      <button type="button" className="btn-secondary" onClick={() => setPickMode('edit')} disabled={photoBusy}>編集</button>
                       <button type="button" className="btn-secondary" onClick={() => setPickMode('delete')} disabled={photoBusy}>
-                        {deletingPhoto ? '削除中…' : '写真を削除'}
+                        {deletingPhoto ? '削除中…' : '削除'}
                       </button>
-                    </div>
+                    </>
                   )}
                   {(record.photos?.length || 0) < MAX_PHOTOS && (
-                    <button type="button" className="btn-secondary mt8" onClick={() => fileRef.current.click()} disabled={photoBusy}>
-                      {addingPhotos ? '写真を追加中…' : '＋ 写真を追加'}
+                    <button type="button" className="btn-secondary" onClick={() => fileRef.current.click()} disabled={photoBusy}>
+                      {addingPhotos ? '追加中…' : '＋ 追加'}
                     </button>
                   )}
-                </>
+                </div>
               )}
               <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handleAddPhotos} />
-              <p className="muted small">追加・編集・削除した写真はすぐに保存されます（タグは「保存する」で保存）。写真の回転・切り取り・隠す（黒塗り）は「写真を編集」から。{MAX_PHOTOS}枚の上限に達したら、「写真を削除」で1枚消すと入れ替えられます</p>
+              <p className="muted small">追加・編集・削除した写真はすぐに保存されます（タグは「保存する」で保存）。写真の回転・切り取り・隠す（黒塗り）は「編集」から。{MAX_PHOTOS}枚の上限に達したら、「削除」で1枚消すと入れ替えられます</p>
             </div>
             <button className="btn-primary mt16" onClick={save} disabled={busy || photoBusy || !!pickMode}>保存する</button>
             <button className="text-btn mt16 block" onClick={() => { setPickMode(null); setEditing(null) }}>やめる</button>
