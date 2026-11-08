@@ -26,7 +26,8 @@ async function copyText(text) {
   }
 }
 
-export default function ShareButtons({ url, text, className = '' }) {
+// children を渡すと、共有ボタンの右に同じ行で並べる（神社のページの「ここを記録する」）
+export default function ShareButtons({ url, text, className = '', children }) {
   const { showToast } = useToast()
   const xUrl = `https://x.com/intent/post?${new URLSearchParams({ text, url })}`
 
@@ -38,6 +39,7 @@ export default function ShareButtons({ url, text, className = '' }) {
     <div className={`share-row ${className}`}>
       <button className="btn-secondary" onClick={copy}>URLをコピー</button>
       <a className="btn-secondary" href={xUrl} target="_blank" rel="noopener noreferrer">Xで共有</a>
+      {children}
     </div>
   )
 }

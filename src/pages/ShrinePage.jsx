@@ -147,7 +147,13 @@ export default function ShrinePage() {
       <TopBar back title="" />
       <div className="page-content">
         <div className="shrine-head">
-          <h2 className="shrine-name">⛩ {shrine.name}</h2>
+          <div className="shrine-name-row">
+            <h2 className="shrine-name">⛩ {shrine.name}</h2>
+            <button type="button" className={`wish-star ${wish ? 'on' : ''}`} aria-pressed={wish}
+              aria-label={wish ? '☆を外す' : '☆を付ける'} onClick={() => wishes.toggle(id)} disabled={!!user && !wishes.ready}>
+              {wish ? '★' : '☆'}
+            </button>
+          </div>
           {shrine.name_kana && <div className="muted small">{shrine.name_kana}</div>}
           <div className="muted small">{placeLabel(shrine)}</div>
           {!shrine.first_visited_on && <div className="pill mt8">まだ誰も参拝を記録していません</div>}
@@ -155,19 +161,16 @@ export default function ShrinePage() {
 
         <ShrinePhotos shrineId={shrine.id} revision={syncRevision} />
 
-        <div className="stat-row">
+        <div className="stat-row compact">
           <div className="stat"><div className="stat-num">{shrine.visitor_count}</div><div className="stat-label">訪れた人</div></div>
           <div className="stat"><div className="stat-num">{shrine.record_count}</div><div className="stat-label">記録</div></div>
           <div className="stat"><div className="stat-num">{shrine.emotion_avg ?? '—'}</div><div className="stat-label">感動の平均</div></div>
         </div>
 
         <div className="action-row">
-          <button className="btn-primary" onClick={() => navigate(`/record/${shrine.id}`)}>ここを記録する</button>
-          <button type="button" className={`btn-secondary mt8 wish-btn ${wish ? 'on' : ''}`} aria-pressed={wish}
-            aria-label={wish ? '☆を外す' : '☆を付ける'} onClick={() => wishes.toggle(id)} disabled={!!user && !wishes.ready}>
-            {wish ? '★' : '☆'}
-          </button>
-          <ShareButtons className="mt8" url={shareUrl(`/shrine/${shrine.id}`)} text={`⛩ ${shrine.name}（${placeLabel(shrine)}）`} />
+          <ShareButtons className="action-buttons" url={shareUrl(`/shrine/${shrine.id}`)} text={`⛩ ${shrine.name}（${placeLabel(shrine)}）`}>
+            <button className="btn-primary" onClick={() => navigate(`/record/${shrine.id}`)}>ここを記録する</button>
+          </ShareButtons>
         </div>
 
         <section>
