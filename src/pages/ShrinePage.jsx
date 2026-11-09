@@ -228,6 +228,7 @@ export default function ShrinePage() {
             <Row label="駐車場">
               <TagChips group="parking" values={[{ value: shrine.parking || 'unknown', label: PARKING_LABELS[shrine.parking || 'unknown'] }]} />
             </Row>
+            <Row label="石段">{shrine.stair_steps == null ? <Unknown /> : shrine.stair_steps === 0 ? 'なし' : `約${shrine.stair_steps.toLocaleString('ja-JP')}段`}</Row>
             {shrine.access_note && <Row label="補足">{shrine.access_note}</Row>}
           </dl>
           <a className="inline-link small" target="_blank" rel="noopener noreferrer"

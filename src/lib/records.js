@@ -7,7 +7,7 @@ const KEY_PENDING = 'pending-records'
 
 // ─── 未送信の記録（IndexedDB） ───────────────────────────────
 // 1件の形: { id, user_id, shrine_id, shrine_name, visited_on, emotion_level, public_memo,
-//           private_memo, is_public, onsite, location_accuracy_m, photos: Blob[],
+//           private_memo, is_public, onsite, location_accuracy_m, walked_from_station（以前の版で保存した記録にはない）, photos: Blob[],
 //           photo_tags: string[]（photos と同じ並び。以前の版で保存した記録にはない）, created_at, last_error }
 
 export async function listPending(userId) {
@@ -42,6 +42,7 @@ async function uploadRecord(r) {
     is_public: r.is_public,
     onsite: r.onsite,
     location_accuracy_m: r.location_accuracy_m,
+    walked_from_station: !!r.walked_from_station,
   }, { onConflict: 'id', ignoreDuplicates: true })
   if (recErr) throw recErr
 
@@ -89,11 +90,20 @@ export function syncPending(userId) {
 }
 
 // ─── サーバー上の記録 ─────────────────────────────────────────
-const RECORD_FIELDS = 'id, shrine_id, visited_on, emotion_level, public_memo, is_public, onsite, created_at, shrines(id, name, prefecture), photos(path, tag)'
+const RECORD_FIELDS = 'id, shrine_id, visited_on, emotion_level, public_memo, is_public, onsite, walked_from_station, created_at, shrines(id, name, prefecture), photos(path, tag)'
 
 export async function fetchMyRecords(userId) {
   const { data, error } = await supabase.from('records').select(RECORD_FIELDS)
     .eq('user_id', userId).order('visited_on', { ascending: false }).order('created_at', { ascending: false })
+  if (error) throw error
+  return data
+}
+
+// 「のぼる」「あるく」用：現地で記録した記録と、その神社の位置・石段の段数・最寄り駅までの距離
+export async function fetchMyOnsiteRecords(userId) {
+  const { data, error } = await supabase.from('records')
+    .select('shrine_id, visited_on, created_at, onsite, walked_from_station, shrines(lat, lng, stair_steps, nearest_station_m)')
+    .eq('user_id', userId).eq('onsite', true)
   if (error) throw error
   return data
 }

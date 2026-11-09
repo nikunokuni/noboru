@@ -17,10 +17,11 @@ import { getById } from '../lib/indexCore'
 import { serverGetShrineItem } from '../lib/shrineIndex'
 import { placeLabel, todayStr } from '../lib/format'
 import { DEFAULT_PHOTO_TAG, MAX_PHOTOS } from '../lib/constants'
+import WalkedFromStation from '../components/WalkedFromStation'
 
 const emptyForm = () => ({
   visitedOn: todayStr(), emotion: 50,
-  publicMemo: '', privateMemo: '', isPublic: true, photos: [],
+  publicMemo: '', privateMemo: '', isPublic: true, photos: [], walkedFromStation: false,
 })
 
 // 端末の神社一覧にあればそれを、なければ（一覧の準備中・追加されたばかり）サーバーから
@@ -121,6 +122,7 @@ export default function RecordPage() {
         is_public: form.isPublic,
         onsite,
         location_accuracy_m: onsite ? position.accuracy : null,
+        walked_from_station: form.walkedFromStation,
         photos: photos.map((p) => p.blob),
         photo_tags: photos.map((p) => p.tag),
         created_at: new Date().toISOString(),
@@ -203,6 +205,8 @@ export default function RecordPage() {
             </div>
 
             <MemoFields isPublic={form.isPublic} publicMemo={form.publicMemo} privateMemo={form.privateMemo} onChange={update} />
+
+            <WalkedFromStation checked={form.walkedFromStation} onChange={(walkedFromStation) => update({ walkedFromStation })} />
 
             <button className="btn-primary mt16" onClick={handleSave} disabled={saving || !user}>
               {saving ? '保存中…' : '記録する'}

@@ -7,6 +7,7 @@ import Lightbox from '../components/Lightbox'
 import EmotionSlider from '../components/EmotionSlider'
 import PhotoEditor from '../components/PhotoEditor'
 import { MemoFields, VisibilityChips, VisibilityNote } from '../components/MemoFields'
+import WalkedFromStation from '../components/WalkedFromStation'
 import { useToast } from '../hooks/useToast'
 import { addPhoto, deletePhoto, deleteRecord, fetchRecord, replacePhoto, updatePhotoTags, updateRecord } from '../lib/records'
 import { compressImage } from '../lib/imageCompress'
@@ -59,7 +60,7 @@ export default function RecordDetailPage() {
 
   const startEdit = () => setEditing({
     visited_on: record.visited_on, emotion_level: record.emotion_level, public_memo: record.public_memo,
-    private_memo: record.private_memo, is_public: record.is_public,
+    private_memo: record.private_memo, is_public: record.is_public, walked_from_station: !!record.walked_from_station,
     tags: photoTags(record),
   })
 
@@ -186,6 +187,7 @@ export default function RecordDetailPage() {
               {formatDate(record.visited_on)}
               <span className="tag-plain">{record.is_public ? 'みんなに公開' : '自分だけ'}</span>
               {record.onsite && <span className="tag-plain">現地で記録</span>}
+              {record.walked_from_station && <span className="tag-plain">駅から歩いた</span>}
             </p>
             <p className="emotion-label mt16" style={{ color: emotionColor(record.emotion_level) }}>
               {emotionLabel(record.emotion_level)}<span className="muted small">　{record.emotion_level}</span>
@@ -242,6 +244,7 @@ export default function RecordDetailPage() {
                 ...('publicMemo' in p && { public_memo: p.publicMemo }),
                 ...('privateMemo' in p && { private_memo: p.privateMemo }),
               })} />
+            <WalkedFromStation checked={e.walked_from_station} onChange={(v) => set({ walked_from_station: v })} />
             <button className="btn-primary mt16" onClick={save} disabled={busy || photoBusy || !!pickMode}>保存する</button>
             <button className="text-btn mt16 block" onClick={() => { setPickMode(null); setEditing(null) }}>やめる</button>
           </>

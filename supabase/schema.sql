@@ -44,6 +44,7 @@ CREATE TABLE shrines (
   -- 取り込みで自動で入れる（大きな神社は社格から is_major_rank で、小さな祠・ふつうは OSM から）。情報提供されたら *_by_user = TRUE にして以後は上書きしない
   shrine_size         TEXT CHECK (shrine_size IN ('large', 'medium', 'small')),
   shrine_size_by_user BOOLEAN NOT NULL DEFAULT FALSE,
+  stair_steps         INTEGER CHECK (stair_steps BETWEEN 0 AND 99999),  -- 石段の段数（参拝でのぼるおおよその段数）。情報提供のみ。NULL = 不明
 
   -- アクセス（駅・バス停は取り込み時に OSM から自動計算。情報提供されたら *_by_user = TRUE にして以後は上書きしない）
   nearest_station          TEXT,
@@ -91,6 +92,7 @@ CREATE TABLE records (
   is_public           BOOLEAN NOT NULL DEFAULT TRUE,
   onsite              BOOLEAN NOT NULL DEFAULT FALSE,       -- 「現地で記録」印（GPSで近くにいた）
   location_accuracy_m INTEGER,
+  walked_from_station BOOLEAN NOT NULL DEFAULT FALSE,   -- 「駅から歩いた」（自分の記録の「あるく」に最寄り駅の往復を足す）
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -131,7 +133,7 @@ CREATE TABLE shrine_edits (
                'address', 'deities', 'benefits', 'shrine_rank',
                'access_note', 'parking', 'goshuin', 'features', 'name_kana',
                'goshuin_note', 'nearest_station', 'nearest_bus_stop',
-               'founded', 'annual_festival', 'visiting_hours', 'highlights', 'honden_style', 'website', 'shrine_size')),
+               'founded', 'annual_festival', 'visiting_hours', 'highlights', 'honden_style', 'website', 'shrine_size', 'stair_steps')),
   value      JSONB NOT NULL,                    -- 文字列 / 文字列配列 / 列挙値
   old_value  JSONB,                             -- 変更前の値（{列名: 値}）。トリガーが入れる。管理者が元に戻すときに使う
   reverted_at TIMESTAMPTZ,                      -- 管理者が元に戻した時刻
@@ -297,6 +299,9 @@ BEGIN
   IF NEW.field = 'website' AND txt !~* '^https?://[^[:space:]]+$' THEN
     RAISE EXCEPTION '公式サイトは http(s):// から始まるURLで入れてください' USING ERRCODE = '22023';
   END IF;
+  IF NEW.field = 'stair_steps' AND txt !~ '^[0-9]{1,5}$' AND txt IS NOT NULL THEN
+    RAISE EXCEPTION '石段の段数は数字で入れてください' USING ERRCODE = '22023';
+  END IF;
   NEW.reverted_at := NULL;
   SELECT jsonb_object_agg(e.key, e.value) INTO NEW.old_value
   FROM shrines s, jsonb_each(to_jsonb(s)) AS e
@@ -331,6 +336,7 @@ BEGIN
     -- 大きさ：「不明」にしたら次の取り込みで自動の値に戻る
     shrine_size         = CASE WHEN NEW.field = 'shrine_size' THEN NULLIF(txt, 'unknown') ELSE shrine_size END,
     shrine_size_by_user = CASE WHEN NEW.field = 'shrine_size' THEN NULLIF(txt, 'unknown') IS NOT NULL ELSE shrine_size_by_user END,
+    stair_steps     = CASE WHEN NEW.field = 'stair_steps' THEN txt::INTEGER ELSE stair_steps END,
     updated_at      = NOW()
   WHERE id = NEW.shrine_id;
   RETURN NEW;
@@ -550,6 +556,7 @@ BEGIN
     nearest_bus_stop = s.nearest_bus_stop, nearest_bus_stop_m = s.nearest_bus_stop_m,
     nearest_bus_stop_by_user = s.nearest_bus_stop_by_user,
     shrine_size = s.shrine_size, shrine_size_by_user = s.shrine_size_by_user,
+    stair_steps = s.stair_steps,
     updated_at = NOW()
   WHERE id = e.shrine_id;
 

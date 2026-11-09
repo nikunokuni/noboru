@@ -51,6 +51,7 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 | [`supabase/upgrade-shrine-size.sql`](supabase/upgrade-shrine-size.sql) | 神社の大きさ（大きな神社・ふつうの神社・小さな祠）。マップのタグで絞り込める。情報提供でも変えられる。`upgrade-website.sql` を先に実行しておく。アプリの更新より先に実行する。実行後に取り込みをやり直す（例: `npm run import:shrines -- --pref 11,13,14 --no-transit --gsi-address`）と大きさが入り、一覧ファイルも作り直される |
 | [`supabase/upgrade-wishes.sql`](supabase/upgrade-wishes.sql) | 行きたい神社（神社詳細の「☆」で印を付け、マップの「☆」で絞り込む。本人だけが読める）。アプリの更新より先に実行する |
 | [`supabase/upgrade-shrine-size-rank.sql`](supabase/upgrade-shrine-size-rank.sql) | 大きな神社を社格（勅祭社・二十二社・一宮・別表神社・式内社）で決める。摂社・末社・所管社は除く。Wikipedia のカテゴリ（式内社など）で大きな神社にするための取り込みの変更も入っている。`upgrade-shrine-size.sql` のあとに実行する（決め方を変えたときは実行し直す。取り込みの前に実行する）。実行するとすぐに大きな神社が入れ替わる（アプリの更新・取り込みは要らない。マップに出すには「神社一覧を更新する」） |
+| [`supabase/upgrade-stairs-walk.sql`](supabase/upgrade-stairs-walk.sql) | マイページの「のぼる」「あるく」（神社の石段の段数と、記録の「最寄り駅から歩いた」）。`upgrade-shrine-size.sql` を先に実行しておく。アプリの更新より先に実行する |
 
 「次回へのメモ」はアプリから外した。以前のプロジェクトの `records.next_memo` 列は使われないまま残る（消すならアプリの更新後に `ALTER TABLE records DROP COLUMN next_memo;`）
 

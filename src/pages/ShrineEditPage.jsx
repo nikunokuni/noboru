@@ -14,7 +14,7 @@ import {
   RANK_OPTIONS, HONDEN_OPTIONS, BENEFIT_OPTIONS, DEITY_OPTIONS, deityLabel, splitTags, splitDeityTags,
 } from '../lib/shrineTags'
 
-// type: text / url / textarea / choice / goshuin / pick（タグを選ぶ。選択肢にないものも書き足せる）
+// type: text / url / number / textarea / choice / goshuin / pick（タグを選ぶ。選択肢にないものも書き足せる）
 //   pick の array: 配列で保存（ご利益）。deities: ご祭神の表記をそろえる
 const FIELDS = {
   shrine_size: { label: '大きさ', type: 'choice', options: SIZE_LABELS, hints: SIZE_HINTS },
@@ -32,6 +32,7 @@ const FIELDS = {
   nearest_station: { label: '最寄り駅', type: 'text', placeholder: '例：〇〇駅 徒歩10分' },
   nearest_bus_stop: { label: 'バス停', type: 'text', placeholder: '例：〇〇神社前 徒歩2分' },
   parking: { label: '駐車場', type: 'choice', options: PARKING_LABELS },
+  stair_steps: { label: '石段の段数', type: 'number', placeholder: '例：120' },
   access_note: { label: '補足', type: 'textarea', placeholder: '例：〇〇駅から徒歩15分。最後に長い石段あり' },
   goshuin: { label: '御朱印', type: 'goshuin' },
   goshuin_note: { label: '御朱印メモ', type: 'textarea', placeholder: '例：授与は9時〜16時。季節の限定御朱印あり' },
@@ -43,7 +44,7 @@ const SECTIONS = [
   ['見どころ', ['highlights']],
   ['基本情報', ['shrine_size', 'name_kana', 'address', 'website', 'deities', 'benefits', 'shrine_rank', 'founded', 'annual_festival', 'honden_style']],
   ['由緒', ['features']],
-  ['アクセス', ['nearest_station', 'nearest_bus_stop', 'parking', 'access_note']],
+  ['アクセス', ['nearest_station', 'nearest_bus_stop', 'parking', 'stair_steps', 'access_note']],
 ]
 
 const toInput = (field, value) => {
@@ -52,6 +53,7 @@ const toInput = (field, value) => {
     return field.deities ? splitDeityTags(value) : splitTags(value)
   }
   if (field.type === 'choice' || field.type === 'goshuin') return value || 'unknown'
+  if (field.type === 'number') return value == null ? '' : String(value)
   return value ?? ''
 }
 
@@ -159,6 +161,10 @@ function FieldInput({ field, value, onChange }) {
   if (field.type === 'textarea') {
     return <textarea className="field-textarea edit-textarea" rows={3} placeholder={field.placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
   }
+  if (field.type === 'number') {
+    return <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={5} className="field-input edit-input" placeholder={field.placeholder}
+      value={value} onChange={(e) => onChange(e.target.value.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/[^0-9]/g, ''))} />
+  }
   if (field.type === 'url') {
     return <input type="url" inputMode="url" autoCapitalize="off" className="field-input edit-input" placeholder={field.placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
   }
@@ -231,6 +237,7 @@ export default function ShrineEditPage() {
                             <FieldInput field={FIELDS[k]} value={inputs[k]} onChange={set(k)} />
                             {k === 'shrine_size' && !(k in changes) && shrine.shrine_size && !shrine.shrine_size_by_user && <p className="muted small">地図データ（境内の広さ・社格など）から自動で判定した値です。違っていたら直してください</p>}
                             {k === 'website' && inputs.website.trim() && !websiteUrl(inputs.website) && <p className="muted small">https:// から始まるURLで入れてください</p>}
+                            {k === 'stair_steps' && <p className="muted small">参拝でのぼる石段の、だいたいの段数（本殿まで。男坂・女坂があれば短い方）。石段がなければ 0。マイページの「のぼる」に使います</p>}
                             {(k === 'nearest_station' || k === 'nearest_bus_stop') && !(k in changes) && <AccessHint shrine={shrine} prefix={k} />}
                           </dd>
                         </div>
