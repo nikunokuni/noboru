@@ -35,6 +35,12 @@ export const deityLabel = (name) => {
 }
 
 // 文字の欄 → タグの配列
+// 神社の抱える課題（情報提供で選ぶ。選択肢にないものも書き足せる）。「・」「、」は区切りに使うので名前に入れない
+export const CHALLENGE_OPTIONS = [
+  '後継者不足', '宮司が兼務', '氏子の減少', 'お祭りの担い手不足', '社殿の老朽化', '災害の被害',
+  '修繕費の不足', '境内の手入れ', '御神木や社叢の保全', '文化財の保存', '参拝者の減少',
+]
+
 export const splitTags = (text) =>
   [...new Set((text || '').split(/[、,，・\n]/).map((s) => s.trim()).filter(Boolean))]
 

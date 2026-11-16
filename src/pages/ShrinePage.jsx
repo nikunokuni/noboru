@@ -236,8 +236,8 @@ export default function ShrinePage() {
 
         <section>
           <div className="section-mini">抱える課題</div>
-          {shrine.challenges
-            ? <p className="features">{shrine.challenges}</p>
+          {splitTags(shrine.challenges).length
+            ? <div className="info-chips">{splitTags(shrine.challenges).map((c) => <Link key={c} to={`/support?challenge=${encodeURIComponent(c)}`} className="chip">{c}</Link>)}</div>
             : <p className="muted small">まだ情報がありません。後継者・社殿の修繕・お祭りの担い手など、この神社が困っていることをご存じでしたら教えてください。</p>}
           <SupportBox shrine={shrine} />
         </section>

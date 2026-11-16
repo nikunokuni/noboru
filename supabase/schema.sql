@@ -47,7 +47,7 @@ CREATE TABLE shrines (
   stair_steps         INTEGER CHECK (stair_steps BETWEEN 0 AND 99999),  -- 石段の段数（参拝でのぼるおおよその段数）。情報提供のみ。NULL = 不明
 
   -- 抱える課題・支援の受け皿（情報提供のみ）。支援の方法かページが入っている神社は「支援の受け皿」の一覧に出る
-  challenges          TEXT,                     -- 抱える課題（後継者・修繕など）
+  challenges          TEXT,                     -- 抱える課題（タグを「、」区切りで。後継者不足・社殿の老朽化など）
   support_note        TEXT,                     -- 支援の方法（奉賛会・修繕の寄付・クラウドファンディングなど）
   support_url         TEXT CHECK (support_url ~* '^https?://'),  -- 支援を受け付けているページ
 

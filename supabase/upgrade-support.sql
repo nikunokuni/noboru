@@ -6,7 +6,7 @@
 -- upgrade-stairs-walk.sql を先に実行しておくこと。アプリの更新より先に実行する
 -- ============================================================
 
-ALTER TABLE shrines ADD COLUMN IF NOT EXISTS challenges   TEXT;   -- 抱える課題
+ALTER TABLE shrines ADD COLUMN IF NOT EXISTS challenges   TEXT;   -- 抱える課題（タグを「、」区切りで。後継者不足・社殿の老朽化など）
 ALTER TABLE shrines ADD COLUMN IF NOT EXISTS support_note TEXT;   -- 支援の方法（奉賛会・修繕の寄付・クラウドファンディングなど）
 ALTER TABLE shrines ADD COLUMN IF NOT EXISTS support_url  TEXT;   -- 支援を受け付けているページ
 ALTER TABLE shrines DROP CONSTRAINT IF EXISTS shrines_support_url_check;
