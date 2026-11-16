@@ -1,6 +1,6 @@
 // みんなの参拝：みんなでの達成状況 ＋ 全国の公開記録のタイムライン
 import React, { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { useSignedUrls } from '../components/Photos'
 import PhotoBook, { PhotoBookPicker } from '../components/PhotoBook'
@@ -152,6 +152,10 @@ export default function CommunityPage() {
       <TopBar title="みんなの参拝" />
       <div className="page-content">
         <Progress />
+        <Link to="/support" className="card support-entry">
+          <span className="support-entry-title">支援の受け皿 ›</span>
+          <span className="muted small">課題を抱え、支援を受け付けている神社と、神社を支援しているサイト</span>
+        </Link>
 
         <PhotoBookPicker value={book} onChange={setBook} />
         {book ? <PublicBook tag={book} /> : (<>

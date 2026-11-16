@@ -414,3 +414,20 @@ a { color: inherit; }
 .activity-unit { font-size: 14px; margin-left: 2px; }
 .goal-bar { height: 6px; background: var(--paper2); border-radius: 3px; overflow: hidden; margin: 6px 0 4px; }
 .goal-bar span { display: block; height: 100%; background: var(--vermillion); border-radius: 3px; }
+
+/* 支援の受け皿 */
+.support-entry { display: flex; flex-direction: column; gap: 4px; text-decoration: none; margin-bottom: 18px; }
+.support-entry-title { font-family: var(--font-mincho); font-size: 14px; letter-spacing: 0.1em; color: var(--vermillion); }
+.support-intro { line-height: 1.9; margin-bottom: 12px; }
+.support-row { padding: 12px 2px; border-bottom: 1px solid rgba(26, 18, 8, 0.07); }
+.support-row-head { display: flex; align-items: flex-start; gap: 8px; }
+.support-open { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; text-align: left; background: none; border: none; padding: 0; cursor: pointer; color: inherit; }
+.support-text { font-size: 12px; line-height: 1.7; }
+.support-label { font-size: 10px; color: var(--vermillion); border: 1px solid rgba(192, 57, 43, 0.3); border-radius: 10px; padding: 0 6px; margin-right: 6px; }
+.support-links { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; }
+.support-links .inline-link { overflow-wrap: anywhere; }
+.link-button { background: none; border-top: none; border-left: none; border-right: none; padding: 0; cursor: pointer; font-family: inherit; }
+.support-box { margin-top: 12px; }
+.support-box-title { font-family: var(--font-mincho); font-size: 13px; letter-spacing: 0.08em; color: var(--vermillion); margin-bottom: 6px; }
+.support-box .btn-secondary { overflow-wrap: anywhere; letter-spacing: 0.05em; }
+.support-more { display: inline-block; margin-top: 10px; }

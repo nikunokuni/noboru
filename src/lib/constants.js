@@ -46,6 +46,7 @@ export const EDIT_FIELD_LABELS = {
   goshuin: '御朱印', goshuin_note: '御朱印のメモ', features: '由緒',
   founded: '創建', annual_festival: '例祭', visiting_hours: '拝観時間', highlights: '見どころ',
   honden_style: '本殿の様式', website: '公式サイト', shrine_size: '大きさ', stair_steps: '石段の段数',
+  challenges: '抱える課題', support_note: '支援の方法', support_url: '支援のページ',
 }
 
 // 写真のタグ（1枚に1つ）。並びは選ぶ画面・神社詳細の表示順

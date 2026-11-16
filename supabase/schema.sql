@@ -46,6 +46,11 @@ CREATE TABLE shrines (
   shrine_size_by_user BOOLEAN NOT NULL DEFAULT FALSE,
   stair_steps         INTEGER CHECK (stair_steps BETWEEN 0 AND 99999),  -- 石段の段数（参拝でのぼるおおよその段数）。情報提供のみ。NULL = 不明
 
+  -- 抱える課題・支援の受け皿（情報提供のみ）。支援の方法かページが入っている神社は「支援の受け皿」の一覧に出る
+  challenges          TEXT,                     -- 抱える課題（後継者・修繕など）
+  support_note        TEXT,                     -- 支援の方法（奉賛会・修繕の寄付・クラウドファンディングなど）
+  support_url         TEXT CHECK (support_url ~* '^https?://'),  -- 支援を受け付けているページ
+
   -- アクセス（駅・バス停は取り込み時に OSM から自動計算。情報提供されたら *_by_user = TRUE にして以後は上書きしない）
   nearest_station          TEXT,
   nearest_station_m        INTEGER,             -- 直線距離（m）。情報提供された駅は NULL
@@ -78,6 +83,8 @@ CREATE INDEX idx_shrines_prefecture ON shrines(prefecture);
 CREATE INDEX idx_shrines_latlng     ON shrines(lat, lng);
 CREATE INDEX idx_shrines_stats_upd ON shrines(stats_updated_at);
 CREATE INDEX idx_shrines_unvisited  ON shrines(prefecture) WHERE first_visited_on IS NULL AND status = 'active';
+CREATE INDEX idx_shrines_support    ON shrines(updated_at DESC)   -- 支援の受け皿
+  WHERE status = 'active' AND (support_note IS NOT NULL OR support_url IS NOT NULL);
 
 -- ============================================================
 -- 2. 参拝記録
@@ -133,7 +140,8 @@ CREATE TABLE shrine_edits (
                'address', 'deities', 'benefits', 'shrine_rank',
                'access_note', 'parking', 'goshuin', 'features', 'name_kana',
                'goshuin_note', 'nearest_station', 'nearest_bus_stop',
-               'founded', 'annual_festival', 'visiting_hours', 'highlights', 'honden_style', 'website', 'shrine_size', 'stair_steps')),
+               'founded', 'annual_festival', 'visiting_hours', 'highlights', 'honden_style', 'website', 'shrine_size', 'stair_steps',
+               'challenges', 'support_note', 'support_url')),
   value      JSONB NOT NULL,                    -- 文字列 / 文字列配列 / 列挙値
   old_value  JSONB,                             -- 変更前の値（{列名: 値}）。トリガーが入れる。管理者が元に戻すときに使う
   reverted_at TIMESTAMPTZ,                      -- 管理者が元に戻した時刻
@@ -302,6 +310,9 @@ BEGIN
   IF NEW.field = 'stair_steps' AND txt !~ '^[0-9]{1,5}$' AND txt IS NOT NULL THEN
     RAISE EXCEPTION '石段の段数は数字で入れてください' USING ERRCODE = '22023';
   END IF;
+  IF NEW.field = 'support_url' AND txt !~* '^https?://[^[:space:]]+$' THEN
+    RAISE EXCEPTION '支援のページは http(s):// から始まるURLで入れてください' USING ERRCODE = '22023';
+  END IF;
   NEW.reverted_at := NULL;
   SELECT jsonb_object_agg(e.key, e.value) INTO NEW.old_value
   FROM shrines s, jsonb_each(to_jsonb(s)) AS e
@@ -337,6 +348,9 @@ BEGIN
     shrine_size         = CASE WHEN NEW.field = 'shrine_size' THEN NULLIF(txt, 'unknown') ELSE shrine_size END,
     shrine_size_by_user = CASE WHEN NEW.field = 'shrine_size' THEN NULLIF(txt, 'unknown') IS NOT NULL ELSE shrine_size_by_user END,
     stair_steps     = CASE WHEN NEW.field = 'stair_steps' THEN txt::INTEGER ELSE stair_steps END,
+    challenges      = CASE WHEN NEW.field = 'challenges'   THEN txt ELSE challenges END,
+    support_note    = CASE WHEN NEW.field = 'support_note' THEN txt ELSE support_note END,
+    support_url     = CASE WHEN NEW.field = 'support_url'  THEN txt ELSE support_url END,
     updated_at      = NOW()
   WHERE id = NEW.shrine_id;
   RETURN NEW;
@@ -557,6 +571,7 @@ BEGIN
     nearest_bus_stop_by_user = s.nearest_bus_stop_by_user,
     shrine_size = s.shrine_size, shrine_size_by_user = s.shrine_size_by_user,
     stair_steps = s.stair_steps,
+    challenges = s.challenges, support_note = s.support_note, support_url = s.support_url,
     updated_at = NOW()
   WHERE id = e.shrine_id;
 

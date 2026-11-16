@@ -26,6 +26,16 @@ export async function fetchShrine(id) {
   return data
 }
 
+// 支援の受け皿：支援の方法か支援のページが入っている神社（情報が新しい順）
+export async function fetchSupportShrines(limit = 500) {
+  const { data, error } = await supabase.from('shrines')
+    .select('id, name, prefecture, municipality, locality, shrine_size, challenges, support_note, support_url')
+    .or('support_note.not.is.null,support_url.not.is.null')
+    .order('updated_at', { ascending: false }).limit(limit)
+  if (error) throw error
+  return data
+}
+
 // 他人の記録・写真・情報提供は、user_id を返さない読み取り用の関数から読む
 
 // 神社の公開記録（新しい順）: [{ id, visited_on, emotion_level, public_memo, photos: [{ path, tag }], author }]

@@ -17,6 +17,7 @@ import ShrineEditPage from './pages/ShrineEditPage'
 import ShrineRequestPage from './pages/ShrineRequestPage'
 import ProfilePage from './pages/ProfilePage'
 import FeedbackPage from './pages/FeedbackPage'
+import SupportPage from './pages/SupportPage'
 
 // 地図ライブラリは大きいので、マップを開いたときに読み込む
 const MapPage = lazy(() => import('./pages/MapPage'))
@@ -61,6 +62,7 @@ export default function App() {
                 <Route path="/request" element={<ShrineRequestPage />} />
                 <Route path="/admin/requests" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminRequestsPage /></Suspense>} />
                 <Route path="/feedback" element={<FeedbackPage />} />
+                <Route path="/support" element={<SupportPage />} />
                 <Route path="/admin/nicknames" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminNicknamesPage /></Suspense>} />
                 <Route path="/admin/feedback" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminFeedbackPage /></Suspense>} />
                 <Route path="/admin/edits" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminEditsPage /></Suspense>} />

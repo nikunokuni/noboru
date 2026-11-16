@@ -69,6 +69,20 @@ function FeaturesSource({ source }) {
   return <p className="source">ユーザーからの情報提供</p>
 }
 
+// 支援を受け付けている神社だけ：支援の方法と支援のページ
+function SupportBox({ shrine }) {
+  const url = websiteUrl(shrine.support_url)
+  if (!shrine.support_note && !url) return null
+  return (
+    <div className="card support-box">
+      <div className="support-box-title">この神社は支援を受け付けています</div>
+      {shrine.support_note && <p className="small pre-wrap">{shrine.support_note}</p>}
+      {url && <a href={url} target="_blank" rel="noopener noreferrer" className="btn-secondary mt8">支援のページを開く（{new URL(url).hostname.replace(/^www\./, '')}）↗</a>}
+      <Link to="/support" className="inline-link small support-more">ほかの支援の受け皿を見る</Link>
+    </div>
+  )
+}
+
 function RecordItem({ r, mine }) {
   return (
     <div className="record-line" style={{ borderLeftColor: emotionColor(r.emotion_level) }}>
@@ -218,6 +232,14 @@ export default function ShrinePage() {
           {shrine.features
             ? <><p className="features">{shrine.features}</p><FeaturesSource source={shrine.features_source} /></>
             : <p className="muted small">まだ情報がありません。由緒や神話をご存じでしたら教えてください。</p>}
+        </section>
+
+        <section>
+          <div className="section-mini">抱える課題</div>
+          {shrine.challenges
+            ? <p className="features">{shrine.challenges}</p>
+            : <p className="muted small">まだ情報がありません。後継者・社殿の修繕・お祭りの担い手など、この神社が困っていることをご存じでしたら教えてください。</p>}
+          <SupportBox shrine={shrine} />
         </section>
 
         <section>

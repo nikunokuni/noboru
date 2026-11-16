@@ -37,6 +37,9 @@ const FIELDS = {
   goshuin: { label: '御朱印', type: 'goshuin' },
   goshuin_note: { label: '御朱印メモ', type: 'textarea', placeholder: '例：授与は9時〜16時。季節の限定御朱印あり' },
   features: { label: '由緒', type: 'textarea', placeholder: '創建の背景、関連する神話など' },
+  challenges: { label: '抱える課題', type: 'textarea', placeholder: '例：宮司が兼務で常駐していない。台風で社殿の屋根が傷み、修繕の費用が足りない' },
+  support_note: { label: '支援の方法', type: 'textarea', placeholder: '例：修繕のための奉納を社務所で受け付けている。奉賛会の会員を募集中' },
+  support_url: { label: '支援のページ', type: 'url', placeholder: '例：https://example.jp/support' },
 }
 
 const SECTIONS = [
@@ -44,6 +47,7 @@ const SECTIONS = [
   ['見どころ', ['highlights']],
   ['基本情報', ['shrine_size', 'name_kana', 'address', 'website', 'deities', 'benefits', 'shrine_rank', 'founded', 'annual_festival', 'honden_style']],
   ['由緒', ['features']],
+  ['抱える課題・支援', ['challenges', 'support_note', 'support_url']],
   ['アクセス', ['nearest_station', 'nearest_bus_stop', 'parking', 'stair_steps', 'access_note']],
 ]
 
@@ -197,6 +201,7 @@ export default function ShrineEditPage() {
   const submit = async () => {
     if (!changedCount) { showToast('内容が変わっていません'); return }
     if (changes.website && !websiteUrl(changes.website)) { showToast('公式サイトは https:// から始まるURLで入れてください'); return }
+    if (changes.support_url && !websiteUrl(changes.support_url)) { showToast('支援のページは https:// から始まるURLで入れてください'); return }
     setSaving(true)
     try {
       await submitShrineEdits({ shrineId: shrine.id, userId: user.id, changes })
@@ -236,7 +241,9 @@ export default function ShrineEditPage() {
                           <dd>
                             <FieldInput field={FIELDS[k]} value={inputs[k]} onChange={set(k)} />
                             {k === 'shrine_size' && !(k in changes) && shrine.shrine_size && !shrine.shrine_size_by_user && <p className="muted small">地図データ（境内の広さ・社格など）から自動で判定した値です。違っていたら直してください</p>}
-                            {k === 'website' && inputs.website.trim() && !websiteUrl(inputs.website) && <p className="muted small">https:// から始まるURLで入れてください</p>}
+                            {(k === 'website' || k === 'support_url') && inputs[k].trim() && !websiteUrl(inputs[k]) && <p className="muted small">https:// から始まるURLで入れてください</p>}
+                            {k === 'challenges' && <p className="muted small">後継者がいない・社殿の修繕・お祭りの担い手不足など、神社が困っていること</p>}
+                            {k === 'support_url' && <p className="muted small">寄付・奉納・クラウドファンディング・奉賛会の募集など、支援を受け付けているページ。支援の方法かページを入れると「支援の受け皿」の一覧に出ます</p>}
                             {k === 'stair_steps' && <p className="muted small">参拝でのぼる石段の、だいたいの段数（本殿まで。男坂・女坂があれば短い方）。石段がなければ 0。マイページの「のぼる」に使います</p>}
                             {(k === 'nearest_station' || k === 'nearest_bus_stop') && !(k in changes) && <AccessHint shrine={shrine} prefix={k} />}
                           </dd>

@@ -16,7 +16,7 @@ npm run dev
 ```
 
 5. 神社マスタを取り込む（[`scripts/README.md`](scripts/README.md)）
-6. 参拝の手引き（note 記事）を `guide_links` テーブルに登録する（Supabase の Table Editor から）
+6. 参拝の手引き（note 記事）を `guide_links` テーブルに登録する（Supabase の Table Editor から）。「支援の受け皿」に出す神社を支援しているサイト（クラウドファンディング・寄付の窓口など）は `context` を `support` にして登録する
 7. 自分を管理者にする（申請の確認ができるようになる）。一度アプリにGoogleログインしてから、SQL Editor で実行する
 
 ```sql
@@ -52,6 +52,7 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 | [`supabase/upgrade-wishes.sql`](supabase/upgrade-wishes.sql) | 行きたい神社（神社詳細の「☆」で印を付け、マップの「☆」で絞り込む。本人だけが読める）。アプリの更新より先に実行する |
 | [`supabase/upgrade-shrine-size-rank.sql`](supabase/upgrade-shrine-size-rank.sql) | 大きな神社を社格（勅祭社・二十二社・一宮・別表神社・式内社）で決める。摂社・末社・所管社は除く。Wikipedia のカテゴリ（式内社など）で大きな神社にするための取り込みの変更も入っている。`upgrade-shrine-size.sql` のあとに実行する（決め方を変えたときは実行し直す。取り込みの前に実行する）。実行するとすぐに大きな神社が入れ替わる（アプリの更新・取り込みは要らない。マップに出すには「神社一覧を更新する」） |
 | [`supabase/upgrade-stairs-walk.sql`](supabase/upgrade-stairs-walk.sql) | マイページの「のぼる」「あるく」（神社の石段の段数と、記録の「最寄り駅から歩いた」）。`upgrade-shrine-size.sql` を先に実行しておく。アプリの更新より先に実行する |
+| [`supabase/upgrade-support.sql`](supabase/upgrade-support.sql) | 神社詳細の「抱える課題」と、「みんなの参拝」の「支援の受け皿」（支援の方法・支援のページが入っている神社の一覧。どちらも情報提供で入れる）。`upgrade-stairs-walk.sql` を先に実行しておく。アプリの更新より先に実行する。「神社を支援しているサイト」のリンクは `guide_links` に `context = 'support'` で登録する |
 
 「次回へのメモ」はアプリから外した。以前のプロジェクトの `records.next_memo` 列は使われないまま残る（消すならアプリの更新後に `ALTER TABLE records DROP COLUMN next_memo;`）
 
