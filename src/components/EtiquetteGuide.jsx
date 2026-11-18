@@ -29,7 +29,7 @@ export default function EtiquetteGuide() {
   return (
     <div className="etiquette">
       <button type="button" className="text-btn" onClick={() => setOpen(!open)} aria-expanded={open}>
-        ⛩ 参拝作法（二礼二拍手一礼）{open ? ' ▲' : ' ▼'}
+        ⛩ 参拝作法{open ? ' ▲' : ' ▼'}
       </button>
       {open && (
         <>
