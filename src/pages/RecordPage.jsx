@@ -9,6 +9,7 @@ import { usePendingRecords } from '../hooks/usePendingRecords'
 import EmotionSlider from '../components/EmotionSlider'
 import { MemoFields, VisibilityChips, VisibilityNote } from '../components/MemoFields'
 import { GuideInlineLink } from '../components/GuideLinks'
+import EtiquetteGuide from '../components/EtiquetteGuide'
 import PhotoTagger from '../components/PhotoTagger'
 import { compressImage } from '../lib/imageCompress'
 import { distanceM, formatDistance, inBounds, nearbyHalfM, squareBounds } from '../lib/geo'
@@ -215,6 +216,8 @@ export default function RecordPage() {
             <p className="center mt16"><GuideInlineLink context="etiquette" /></p>
           </>
         )}
+
+        <EtiquetteGuide />
       </div>
     </div>
   )

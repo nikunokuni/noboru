@@ -77,6 +77,10 @@ a { color: inherit; }
 .text-btn { background: none; border: none; color: var(--vermillion); font-size: 12px; font-family: var(--font-mincho); letter-spacing: 0.08em; cursor: pointer; padding: 4px 0; }
 .text-btn.danger { color: var(--mist); }
 .inline-link { color: var(--vermillion); font-size: 12px; text-decoration: none; border-bottom: 1px solid rgba(192, 57, 43, 0.25); }
+.etiquette { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--line); text-align: center; }
+.etiquette .tab-row { margin-top: 8px; }
+.etiquette .tab-btn { font-size: 12px; letter-spacing: 0.08em; }
+.etiquette-img { display: block; width: 100%; height: auto; border-radius: 6px; margin: 8px 0; cursor: zoom-in; }
 .link-plain { text-decoration: none; display: block; }
 .action-row { margin: 18px 0; }
 .share-row { display: flex; gap: 8px; }
