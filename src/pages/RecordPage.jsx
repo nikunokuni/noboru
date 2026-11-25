@@ -63,10 +63,10 @@ export default function RecordPage() {
   photosRef.current = form.photos
   useEffect(() => () => photosRef.current.forEach((p) => URL.revokeObjectURL(p.preview)), [])
 
-  // 来た画面へ戻る。直接開いたときはホーム（記録する）へ
+  // 来た画面へ戻る。直接開いたときはマップへ
   const leave = () => {
     if (window.history.state?.idx > 0) navigate(-1)
-    else navigate('/', { replace: true })
+    else navigate('/map', { replace: true })
   }
 
   const handlePhotos = async (e) => {

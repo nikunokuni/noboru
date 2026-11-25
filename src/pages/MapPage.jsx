@@ -1,4 +1,6 @@
-// マップ：上に地図、下に検索。下で絞り込んだ神社だけを地図にピンで出す（地図は動かさない）
+// マップ（記録するを兼ねる）：上に地図、下に検索。下で絞り込んだ神社だけを地図にピンで出す（地図は動かさない）
+// 開くと現在地のまわりを出す。ピンを押すと吹き出しに「参拝を記録する」「詳しく見る」「☆」
+// 検索していないときは、下に地図の中の神社を現在地から近い順に出し、押すと記録画面へ
 // 地図と検索の間のバーを上下に動かして、それぞれの広さを変えられる
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -11,8 +13,9 @@ import { useShrineIndex } from '../hooks/useShrineIndex'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { fetchMyShrineIds } from '../lib/records'
 import { useWishes } from '../hooks/useWishes'
-import { getCurrentPosition } from '../lib/geo'
-import { getItem, searchPositions } from '../lib/indexCore'
+import { useLivePosition } from '../hooks/useLivePosition'
+import { distanceM, formatDistance, inBounds, nearbyHalfM, squareBounds } from '../lib/geo'
+import { getItem, nearbyIndex, searchPositions } from '../lib/indexCore'
 import { serverSearch } from '../lib/shrineIndex'
 import { SEARCH_TAGS, hasSizeColumn, hasTagColumns, largeShrineTags, tagFilter, tagsFromParams } from '../lib/searchTags'
 import { PREFECTURES } from '../lib/constants'
@@ -29,6 +32,11 @@ const JAPAN = { center: [36.5, 138.0], zoom: 5 }
 // マップにない神社の申請：この拡大より手前では場所が粗すぎるので申請させない
 const PLACE_MIN_ZOOM = 15
 const LIST_LIMIT = 100
+// 開いたとき・「現在地」を押したときの拡大
+const HERE_ZOOM = 15
+// 近い順の一覧は、この拡大より手前では出さない（広すぎると何千社にもなるので）
+const NEARBY_MIN_ZOOM = 13
+const NEARBY_LIST_MAX = 50
 // 大きな神社から集めたご祭神・ご利益のタグは、閉じているときはこの数だけ出す
 const MORE_FOLDED = 8
 
@@ -59,6 +67,8 @@ const clusterIcon = (count, mode) => {
 const pinIcon = (kind, wish) => L.divIcon({
   html: `<div class="pin pin-${kind}">${wish ? '<span class="pin-star">★</span>' : ''}</div>`, className: '', iconSize: [16, 16],
 })
+
+const hereIcon = L.divIcon({ html: '<div class="here-dot"></div>', className: '', iconSize: [14, 14] })
 
 // 地図と検索の間のバー。指で上下に動かす
 function SplitHandle({ containerRef, onChange, onEnd }) {
@@ -106,6 +116,13 @@ export default function MapPage() {
   // マップにない神社の申請：地図を動かして、真ん中の印を神社に合わせる
   const [placing, setPlacing] = useState(false)
   const [zoom, setZoom] = useState(JAPAN.zoom)
+  // いま地図に映っている範囲 [[南, 西], [北, 東]]
+  const [view, setView] = useState(null)
+  // 現在地（見張り続ける）。最初に取れたら、地図を動かしていなければ現在地へ
+  const { position } = useLivePosition()
+  const movedRef = useRef(false)
+  const centeredRef = useRef(false)
+  const hereRef = useRef(null)
 
   useEffect(() => { refreshVisited() }, [refreshVisited])
 
@@ -134,18 +151,50 @@ export default function MapPage() {
     layerRef.current = L.layerGroup().addTo(map)
     mapRef.current = map
     map.on('zoomend', () => setZoom(map.getZoom()))
-    let moved = false
-    map.once('movestart', () => { moved = true })
-    getCurrentPosition({ timeout: 10000 }).then((p) => {
-      // 先にユーザーが地図を動かしていたら、現在地へは飛ばない
-      // 位置が届く前に画面を離れて開き直したときは、前の（消した）地図は動かさない
-      if (p && mapRef.current === map && !moved) map.setView([p.lat, p.lng], 13)
-    })
+    const reportView = () => {
+      const b = map.getBounds()
+      setView([[b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]])
+    }
+    map.on('moveend', reportView)
+    reportView()
+    // 人が動かしたら、現在地が届いても地図を飛ばさない
+    const markMoved = () => { movedRef.current = true }
+    map.on('dragstart', markMoved)
+    map.on('dblclick', markMoved)
+    map.getContainer().addEventListener('wheel', markMoved, { passive: true })
+    map.getContainer().addEventListener('touchstart', (e) => { if (e.touches.length > 1) markMoved() }, { passive: true })
     // 地図の広さが変わったら（バーを動かした・画面の向き）、表示を合わせる
     const ro = new ResizeObserver(() => map.invalidateSize({ pan: false }))
     ro.observe(mapEl.current)
-    return () => { ro.disconnect(); map.remove(); mapRef.current = null }
+    return () => {
+      ro.disconnect(); map.remove(); mapRef.current = null
+      // 消した地図の印を使い回さない
+      hereRef.current = null; centeredRef.current = false; movedRef.current = false
+    }
   }, [])
+
+  // 現在地の点と誤差の円。最初に取れたときだけ、動かしていなければ現在地へ
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !position) return
+    const at = [position.lat, position.lng]
+    if (hereRef.current) {
+      hereRef.current.dot.setLatLng(at)
+      hereRef.current.circle.setLatLng(at).setRadius(position.accuracy || 0)
+    } else {
+      hereRef.current = {
+        circle: L.circle(at, { radius: position.accuracy || 0, interactive: false, color: '#2b7bd9', weight: 1, opacity: 0.5, fillColor: '#2b7bd9', fillOpacity: 0.1 }).addTo(map),
+        dot: L.marker(at, { icon: hereIcon, interactive: false, keyboard: false, zIndexOffset: -100 }).addTo(map),
+      }
+    }
+    if (!centeredRef.current && !movedRef.current) map.setView(at, HERE_ZOOM, { animate: false })
+    centeredRef.current = true
+  }, [position])
+
+  const goHere = () => {
+    if (!position) return
+    mapRef.current.setView([position.lat, position.lng], Math.max(HERE_ZOOM, mapRef.current.getZoom()))
+  }
 
   // 検索の条件
   const tagCount = Object.values(tags).reduce((n, t) => n + t.length, 0)
@@ -243,6 +292,10 @@ export default function MapPage() {
           btn.className = 'map-popup-btn'
           btn.textContent = '詳しく見る'
           btn.onclick = () => navigate(`/shrine/${r.id[i]}`)
+          const rec = document.createElement('button')
+          rec.className = 'map-popup-record'
+          rec.textContent = '参拝を記録する'
+          rec.onclick = () => navigate(`/record/${r.id[i]}`)
           // ☆：吹き出しから付け外しする。押したらボタンとピンの★をその場で変える
           const shrineId = r.id[i]
           const star = document.createElement('button')
@@ -256,7 +309,7 @@ export default function MapPage() {
           const actions = document.createElement('div')
           actions.className = 'map-popup-actions'
           actions.append(btn, star)
-          popup.append(title, sub, actions)
+          popup.append(title, sub, rec, actions)
           const marker = L.marker([lat, lng], { icon: pinIcon(pin, wishOn()) }).bindPopup(popup).addTo(layer)
           star.onclick = async () => {
             const was = wishOn()
@@ -267,17 +320,40 @@ export default function MapPage() {
         }
       }
     }
+    // 吹き出しを開いている間は描き直さない（吹き出しが入るように地図が少し動くと、描き直しで閉じてしまうので）
+    let popupOpen = false
+    const onOpen = () => { popupOpen = true }
+    // 閉じたら描き直す（別のピンを押して開き直したときは描き直さない）
+    const onClose = () => { popupOpen = false; setTimeout(() => { if (!popupOpen && mapRef.current === map) render() }, 0) }
+    const onMove = () => { if (!popupOpen) render() }
     render()
-    map.on('moveend', render)
-    return () => { map.off('moveend', render) }
+    map.on('moveend', onMove)
+    map.on('popupopen', onOpen)
+    map.on('popupclose', onClose)
+    return () => { map.off('moveend', onMove); map.off('popupopen', onOpen); map.off('popupclose', onClose) }
   }, [cluster, index, mode, navigate, wishes.ready])
 
   const changeSplit = (v) => { splitRef.current = v; setSplit(v) }
 
+  // 現在地のまわり（記録画面の「現地で記録」と同じ範囲）で申請したときだけ、現地からの申請にする
+  // 遠くの場所での申請は、承認しても参拝記録を作らない
   const request = () => {
     const c = mapRef.current.getCenter()
-    navigate(`/request?lat=${c.lat.toFixed(6)}&lng=${c.lng.toFixed(6)}&from=map`)
+    const near = position && inBounds(squareBounds(position.lat, position.lng, nearbyHalfM(position.accuracy)), c.lat, c.lng)
+    navigate(`/request?lat=${c.lat.toFixed(6)}&lng=${c.lng.toFixed(6)}${near ? '' : '&from=map'}`)
   }
+
+  // 検索していないとき：地図の中の神社を現在地から近い順に
+  const nearby = useMemo(() => {
+    if (active || !index || !position || !view || zoom < NEARBY_MIN_ZOOM) return null
+    const [[s, w], [n, e]] = view
+    const cLat = (s + n) / 2
+    const cLng = (w + e) / 2
+    return nearbyIndex(index, cLat, cLng, { radiusM: distanceM(cLat, cLng, n, e), limit: Infinity })
+      .filter((x) => inBounds(view, x.lat, x.lng))
+      .map((x) => ({ ...x, distance: distanceM(position.lat, position.lng, x.lat, x.lng) }))
+      .sort((a, b) => a.distance - b.distance)
+  }, [active, index, revision, position, view, zoom])
 
   return (
     <div className="app-shell map-shell">
@@ -298,6 +374,11 @@ export default function MapPage() {
             </div>
           </>) : (
             <button type="button" className="map-request-btn" onClick={() => setPlacing(true)}>マップにない神社を申請</button>
+          )}
+          {position && !placing && (
+            <button type="button" className="map-here-btn" onClick={goHere} aria-label="現在地に戻る">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" /></svg>
+            </button>
           )}
           {!placing && index && mode === 'mine' && myIds.size === 0 && (
             <div className="map-overlay">{user ? 'まだ参拝の記録がありません' : 'ログインすると自分の参拝が表示されます'}</div>
@@ -323,6 +404,17 @@ export default function MapPage() {
             </select>
             {tagCount > 0 && <button className="text-btn map-clear" onClick={() => setTags({})}>タグをすべて外す</button>}
           </div>
+          {!active && index && position && (
+            <div className="mt8 map-nearby">
+              <div className="section-mini">地図の中の神社（現在地から近い順）</div>
+              {!nearby && <p className="muted small">地図を拡大すると、近くの神社が一覧で出ます</p>}
+              {nearby?.length === 0 && <p className="muted small">地図の中に登録された神社はありません（地図を縮小すると探せます）</p>}
+              {nearby?.slice(0, NEARBY_LIST_MAX).map((s) => (
+                <ShrineRow key={s.id} item={s} onClick={() => navigate(`/record/${s.id}`)} right={formatDistance(s.distance)} />
+              ))}
+              {nearby?.length > NEARBY_LIST_MAX && <p className="muted small center mt8">近い{NEARBY_LIST_MAX}社まで出しています（ほかは地図のピンから）</p>}
+            </div>
+          )}
           {tagGroups.map((g) => (
             <div key={g.key} className="tag-group">
               <span className="tag-group-label">{g.label}</span>

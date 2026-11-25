@@ -1,16 +1,26 @@
-// みんなの参拝：みんなでの達成状況 ＋ 全国の公開記録のタイムライン
+// みんなの参拝：みんなでの達成状況 ＋ 支援の受け皿 ＋ 今日の神社 ＋ 全国の公開記録のタイムライン
 import React, { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { useSignedUrls } from '../components/Photos'
 import PhotoBook, { PhotoBookPicker } from '../components/PhotoBook'
 import WishStar from '../components/WishStar'
+import TodayShrine from '../components/TodayShrine'
 import { ANONYMOUS_NAME, fetchAppStats, fetchPrefectureProgress, fetchPublicPhotosByTag, fetchPublicTimeline } from '../lib/community'
 import { formatDate, percent } from '../lib/format'
 import { PHOTO_BOOKS, PREFECTURES } from '../lib/constants'
 
 const PAGE = 30
 const BOOK_PAGE = 60
+
+function RecentVisitors() {
+  const [count, setCount] = useState(null)
+  useEffect(() => {
+    fetchAppStats().then((s) => setCount(s.recent_visitors)).catch(() => {})
+  }, [])
+  if (!count) return null
+  return <p className="quiet-count">この30日で、全国 {count.toLocaleString()}人 が参拝しています</p>
+}
 
 function Progress() {
   const [stats, setStats] = useState(null)
@@ -151,11 +161,13 @@ export default function CommunityPage() {
     <div className="app-shell">
       <TopBar title="みんなの参拝" />
       <div className="page-content">
+        <RecentVisitors />
         <Progress />
         <Link to="/support" className="card support-entry">
           <span className="support-entry-title">支援の受け皿 ›</span>
           <span className="muted small">課題を抱え、支援を受け付けている神社と、神社を支援しているサイト</span>
         </Link>
+        <TodayShrine />
 
         <PhotoBookPicker value={book} onChange={setBook} />
         {book ? <PublicBook tag={book} /> : (<>

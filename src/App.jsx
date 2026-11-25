@@ -7,7 +7,6 @@ import { PendingRecordsProvider } from './hooks/usePendingRecords'
 import { WishesProvider } from './hooks/useWishes'
 import BottomNav from './components/BottomNav'
 import UpdateBanner from './components/UpdateBanner'
-import HomePage from './pages/HomePage'
 import RecordPage from './pages/RecordPage'
 import CommunityPage from './pages/CommunityPage'
 import RecordsPage from './pages/RecordsPage'
@@ -26,6 +25,13 @@ const AdminRequestsPage = lazy(() => import('./pages/AdminRequestsPage'))
 const AdminEditsPage = lazy(() => import('./pages/AdminEditsPage'))
 const AdminFeedbackPage = lazy(() => import('./pages/AdminFeedbackPage'))
 const AdminNicknamesPage = lazy(() => import('./pages/AdminNicknamesPage'))
+
+// 「記録する」はマップに入った。/ はマップへ。以前の「/?shrine=ID」（記録画面がホームだったころ）は記録画面へ
+function HomeRedirect() {
+  const { search } = useLocation()
+  const legacy = new URLSearchParams(search).get('shrine')
+  return <Navigate to={legacy ? `/record/${legacy}` : '/map'} replace />
+}
 
 // 「探す」はマップに入った。以前のリンク（/search?deity=…）はマップの検索へ
 function SearchRedirect() {
@@ -48,12 +54,12 @@ export default function App() {
             <BrowserRouter>
               <Routes>
                 <Route element={<TabLayout />}>
-                  <Route path="/" element={<HomePage />} />
                   <Route path="/map" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><MapPage /></Suspense>} />
                   <Route path="/community" element={<CommunityPage />} />
                   <Route path="/records" element={<RecordsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                 </Route>
+                <Route path="/" element={<HomeRedirect />} />
                 <Route path="/search" element={<SearchRedirect />} />
                 <Route path="/record/:shrineId" element={<RecordPage />} />
                 <Route path="/records/:id" element={<RecordDetailPage />} />

@@ -1,4 +1,4 @@
-// 今日の神社：候補から日替わりで1社を、画像と紹介文で紹介する。押すと神社詳細へ
+// 今日の神社：候補から日替わりで1社を、紹介文（左）と画像（右）で紹介する。押すと神社詳細へ
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSignedUrls } from './Photos'
@@ -41,15 +41,15 @@ export default function TodayShrine() {
 
   return (
     <Link to={`/shrine/${shrine.id}`} className="today-shrine">
-      <div className="today-shrine-label">今日の神社</div>
-      {image
-        ? <img src={image} alt={shrine.name} className="today-shrine-img" />
-        : photoPath && <div className="today-shrine-img placeholder" />}
       <div className="today-shrine-body">
+        <div className="today-shrine-label">今日の神社</div>
         <div className="today-shrine-name">⛩ {shrine.name}</div>
         <div className="muted small">{placeLabel(shrine)}</div>
         {text && <p className="today-shrine-text">{text}</p>}
       </div>
+      {image
+        ? <img src={image} alt={shrine.name} className="today-shrine-img" />
+        : photoPath && <div className="today-shrine-img placeholder" />}
     </Link>
   )
 }

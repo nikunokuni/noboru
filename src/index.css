@@ -244,19 +244,6 @@ a { color: inherit; }
 .map-popup-star { width: 30px; height: 30px; }
 .pin { position: relative; }
 .pin-star { position: absolute; top: -9px; right: -9px; font-size: 11px; line-height: 1; color: var(--vermillion); text-shadow: 0 0 2px #fff, 0 0 2px #fff; }
-.nearby-pin-label.wish { color: var(--vermillion); }
-.nearby-pin.selected .pin { box-shadow: 0 0 0 3px var(--vermillion), 0 1px 3px rgba(0, 0, 0, 0.35); }
-.nearby-pin.selected .nearby-pin-label { font-size: 12px; }
-.nearby-home-btn { position: absolute; right: 10px; top: 86px; z-index: 600; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: #fff; color: var(--mist); border: 2px solid rgba(0, 0, 0, 0.2); border-radius: 4px; background-clip: padding-box; cursor: pointer; padding: 0; }
-.nearby-home-btn.moved { color: #2b7bd9; }
-.nearby-card { margin-top: 8px; padding: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; box-shadow: 0 2px 8px rgba(26, 18, 8, 0.08); }
-.nearby-card-head { display: flex; align-items: flex-start; gap: 4px; margin-bottom: 10px; }
-.nearby-card-head .wish-star { margin-left: -6px; margin-top: -6px; }
-.nearby-card-title { flex: 1; min-width: 0; line-height: 1.6; }
-.nearby-card-name { font-family: var(--font-mincho); font-size: 16px; font-weight: 600; }
-.nearby-card-close { flex: none; width: 32px; height: 32px; margin: -6px -6px 0 0; background: none; border: none; font-size: 20px; color: var(--mist); cursor: pointer; }
-.nearby-card-links { display: flex; gap: 8px; margin-top: 8px; }
-.nearby-card-links .btn-secondary { flex: 1; width: auto; }
 .book-lightbox-star { width: 28px; height: 24px; vertical-align: middle; }
 .book-lightbox-info .wish-star:not(.on) { color: inherit; opacity: 0.8; }
 .map-request-btn { position: absolute; bottom: 28px; left: 12px; z-index: 600; background: rgba(245, 240, 232, 0.95); border: 1px solid var(--line); border-radius: 20px; padding: 8px 14px; font-size: 12px; font-family: var(--font-mincho); letter-spacing: 0.08em; color: var(--ink); box-shadow: 0 2px 8px rgba(26, 18, 8, 0.15); cursor: pointer; }
@@ -277,26 +264,13 @@ a { color: inherit; }
 .map-popup { font-family: var(--font-body); min-width: 140px; }
 .map-popup-name { font-family: var(--font-mincho); font-size: 14px; margin-bottom: 2px; }
 .map-popup-sub { font-size: 11px; color: var(--mist); margin-bottom: 8px; }
+.map-popup-record { display: block; width: 100%; background: var(--vermillion); color: #fff; border: none; border-radius: 4px; padding: 8px 12px; margin-bottom: 6px; font-size: 12px; cursor: pointer; font-family: var(--font-mincho); letter-spacing: 0.1em; }
+.map-nearby { margin-bottom: 16px; }
+.map-here-btn { position: absolute; right: 10px; bottom: 100px; z-index: 600; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; background: #fff; color: #2b7bd9; border: 2px solid rgba(0, 0, 0, 0.2); border-radius: 4px; background-clip: padding-box; cursor: pointer; padding: 0; }
 .map-popup-btn { background: var(--ink); color: var(--paper); border: none; border-radius: 4px; padding: 6px 12px; font-size: 11px; cursor: pointer; font-family: var(--font-mincho); letter-spacing: 0.1em; }
 
-/* 記録する：現在地まわりの地図（開くと約2km四方。指で動かせる） */
-.nearby-map-wrap { position: relative; }
-.nearby-map { position: relative; width: 100%; aspect-ratio: 1 / 1; border-radius: 6px; overflow: hidden; background: var(--paper2); border: 1px solid var(--line); z-index: 0; }
-.nearby-map-canvas { width: 100%; height: 100%; }
-.nearby-map.placing { cursor: crosshair; outline: 2px solid var(--vermillion); outline-offset: -2px; }
-.nearby-map-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 24px; text-align: center; line-height: 1.8; }
-.nearby-map-hint { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(245, 240, 232, 0.95); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-family: var(--font-mincho); letter-spacing: 0.08em; z-index: 600; box-shadow: 0 2px 8px rgba(26, 18, 8, 0.15); white-space: nowrap; pointer-events: none; }
-.nearby-pin { position: relative; width: 16px; height: 16px; }
-.nearby-pin .pin { position: absolute; inset: 0; box-sizing: border-box; }
-.nearby-pin.small { width: 10px; height: 10px; }
-.nearby-pin.small .pin { border-width: 1px; }
-.nearby-pin.small .nearby-pin-label { left: 12px; }
-.nearby-pin-label { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-family: var(--font-mincho); font-size: 11px; font-weight: 600; color: var(--ink); text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
 .here-dot { width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; background: #2b7bd9; border: 2px solid #fff; box-shadow: 0 0 0 4px rgba(43, 123, 217, 0.25); }
 .new-pin { width: 24px; height: 32px; background: var(--vermillion); clip-path: path('M12 32C12 32 0 18 0 12a12 12 0 0 1 24 0c0 6-12 20-12 20z'); }
-.location-note { margin-top: 6px; text-align: center; line-height: 1.7; }
-.location-note .text-btn { margin-left: 8px; }
-.place-actions { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; }
 
 /* 写真のタグ */
 .tagger { text-align: center; }
@@ -313,13 +287,13 @@ a { color: inherit; }
 .main-photo.placeholder { background: var(--paper3); }
 
 /* 今日の神社（記録するタブの一番上） */
-.today-shrine { display: block; text-decoration: none; color: inherit; background: var(--paper2); border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
-.today-shrine-label { font-family: var(--font-mincho); font-size: 10px; letter-spacing: 0.25em; color: var(--vermillion); padding: 10px 14px 8px; }
-.today-shrine-img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
+.today-shrine { display: flex; align-items: stretch; gap: 12px; text-decoration: none; color: inherit; background: var(--paper2); border-radius: 10px; overflow: hidden; margin-bottom: 18px; }
+.today-shrine-body { flex: 1; min-width: 0; padding: 10px 0 12px 14px; }
+.today-shrine-label { font-family: var(--font-mincho); font-size: 10px; letter-spacing: 0.25em; color: var(--vermillion); margin-bottom: 6px; }
+.today-shrine-img { flex: none; width: 112px; min-height: 112px; align-self: stretch; object-fit: cover; display: block; }
 .today-shrine-img.placeholder { background: var(--paper3); }
-.today-shrine-body { padding: 10px 14px 14px; }
-.today-shrine-name { font-family: var(--font-mincho); font-size: 16px; letter-spacing: 0.08em; margin-bottom: 2px; }
-.today-shrine-text { font-size: 12px; line-height: 1.9; margin-top: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+.today-shrine-name { font-family: var(--font-mincho); font-size: 15px; letter-spacing: 0.06em; margin-bottom: 2px; }
+.today-shrine-text { font-size: 12px; line-height: 1.7; margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
 .photo-tags { justify-content: center; }
 .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
 .photo-grid .photo { width: 100%; height: auto; aspect-ratio: 1; cursor: zoom-in; }
