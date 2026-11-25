@@ -383,6 +383,7 @@ OSM で神社の敷地（way/relation のポリゴン）が登録されている
 | `goshuin` | 神社詳細の御朱印欄「御朱印とは」 |
 
 - 外部リンクは新しいタブで開く
+- マイページ「参拝の手引き」の上には、図解の一覧（`src/components/GuideImageList.jsx` の `GUIDES`）を出す。項目を押すと図解を大きく表示する（複数枚なら左右にめくれる）。項目を足すときは画像を `src/assets/guide/` に置いて `GUIDES` に足す
 
 ---
 

@@ -13,9 +13,10 @@ export function useGuideLinks(context) {
 }
 
 // 一覧表示（マイページ）
-export function GuideLinkList({ context = 'general' }) {
+// emptyText に null を渡すと、リンクがないとき何も出さない
+export function GuideLinkList({ context = 'general', emptyText = '準備中です' }) {
   const links = useGuideLinks(context)
-  if (!links.length) return <p className="muted small">準備中です</p>
+  if (!links.length) return emptyText ? <p className="muted small">{emptyText}</p> : null
   return (
     <ul className="guide-list">
       {links.map((l) => (

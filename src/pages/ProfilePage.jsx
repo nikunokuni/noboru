@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { GuideLinkList } from '../components/GuideLinks'
+import GuideImageList, { GUIDES } from '../components/GuideImageList'
 import NicknameSettings from '../components/NicknameSettings'
 import PrayerBox from '../components/PrayerBox'
 import ActivityPanel from '../components/ActivityPanel'
@@ -82,7 +83,8 @@ export default function ProfilePage() {
 
         <section className="mt24">
           <div className="section-mini">参拝の手引き</div>
-          <GuideLinkList context="general" />
+          <GuideImageList />
+          <GuideLinkList context="general" emptyText={GUIDES.length ? null : undefined} />
         </section>
 
         <section className="mt24">
