@@ -1,9 +1,10 @@
-// マイページ：ニックネーム・称号・のぼる・あるく・お祈りしたいこと・おみくじ・参拝の手引き（note）・アプリの紹介
+// マイページ：ニックネーム・称号・のぼる・あるく・お祈りしたいこと・おみくじ・言語・参拝の手引き（図解・note）・アプリの紹介
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
 import { GuideLinkList } from '../components/GuideLinks'
 import GuideImageList, { GUIDES } from '../components/GuideImageList'
+import LanguageSettings from '../components/LanguageSettings'
 import NicknameSettings from '../components/NicknameSettings'
 import PrayerBox from '../components/PrayerBox'
 import ActivityPanel from '../components/ActivityPanel'
@@ -80,6 +81,8 @@ export default function ProfilePage() {
             </Link>
           </>
         )}
+
+        <LanguageSettings />
 
         <section className="mt24">
           <div className="section-mini">参拝の手引き</div>
