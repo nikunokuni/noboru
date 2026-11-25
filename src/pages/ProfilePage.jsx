@@ -1,4 +1,4 @@
-// マイページ：ニックネーム・称号・のぼる・あるく・お祈りしたいこと・おみくじ・言語・参拝の手引き（図解・note）・アプリの紹介
+// マイページ：ニックネーム・称号・お祈りしたいこと・おみくじ・言語・参拝の手引き（図解・note）・アプリの紹介
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
@@ -7,7 +7,6 @@ import GuideImageList, { GUIDES } from '../components/GuideImageList'
 import LanguageSettings from '../components/LanguageSettings'
 import NicknameSettings from '../components/NicknameSettings'
 import PrayerBox from '../components/PrayerBox'
-import ActivityPanel from '../components/ActivityPanel'
 import Omikuji from '../components/Omikuji'
 import ShareButtons, { APP_SHARE_TEXT, shareUrl } from '../components/ShareButtons'
 import { useAuth } from '../hooks/useAuth'
@@ -62,7 +61,6 @@ export default function ProfilePage() {
               {title && <div className="title-badge">⛩ {title.current}</div>}
               {title?.next && <p className="muted small mt8">「{title.next.label}」まで あと{title.next.remaining}社</p>}
             </div>
-            <ActivityPanel userId={user.id} />
             <PrayerBox userId={user.id} />
             <button className="btn-secondary mt24" onClick={() => setOmikujiOpen(true)}>おみくじを引く</button>
             {omikujiOpen && <Omikuji onClose={() => setOmikujiOpen(false)} />}

@@ -386,12 +386,6 @@ a { color: inherit; }
 .update-btn { background: var(--paper); color: var(--ink); border: none; border-radius: 16px; padding: 6px 14px; font-family: var(--font-mincho); font-size: 12px; letter-spacing: 0.1em; cursor: pointer; }
 .update-later { background: none; border: none; color: var(--paper); opacity: 0.6; font-size: 13px; padding: 4px 6px; cursor: pointer; }
 
-/* マイページの「のぼる」「あるく」 */
-.activity-num { font-family: var(--font-mincho); font-size: 24px; }
-.activity-unit { font-size: 14px; margin-left: 2px; }
-.goal-bar { height: 6px; background: var(--paper2); border-radius: 3px; overflow: hidden; margin: 6px 0 4px; }
-.goal-bar span { display: block; height: 100%; background: var(--vermillion); border-radius: 3px; }
-
 /* 支援の受け皿 */
 .support-entry { display: flex; flex-direction: column; gap: 4px; text-decoration: none; margin-bottom: 18px; }
 .support-entry-title { font-family: var(--font-mincho); font-size: 14px; letter-spacing: 0.1em; color: var(--vermillion); }

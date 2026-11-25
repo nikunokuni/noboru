@@ -99,14 +99,6 @@ export async function fetchMyRecords(userId) {
   return data
 }
 
-// 「のぼる」「あるく」用：現地で記録した記録と、その神社の位置・石段の段数・最寄り駅までの距離
-export async function fetchMyOnsiteRecords(userId) {
-  const { data, error } = await supabase.from('records')
-    .select('shrine_id, visited_on, created_at, onsite, walked_from_station, shrines(lat, lng, stair_steps, nearest_station_m)')
-    .eq('user_id', userId).eq('onsite', true)
-  if (error) throw error
-  return data
-}
 
 export async function fetchRecord(id) {
   const { data, error } = await supabase.from('records')

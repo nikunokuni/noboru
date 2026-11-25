@@ -244,7 +244,7 @@ export default function ShrineEditPage() {
                             {(k === 'website' || k === 'support_url') && inputs[k].trim() && !websiteUrl(inputs[k]) && <p className="muted small">https:// から始まるURLで入れてください</p>}
                             {k === 'challenges' && <p className="muted small">神社が困っていることを選んでください（いくつでも）。くわしい事情は「支援の方法」に書けます</p>}
                             {k === 'support_url' && <p className="muted small">寄付・奉納・クラウドファンディング・奉賛会の募集など、支援を受け付けているページ。支援の方法かページを入れると「支援の受け皿」の一覧に出ます</p>}
-                            {k === 'stair_steps' && <p className="muted small">参拝でのぼる石段の、だいたいの段数（本殿まで。男坂・女坂があれば短い方）。石段がなければ 0。マイページの「のぼる」に使います</p>}
+                            {k === 'stair_steps' && <p className="muted small">参拝でのぼる石段の、だいたいの段数（本殿まで。男坂・女坂があれば短い方）。石段がなければ 0</p>}
                             {(k === 'nearest_station' || k === 'nearest_bus_stop') && !(k in changes) && <AccessHint shrine={shrine} prefix={k} />}
                           </dd>
                         </div>
