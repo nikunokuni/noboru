@@ -17,6 +17,9 @@ import ShrineRequestPage from './pages/ShrineRequestPage'
 import ProfilePage from './pages/ProfilePage'
 import FeedbackPage from './pages/FeedbackPage'
 import SupportPage from './pages/SupportPage'
+import CollectionPage from './pages/CollectionPage'
+import DeityListPage from './pages/DeityListPage'
+import DeityDetailPage from './pages/DeityDetailPage'
 
 // 地図ライブラリは大きいので、マップを開いたときに読み込む
 const MapPage = lazy(() => import('./pages/MapPage'))
@@ -57,6 +60,9 @@ export default function App() {
                   <Route path="/map" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><MapPage /></Suspense>} />
                   <Route path="/community" element={<CommunityPage />} />
                   <Route path="/records" element={<RecordsPage />} />
+                  <Route path="/collection" element={<CollectionPage />} />
+                  <Route path="/collection/deities" element={<DeityListPage />} />
+                  <Route path="/collection/deities/:name" element={<DeityDetailPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                 </Route>
                 <Route path="/" element={<HomeRedirect />} />

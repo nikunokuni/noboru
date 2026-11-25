@@ -129,7 +129,7 @@ a { color: inherit; }
 /* スピナー・トースト */
 .spinner { width: 20px; height: 20px; border: 2px solid var(--line); border-top-color: var(--vermillion); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 12px auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.toast { position: fixed; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); width: max-content; background: var(--ink); color: var(--paper); font-family: var(--font-mincho); font-size: 12px; letter-spacing: 0.1em; line-height: 1.6; padding: 10px 20px; border-radius: 20px; z-index: 2000; animation: toastIn 0.3s ease; text-align: center; }
+.toast { position: fixed; bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); width: max-content; background: var(--ink); color: var(--paper); font-family: var(--font-mincho); font-size: 12px; letter-spacing: 0.1em; line-height: 1.6; padding: 10px 20px; border-radius: 20px; z-index: 2000; animation: toastIn 0.3s ease; text-align: center; white-space: pre-line; }
 @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 
 /* ログイン */
@@ -412,3 +412,32 @@ a { color: inherit; }
 .support-box-title { font-family: var(--font-mincho); font-size: 13px; letter-spacing: 0.08em; color: var(--vermillion); margin-bottom: 6px; }
 .support-box .btn-secondary { overflow-wrap: anywhere; letter-spacing: 0.05em; }
 .support-more { display: inline-block; margin-top: 10px; }
+
+/* コレクション（神様リストなど） */
+.collection-entry { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+.collection-entry-body { flex: 1; min-width: 0; }
+.collection-entry-name { font-family: var(--font-mincho); font-size: 16px; letter-spacing: 0.12em; margin-bottom: 4px; }
+.collection-entry-count { display: flex; align-items: baseline; gap: 2px; white-space: nowrap; }
+.collection-got { font-family: var(--font-mincho); font-size: 20px; color: var(--vermillion); }
+.collection-got.big { font-size: 30px; }
+.collection-arrow { color: var(--mist); font-size: 18px; margin-left: 6px; flex: none; }
+.collection-bar { height: 4px; background: var(--paper3); border-radius: 2px; overflow: hidden; }
+.collection-bar span { display: block; height: 100%; background: var(--vermillion); border-radius: 2px; transition: width 0.4s; }
+.collection-summary { text-align: center; background: var(--paper2); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; font-family: var(--font-mincho); }
+.collection-summary .collection-bar { margin-top: 8px; }
+.collection-summary p { font-family: var(--font-body); }
+.deity-list { list-style: none; padding: 0; margin: 0; }
+.deity-row { display: flex; align-items: center; gap: 10px; padding: 11px 2px; border-bottom: 1px solid rgba(26, 18, 8, 0.07); text-decoration: none; color: inherit; }
+.deity-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.deity-row-name { font-family: var(--font-mincho); font-size: 15px; letter-spacing: 0.06em; overflow-wrap: anywhere; }
+.deity-mark { flex: none; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 1.5px dashed rgba(26, 18, 8, 0.18); }
+.deity-row:not(.collected) .deity-row-name { color: rgba(26, 18, 8, 0.45); }
+.deity-row.collected .deity-mark { border: 1.5px solid var(--vermillion); background: var(--vermillion-bg); }
+.deity-head { text-align: center; margin: 8px 0 16px; }
+.deity-head .shrine-name { overflow-wrap: anywhere; }
+.deity-seal { width: 64px; height: 64px; margin: 0 auto 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-family: var(--font-mincho); color: var(--mist); border: 2px dashed rgba(26, 18, 8, 0.2); }
+.deity-head.collected .deity-seal { color: var(--vermillion); border: 2px solid var(--vermillion); background: var(--vermillion-bg); }
+.deity-not-yet { margin-left: 0; font-size: 10px; padding: 3px 10px; }
+.deity-aliases { line-height: 1.9; overflow-wrap: anywhere; }
+.deity-shrine-row { text-decoration: none; color: inherit; }
+.deity-visit-pill { flex: none; white-space: nowrap; }
