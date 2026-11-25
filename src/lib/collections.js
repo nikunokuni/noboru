@@ -10,6 +10,7 @@ import { canonicalDeity } from './deities.js'
 
 export const COLLECTIONS = [
   { key: 'deities', label: '神様リスト', note: 'マップの神社のご祭神。祀られている神社を参拝すると集まる', to: '/collection/deities' },
+  { key: 'nikunokuni', label: 'にくのくにリスト', note: '作者が思い入れのある神社。参拝するとエピソードを読める', to: '/collection/nikunokuni' },
 ]
 
 // 自分の参拝（送信済みの記録と未送信の記録）から、神社ごとの最初の参拝日

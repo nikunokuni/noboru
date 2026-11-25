@@ -20,6 +20,8 @@ import SupportPage from './pages/SupportPage'
 import CollectionPage from './pages/CollectionPage'
 import DeityListPage from './pages/DeityListPage'
 import DeityDetailPage from './pages/DeityDetailPage'
+import NikunokuniListPage from './pages/NikunokuniListPage'
+import NikunokuniDetailPage from './pages/NikunokuniDetailPage'
 
 // 地図ライブラリは大きいので、マップを開いたときに読み込む
 const MapPage = lazy(() => import('./pages/MapPage'))
@@ -64,6 +66,8 @@ export default function App() {
                   <Route path="/collection" element={<CollectionPage />} />
                   <Route path="/collection/deities" element={<DeityListPage />} />
                   <Route path="/collection/deities/:name" element={<DeityDetailPage />} />
+                  <Route path="/collection/nikunokuni" element={<NikunokuniListPage />} />
+                  <Route path="/collection/nikunokuni/:key" element={<NikunokuniDetailPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                 </Route>
                 <Route path="/" element={<HomeRedirect />} />

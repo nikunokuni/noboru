@@ -5,6 +5,7 @@ import { useToast } from './useToast'
 import { useShrineIndex } from './useShrineIndex'
 import { enqueueRecord, fetchMyShrineIds, listPending, removePending, syncPending } from '../lib/records'
 import { newDeitiesFor } from '../lib/collections'
+import { newNikunokuniFor } from '../lib/nikunokuni'
 
 const PendingContext = createContext(null)
 
@@ -52,7 +53,7 @@ export function PendingRecordsProvider({ children }) {
   }, [pending, syncNow])
 
   // 記録の保存。お知らせは「記録完了！」の1つにまとめる（3秒ほどで消える）
-  // 新しく集まった神様（コレクション）も添える。これまでの参拝を読めないとき（圏外など）は添えない
+  // 新しく集まった神様・読めるようになったにくのくにリストのエピソード（コレクション）も添える。これまでの参拝を読めないとき（圏外など）は添えない
   const addRecord = useCallback(async (record) => {
     const before = await fetchMyShrineIds(record.user_id).catch(() => null)
     const others = before && [...before, ...(await listPending(record.user_id)).map((p) => p.shrine_id)]
@@ -60,13 +61,16 @@ export function PendingRecordsProvider({ children }) {
     const deityNote = deities.length
       ? `\n新しい神様を集めました：${deities[0]}${deities.length > 1 ? ` ほか${deities.length - 1}柱` : ''}`
       : ''
+    const niku = others && index ? newNikunokuniFor(index, record.shrine_id, others) : []
+    const nikuNote = niku.length ? '\nにくのくにリストのエピソードが読めるようになりました' : ''
+    const collectNote = deityNote + nikuNote
     await enqueueRecord(record)
     await reload()
     const mine = (await send()).find((s) => s.id === record.id)
-    const extra = deityNote ? 1500 : 0
-    if (!mine) showToast(`記録完了！　電波が戻ったら送信します${deityNote}`, 4000 + extra)
-    else if (mine.firstVisitor) showToast(`記録完了！　あなたが「${mine.shrineName}」の最初の参拝者です　⛩${deityNote}`, 5000 + extra)
-    else showToast(`記録完了！${deityNote}`, 3000 + extra)
+    const extra = (deityNote ? 1500 : 0) + (nikuNote ? 1500 : 0)
+    if (!mine) showToast(`記録完了！　電波が戻ったら送信します${collectNote}`, 4000 + extra)
+    else if (mine.firstVisitor) showToast(`記録完了！　あなたが「${mine.shrineName}」の最初の参拝者です　⛩${collectNote}`, 5000 + extra)
+    else showToast(`記録完了！${collectNote}`, 3000 + extra)
   }, [index, reload, send, showToast])
 
   const discard = useCallback(async (id) => {

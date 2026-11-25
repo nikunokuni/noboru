@@ -1,4 +1,4 @@
-// コレクション：○○リストの入り口。いまは神様リストだけ（増やすときは lib/collections.js の COLLECTIONS に足す）
+// コレクション：○○リストの入り口。神様リスト・にくのくにリスト（増やすときは lib/collections.js の COLLECTIONS に足す）
 import React, { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useShrineIndex } from '../hooks/useShrineIndex'
 import { useMyVisits } from '../hooks/useMyVisits'
 import { COLLECTIONS, deityCollection } from '../lib/collections'
+import { nikunokuniCollection } from '../lib/nikunokuni'
 
 export default function CollectionPage() {
   const { user, loading } = useAuth()
@@ -16,7 +17,11 @@ export default function CollectionPage() {
   const progress = useMemo(() => {
     if (!index) return {}
     const deities = deityCollection(index, visits || undefined)
-    return { deities: { got: deities.filter((d) => d.collected).length, total: deities.length } }
+    const niku = nikunokuniCollection(index, visits || undefined)
+    return {
+      deities: { got: deities.filter((d) => d.collected).length, total: deities.length },
+      nikunokuni: { got: niku.filter((d) => d.collected).length, total: niku.length },
+    }
   }, [index, revision, visits]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
