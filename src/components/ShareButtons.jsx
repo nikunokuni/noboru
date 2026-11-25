@@ -1,6 +1,7 @@
 // 共有ボタン（URLをコピー・Xで共有）。アプリの紹介と神社の紹介で使う
-import React from 'react'
+import React, { useState } from 'react'
 import { useToast } from '../hooks/useToast'
+import QrModal from './QrModal'
 
 export const APP_SHARE_TEXT = 'ノボル｜神社参拝を記録し、みんなで全国の神社を巡るアプリ'
 
@@ -27,8 +28,10 @@ async function copyText(text) {
 }
 
 // children を渡すと、共有ボタンの右に同じ行で並べる（神社のページの「ここを記録する」）
-export default function ShareButtons({ url, text, className = '', children }) {
+// qr を付けると、URLをコピーとXで共有の間に「QRコードを表示」を出す（マイページのアプリの紹介）
+export default function ShareButtons({ url, text, className = '', qr = false, children }) {
   const { showToast } = useToast()
+  const [qrOpen, setQrOpen] = useState(false)
   const xUrl = `https://x.com/intent/post?${new URLSearchParams({ text, url })}`
 
   const copy = async () => {
@@ -38,6 +41,8 @@ export default function ShareButtons({ url, text, className = '', children }) {
   return (
     <div className={`share-row ${className}`}>
       <button className="btn-secondary" onClick={copy}>URLをコピー</button>
+      {qr && <button className="btn-secondary" onClick={() => setQrOpen(true)}>QRコードを表示</button>}
+      {qrOpen && <QrModal url={url} title="ノボル" onClose={() => setQrOpen(false)} />}
       <a className="btn-secondary" href={xUrl} target="_blank" rel="noopener noreferrer">Xで共有</a>
       {children}
     </div>

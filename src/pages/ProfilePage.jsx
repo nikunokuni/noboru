@@ -90,7 +90,7 @@ export default function ProfilePage() {
 
         <section className="mt24">
           <div className="section-mini">ノボルを紹介する</div>
-          <ShareButtons url={shareUrl('/')} text={APP_SHARE_TEXT} />
+          <ShareButtons className="share-compact" url={shareUrl('/')} text={APP_SHARE_TEXT} qr />
         </section>
 
         <Link to="/feedback" className="btn-secondary mt24">アプリへのご意見・ご要望</Link>

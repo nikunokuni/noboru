@@ -83,6 +83,14 @@ a { color: inherit; }
 .action-row { margin: 18px 0; }
 .share-row { display: flex; gap: 8px; }
 .share-row .btn-secondary { flex: 1; width: auto; }
+.share-compact .btn-secondary { padding-left: 4px; padding-right: 4px; white-space: nowrap; }
+.qr-modal { position: fixed; inset: 0; z-index: 3000; background: rgba(26, 18, 8, 0.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.qr-card { position: relative; width: 100%; max-width: 320px; background: var(--paper); border-radius: 12px; padding: 20px 20px 16px; text-align: center; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
+.qr-title { font-family: var(--font-mincho); font-size: 16px; letter-spacing: 0.2em; margin-bottom: 12px; }
+.qr-code { width: 100%; max-width: 240px; aspect-ratio: 1 / 1; margin: 0 auto 10px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+.qr-code svg { width: 100%; height: 100%; display: block; }
+.qr-url { word-break: break-all; margin-bottom: 4px; }
+.qr-close { position: absolute; top: 6px; right: 6px; width: 36px; height: 36px; background: none; border: none; font-size: 22px; color: var(--mist); cursor: pointer; }
 .action-buttons { gap: 6px; }
 .action-buttons .btn-secondary, .action-buttons .btn-primary { flex: 1; width: auto; padding: 12px 2px; font-size: 12px; letter-spacing: 0.05em; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
 .photo-actions { display: flex; gap: 6px; }
