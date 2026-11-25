@@ -3,6 +3,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import TopBar from '../components/TopBar'
+import ArticleCard from '../components/ArticleCard'
+import { deleteMyArticle, fetchMyArticle, saveMyArticle } from '../lib/articles'
+import { articleUrl } from '../lib/articleMeta'
 import { useAuth } from '../hooks/useAuth'
 import { useToast } from '../hooks/useToast'
 import { fetchShrine, submitShrineEdits, isBannedError } from '../lib/community'
@@ -181,6 +184,73 @@ function AccessHint({ shrine, prefix }) {
   return <p className="muted small">地図データから自動で入れた値です（直線で{formatDistance(shrine[`${prefix}_m`])}）。徒歩の分数などを書き足せます</p>
 }
 
+// 紹介記事：自分の記事のURLを1件載せる（ほかの項目とは別に、すぐ保存する）。タイトル・アイキャッチは記事のページから取る
+function MyArticle({ shrineId, userId }) {
+  const { showToast } = useToast()
+  const [article, setArticle] = useState(undefined)
+  const [url, setUrl] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    fetchMyArticle(shrineId, userId)
+      .then((a) => { setArticle(a); setUrl(a?.url || '') })
+      .catch(() => setArticle(null))
+  }, [shrineId, userId])
+
+  const valid = articleUrl(url)
+  const changed = valid && valid !== article?.url
+
+  const save = async () => {
+    if (!valid) { showToast('記事は https:// から始まるURLで入れてください'); return }
+    setBusy(true)
+    try {
+      const saved = await saveMyArticle({ shrineId, userId, url: valid })
+      setArticle(saved)
+      setUrl(saved.url)
+      showToast(saved.title ? '記事を載せました' : '記事を載せました（タイトルは取れませんでした）')
+    } catch (e) {
+      showToast(isBannedError(e) ? 'このアカウントからは記事を載せられません' : '保存に失敗しました。電波の届く場所でお試しください')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const remove = async () => {
+    if (!confirm('載せた記事を外しますか？')) return
+    setBusy(true)
+    try {
+      await deleteMyArticle(article.id)
+      setArticle(null)
+      setUrl('')
+      showToast('記事を外しました')
+    } catch {
+      showToast('外せませんでした。電波の届く場所でお試しください')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section>
+      <div className="section-mini">紹介記事（あなたの記事）</div>
+      <p className="muted small">この神社を紹介する、あなたが書いた記事（ブログ・note など）のURLを1件載せられます。神社詳細と、みんなの参拝の「記事」に出ます。タイトルとアイキャッチ画像は記事のページから自動で取ります。</p>
+      {article === undefined ? <div className="spinner" /> : (<>
+        {article && <ArticleCard article={article} />}
+        {article?.hidden && <p className="small error">この記事は管理者が非公開にしました。外すことはできます</p>}
+        {!article?.hidden && (<>
+          <div className="pick-other mt8">
+            <input type="url" inputMode="url" autoCapitalize="off" className="field-input edit-input" placeholder="例：https://note.com/…"
+              value={url} onChange={(e) => setUrl(e.target.value)} />
+            <button type="button" className="chip" onClick={save} disabled={busy || !changed}>{busy ? '…' : article ? '差し替える' : '載せる'}</button>
+          </div>
+          {url.trim() && !valid && <p className="muted small">https:// から始まるURLで入れてください</p>}
+        </>)}
+        {article && <button type="button" className="text-btn danger mt8" onClick={remove} disabled={busy}>記事を外す</button>}
+      </>)}
+    </section>
+  )
+}
+
 export default function ShrineEditPage() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -259,6 +329,8 @@ export default function ShrineEditPage() {
                     {saving ? '送信中…' : changedCount ? `${changedCount}項目をまとめて送信する` : '変更はまだありません'}
                   </button>
                 </div>
+
+                <MyArticle shrineId={shrine.id} userId={user.id} />
 
                 <p className="mt24 small">
                   境内社・重複・現存しない神社など、一覧から外すべき場合は

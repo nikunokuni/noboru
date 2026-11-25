@@ -74,6 +74,7 @@ export default function ProfilePage() {
             </Link>
             <Link to="/admin/edits" className="btn-secondary mt8">情報提供の確認</Link>
             <Link to="/admin/nicknames" className="btn-secondary mt8">ニックネームの確認</Link>
+            <Link to="/admin/articles" className="btn-secondary mt8">紹介記事の確認</Link>
             <Link to="/admin/feedback" className="btn-secondary mt8">
               ご意見・ご要望の確認{openFeedback > 0 ? `（未対応 ${openFeedback}件）` : ''}
             </Link>

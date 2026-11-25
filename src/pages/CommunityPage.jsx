@@ -1,4 +1,5 @@
 // みんなの参拝：みんなでの達成状況 ＋ 支援の受け皿 ＋ 今日の神社 ＋ 全国の公開記録のタイムライン
+// タイムラインの上のボタンで、御朱印帳など（みんなの写真）・記事（紹介記事のある神社）に切り替える。先頭の「みんなの参拝」で戻る
 import React, { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import TopBar from '../components/TopBar'
@@ -6,6 +7,8 @@ import { useSignedUrls } from '../components/Photos'
 import PhotoBook, { PhotoBookPicker } from '../components/PhotoBook'
 import WishStar from '../components/WishStar'
 import TodayShrine from '../components/TodayShrine'
+import ArticleCard from '../components/ArticleCard'
+import { fetchRecentArticles } from '../lib/articles'
 import { ANONYMOUS_NAME, fetchAppStats, fetchPrefectureProgress, fetchPublicPhotosByTag, fetchPublicTimeline } from '../lib/community'
 import { formatDate, percent } from '../lib/format'
 import { PHOTO_BOOKS, PREFECTURES } from '../lib/constants'
@@ -125,6 +128,54 @@ function PublicBook({ tag }) {
   )
 }
 
+// 記事：紹介記事のある神社（記事を載せた新しい順）
+function RecentArticles() {
+  const [rows, setRows] = useState(null)
+  const [hasMore, setHasMore] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  const load = useCallback(async (offset) => {
+    setLoading(true)
+    try {
+      const page = await fetchRecentArticles({ limit: PAGE, offset })
+      setRows((prev) => {
+        const base = offset ? prev || [] : []
+        const seen = new Set(base.map((r) => r.id))
+        return [...base, ...page.filter((r) => !seen.has(r.id))]
+      })
+      setHasMore(page.length === PAGE)
+      setFailed(false)
+    } catch {
+      setFailed(true)
+      if (!offset) setRows([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load(0) }, [load])
+
+  if (!rows) return <div className="spinner" />
+  return (
+    <>
+      <p className="muted small mb16">みんなが載せた、神社を紹介する記事です。神社詳細の「情報を追加・訂正する」から、自分の記事を載せられます</p>
+      {rows.length === 0 && !failed && <p className="muted small center mt24">まだ記事はありません</p>}
+      {rows.map((r) => (
+        <ArticleCard key={r.id} article={r} shrine={{ id: r.shrine_id, name: r.shrine_name, prefecture: r.prefecture }} />
+      ))}
+      {failed && <p className="muted small center mt8">読み込めませんでした</p>}
+      {(hasMore || failed) && (
+        <button className="btn-secondary mt16" disabled={loading} onClick={() => load(failed && !rows.length ? 0 : rows.length)}>
+          {loading ? '読み込み中…' : failed ? 'もう一度読み込む' : 'もっと見る'}
+        </button>
+      )}
+    </>
+  )
+}
+
+const ARTICLES = 'articles'
+
 export default function CommunityPage() {
   const navigate = useNavigate()
   const [items, setItems] = useState(null)
@@ -169,8 +220,8 @@ export default function CommunityPage() {
         </Link>
         <TodayShrine />
 
-        <PhotoBookPicker value={book} onChange={setBook} />
-        {book ? <PublicBook tag={book} /> : (<>
+        <PhotoBookPicker value={book} onChange={setBook} home="みんなの参拝" extra={[[ARTICLES, '記事']]} />
+        {book === ARTICLES ? <RecentArticles /> : book ? <PublicBook tag={book} /> : (<>
         <div className="section-mini">みんなの参拝</div>
         {!items && <div className="spinner" />}
         {items?.length === 0 && !failed && <p className="muted small center">まだ公開された参拝はありません</p>}

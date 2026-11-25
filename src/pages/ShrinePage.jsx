@@ -7,6 +7,8 @@ import ShrinePhotos from '../components/ShrinePhotos'
 import ShrineContributors from '../components/ShrineContributors'
 import { GuideInlineLink } from '../components/GuideLinks'
 import ShareButtons, { shareUrl } from '../components/ShareButtons'
+import ArticleCard from '../components/ArticleCard'
+import { fetchShrineArticles } from '../lib/articles'
 import { useAuth } from '../hooks/useAuth'
 import { usePendingRecords } from '../hooks/usePendingRecords'
 import { useShrineIndex } from '../hooks/useShrineIndex'
@@ -80,6 +82,26 @@ function SupportBox({ shrine }) {
       {url && <a href={url} target="_blank" rel="noopener noreferrer" className="btn-secondary mt8">支援のページを開く（{new URL(url).hostname.replace(/^www\./, '')}）↗</a>}
       <Link to="/support" className="inline-link small support-more">ほかの支援の受け皿を見る</Link>
     </div>
+  )
+}
+
+// 紹介記事（みんなが載せた、神社を紹介する記事）。載せるのは「情報を追加・訂正する」から
+function ShrineArticles({ shrineId }) {
+  const [articles, setArticles] = useState(null)
+  useEffect(() => {
+    let alive = true
+    fetchShrineArticles(shrineId).then((a) => alive && setArticles(a)).catch(() => alive && setArticles([]))
+    return () => { alive = false }
+  }, [shrineId])
+  return (
+    <section>
+      <div className="section-mini">紹介記事</div>
+      {!articles && <div className="spinner" />}
+      {articles?.length === 0 && (
+        <p className="muted small">まだありません。この神社を紹介する記事（ブログ・note など）を書いたら、「情報を追加・訂正する」から載せてください。</p>
+      )}
+      {articles?.map((a) => <ArticleCard key={a.id} article={a} />)}
+    </section>
   )
 }
 
@@ -233,6 +255,8 @@ export default function ShrinePage() {
             ? <><p className="features">{shrine.features}</p><FeaturesSource source={shrine.features_source} /></>
             : <p className="muted small">まだ情報がありません。由緒や神話をご存じでしたら教えてください。</p>}
         </section>
+
+        <ShrineArticles shrineId={shrine.id} />
 
         <section>
           <div className="section-mini">抱える課題</div>

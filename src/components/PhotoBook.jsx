@@ -7,10 +7,15 @@ import Lightbox from './Lightbox'
 import { PHOTO_BOOKS } from '../lib/constants'
 
 // 帳面を選ぶボタン。もう一度押すと閉じる
-export function PhotoBookPicker({ value, onChange }) {
+//   home: 先頭に置く「最初の表示に戻る」ボタンの名前（選んでいないときは押された状態）
+//   extra: 帳面のあとに足すボタン [[値, 名前]]（みんなの参拝の「記事」など）
+export function PhotoBookPicker({ value, onChange, home = null, extra = [] }) {
   return (
-    <div className="chip-row book-row">
-      {PHOTO_BOOKS.map(([tag, label]) => (
+    <div className={`chip-row book-row ${home ? 'with-home' : ''}`}>
+      {home && (
+        <button type="button" className={`chip book-chip ${value == null ? 'active' : ''}`} onClick={() => onChange(null)}>{home}</button>
+      )}
+      {[...PHOTO_BOOKS, ...extra].map(([tag, label]) => (
         <button key={tag} type="button" className={`chip book-chip ${value === tag ? 'active' : ''}`}
           onClick={() => onChange(value === tag ? null : tag)}>{label}</button>
       ))}

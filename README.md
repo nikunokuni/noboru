@@ -53,6 +53,7 @@ INSERT INTO admins (user_id) SELECT id FROM auth.users WHERE email = '<ログイ
 | [`supabase/upgrade-shrine-size-rank.sql`](supabase/upgrade-shrine-size-rank.sql) | 大きな神社を社格（勅祭社・二十二社・一宮・別表神社・式内社）で決める。摂社・末社・所管社は除く。Wikipedia のカテゴリ（式内社など）で大きな神社にするための取り込みの変更も入っている。`upgrade-shrine-size.sql` のあとに実行する（決め方を変えたときは実行し直す。取り込みの前に実行する）。実行するとすぐに大きな神社が入れ替わる（アプリの更新・取り込みは要らない。マップに出すには「神社一覧を更新する」） |
 | [`supabase/upgrade-stairs-walk.sql`](supabase/upgrade-stairs-walk.sql) | マイページの「のぼる」「あるく」（神社の石段の段数と、記録の「最寄り駅から歩いた」）。`upgrade-shrine-size.sql` を先に実行しておく。アプリの更新より先に実行する |
 | [`supabase/upgrade-support.sql`](supabase/upgrade-support.sql) | 神社詳細の「抱える課題」と、「みんなの参拝」の「支援の受け皿」（支援の方法・支援のページが入っている神社の一覧。どちらも情報提供で入れる）。`upgrade-stairs-walk.sql` を先に実行しておく。アプリの更新より先に実行する。「神社を支援しているサイト」のリンクは `guide_links` に `context = 'support'` で登録する |
+| [`supabase/upgrade-articles.sql`](supabase/upgrade-articles.sql) | 神社詳細の「紹介記事」（自分の記事のURLを載せる）と、「みんなの参拝」の「記事」、管理者の「紹介記事の確認」。`upgrade-nickname.sql` を先に実行しておく。アプリの更新より先に実行する。記事のタイトル・アイキャッチは Vercel のサーバーの関数（`api/article-meta.js`）が取るので、`npm run dev` では取れない（タイトルなしで載る） |
 
 「次回へのメモ」はアプリから外した。以前のプロジェクトの `records.next_memo` 列は使われないまま残る（消すならアプリの更新後に `ALTER TABLE records DROP COLUMN next_memo;`）
 

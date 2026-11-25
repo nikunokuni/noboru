@@ -28,6 +28,7 @@ const AdminRequestsPage = lazy(() => import('./pages/AdminRequestsPage'))
 const AdminEditsPage = lazy(() => import('./pages/AdminEditsPage'))
 const AdminFeedbackPage = lazy(() => import('./pages/AdminFeedbackPage'))
 const AdminNicknamesPage = lazy(() => import('./pages/AdminNicknamesPage'))
+const AdminArticlesPage = lazy(() => import('./pages/AdminArticlesPage'))
 
 // 「記録する」はマップに入った。/ はマップへ。以前の「/?shrine=ID」（記録画面がホームだったころ）は記録画面へ
 function HomeRedirect() {
@@ -77,6 +78,7 @@ export default function App() {
                 <Route path="/support" element={<SupportPage />} />
                 <Route path="/admin/nicknames" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminNicknamesPage /></Suspense>} />
                 <Route path="/admin/feedback" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminFeedbackPage /></Suspense>} />
+                <Route path="/admin/articles" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminArticlesPage /></Suspense>} />
                 <Route path="/admin/edits" element={<Suspense fallback={<div className="app-shell"><div className="spinner mt24" /></div>}><AdminEditsPage /></Suspense>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
