@@ -1,5 +1,5 @@
 // 神様リスト：マップの神社のご祭神。祀られている神社を参拝（記録）すると自動で集まる。押すと神様の詳細へ
-// 上に有名な神様（ご祭神の辞書にある神様）、下にその他の神様。どちらも祀る神社の多い順に、横3つずつ並べる
+// 上に有名な神様（ご祭神の辞書にある神様）、下にその他の神様。どちらも祀る神社の多い順に、横3つずつ並べる（名前にフリガナを添える）
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
@@ -9,6 +9,7 @@ import { useMyVisits } from '../hooks/useMyVisits'
 import { deityCollection } from '../lib/collections'
 import { deityAliases, isKnownDeity } from '../lib/deities'
 import { normalize } from '../lib/indexCore'
+import { deityFurigana, deityReading } from '../lib/deityReadings'
 
 const FILTERS = [
   { key: 'all', label: 'すべて', test: () => true },
@@ -20,15 +21,11 @@ const PAGE = 60
 
 export const deityPath = (name) => `/collection/deities/${encodeURIComponent(name)}`
 
-// わかりやすいカタカナの呼び名（アマテラス など）。なければ null
-const KATAKANA = /^[ァ-ヶー]+$/
-const katakanaName = (name) => deityAliases(name).find((s) => KATAKANA.test(s)) || null
-
 function DeityGrid({ items }) {
   return (
     <ul className="deity-grid">
       {items.map((d) => {
-        const kana = katakanaName(d.name)
+        const kana = deityFurigana(d.name)
         return (
           <li key={d.name}>
             <Link to={deityPath(d.name)} className={`deity-cell ${d.collected ? 'collected' : ''}`}>
@@ -55,10 +52,10 @@ export default function DeityListPage() {
   const all = useMemo(() => (index ? deityCollection(index, visits || undefined) : null),
     [index, revision, visits]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 名前・別の書き方（スサノオ など）で探す
+  // 名前・読み・別の書き方（スサノオ など）で探す
   const q = normalize(query)
   const items = (all || []).filter(FILTERS.find((f) => f.key === filter).test)
-    .filter((d) => !q || [d.name, ...deityAliases(d.name)].some((n) => normalize(n).includes(q)))
+    .filter((d) => !q || [d.name, deityReading(d.name), ...deityAliases(d.name)].filter(Boolean).some((n) => normalize(n).includes(q)))
   const famous = items.filter((d) => isKnownDeity(d.name))
   const others = items.filter((d) => !isKnownDeity(d.name))
   const got = all ? all.filter((d) => d.collected).length : 0

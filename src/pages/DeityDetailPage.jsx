@@ -9,6 +9,7 @@ import { useMyVisits } from '../hooks/useMyVisits'
 import { deityShrinePositions } from '../lib/collections'
 import { deityAliases } from '../lib/deities'
 import { deityProfile } from '../lib/deityProfiles'
+import { deityFurigana } from '../lib/deityReadings'
 import { getItem } from '../lib/indexCore'
 import { tagLink } from '../lib/searchTags'
 import { formatDate, placeLabel } from '../lib/format'
@@ -46,7 +47,7 @@ export default function DeityDetailPage() {
         <div className={`deity-head ${collected ? 'collected' : ''}`}>
           <div className="deity-seal" aria-hidden="true">{collected ? '⛩' : '？'}</div>
           <h2 className="shrine-name">{name}</h2>
-          {profile && <div className="muted small">{profile.reading}</div>}
+          {deityFurigana(name) && <div className="muted small">{deityFurigana(name)}</div>}
           <div className="mt8">
             {collected
               ? <span className="pill">{formatDate(mine[0].myVisit)}に集めた</span>

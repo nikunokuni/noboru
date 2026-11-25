@@ -25,7 +25,7 @@
 // goshs 以降（マップのタグで絞り込む項目）がない古い一覧ファイルでは、それらのタグでは絞り込めない（sizes も同じ）
 
 import { distanceM } from './geo.js'
-import { normalizeDeities, deityKey, matchDeityNames } from './deities.js'
+import { normalizeDeities, deityKey, matchDeityNames, canonicalDeity } from './deities.js'
 
 export const INDEX_FORMAT = 1
 const SCALE = 1e5
@@ -175,7 +175,8 @@ export function matchingDeities(index, query) {
   if (!k) return new Set()
   const known = new Set(matchDeityNames(query))
   const out = new Set()
-  list.forEach((name, j) => { if (known.has(name) || deityKey(name).includes(k)) out.add(j) })
+  // 一覧ファイルを作ったあとに辞書に足した書き方（伊奘諾尊 など）も、代表の表記で当てる
+  list.forEach((name, j) => { if (known.has(name) || known.has(canonicalDeity(name)) || deityKey(name).includes(k)) out.add(j) })
   return out
 }
 

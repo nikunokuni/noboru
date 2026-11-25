@@ -45,3 +45,28 @@ test('神様の詳細：辞書の神様にはすべて紹介がある', () => {
   assert.equal(Object.keys(DEITY_PROFILES).length, DEITIES.length)
   assert.equal(deityProfile('いない神'), null)
 })
+
+test('伊奘諾尊・伊弉冊尊などの書き方も有名な神様にまとめる（一覧ファイルを作り直さなくても）', async () => {
+  const { isKnownDeity } = await import('../src/lib/deities.js')
+  // 一覧ファイルに古い辞書のまま入っている形をまねる
+  const raw = { ...index.raw, deis: ['伊奘諾尊', '伊弉冊尊', '伊弉諾尊'], dei: [[0, 2], [1], [], [], []] }
+  const idx = { ...index, raw }
+  const list = deityCollection(idx, firstVisits([{ shrine_id: 2, visited_on: '2026-01-01' }]))
+  assert.deepEqual(list.map((d) => [d.name, d.shrineCount, d.collected]), [['伊弉諾尊', 1, false], ['伊弉冉尊', 1, true]])
+  assert.ok(list.every((d) => isKnownDeity(d.name)))
+  assert.deepEqual(deityShrinePositions(idx, '伊弉諾尊').map((i) => raw.id[i]), [1])
+})
+
+test('フリガナ：辞書の神様は全員、ほかは本体＋末尾で組み立てる', async () => {
+  const { deityFurigana, deityReading } = await import('../src/lib/deityReadings.js')
+  for (const [name] of DEITIES) assert.ok(deityFurigana(name), name)
+  assert.equal(deityFurigana('天照大御神'), 'アマテラスオオミカミ')
+  assert.equal(deityReading('八坂刀売神'), 'やさかとめのかみ')
+  assert.equal(deityReading('天之忍穂耳命'), 'あめのおしほみみのみこと')
+  assert.equal(deityReading('楠木正成公'), 'くすのきまさしげこう')
+  assert.equal(deityReading('牛頭天王'), 'ごずてんのう')
+  assert.equal(deityReading('道祖神'), 'どうそじん')
+  assert.equal(deityReading('住吉大神'), 'すみよしおおかみ')
+  assert.equal(deityReading('スサノオ'), null)
+  assert.equal(deityReading('知らない神'), null)
+})
