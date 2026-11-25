@@ -1,4 +1,5 @@
 // 神様リスト：マップの神社のご祭神。祀られている神社を参拝（記録）すると自動で集まる。押すと神様の詳細へ
+// 上に有名な神様（ご祭神の辞書にある神様）、下にその他の神様。どちらも祀る神社の多い順に、横3つずつ並べる
 import React, { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import TopBar from '../components/TopBar'
@@ -6,19 +7,42 @@ import { useAuth } from '../hooks/useAuth'
 import { useShrineIndex } from '../hooks/useShrineIndex'
 import { useMyVisits } from '../hooks/useMyVisits'
 import { deityCollection } from '../lib/collections'
-import { deityAliases } from '../lib/deities'
-import { deityLabel } from '../lib/shrineTags'
+import { deityAliases, isKnownDeity } from '../lib/deities'
 import { normalize } from '../lib/indexCore'
-import { formatDate } from '../lib/format'
 
 const FILTERS = [
   { key: 'all', label: 'すべて', test: () => true },
   { key: 'got', label: '集めた', test: (d) => d.collected },
   { key: 'not', label: 'まだ', test: (d) => !d.collected },
 ]
-const PAGE = 100
+// その他の神様は数が多いので少しずつ出す
+const PAGE = 60
 
 export const deityPath = (name) => `/collection/deities/${encodeURIComponent(name)}`
+
+// わかりやすいカタカナの呼び名（アマテラス など）。なければ null
+const KATAKANA = /^[ァ-ヶー]+$/
+const katakanaName = (name) => deityAliases(name).find((s) => KATAKANA.test(s)) || null
+
+function DeityGrid({ items }) {
+  return (
+    <ul className="deity-grid">
+      {items.map((d) => {
+        const kana = katakanaName(d.name)
+        return (
+          <li key={d.name}>
+            <Link to={deityPath(d.name)} className={`deity-cell ${d.collected ? 'collected' : ''}`}>
+              <span className="deity-mark" aria-label={d.collected ? '集めた' : 'まだ'}>{d.collected ? '⛩' : ''}</span>
+              <span className="deity-cell-name">{d.name}</span>
+              {kana && <span className="deity-cell-kana">{kana}</span>}
+              <span className="deity-cell-count">{d.shrineCount.toLocaleString()}社</span>
+            </Link>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
 
 export default function DeityListPage() {
   const { user, loading } = useAuth()
@@ -35,7 +59,10 @@ export default function DeityListPage() {
   const q = normalize(query)
   const items = (all || []).filter(FILTERS.find((f) => f.key === filter).test)
     .filter((d) => !q || [d.name, ...deityAliases(d.name)].some((n) => normalize(n).includes(q)))
+  const famous = items.filter((d) => isKnownDeity(d.name))
+  const others = items.filter((d) => !isKnownDeity(d.name))
   const got = all ? all.filter((d) => d.collected).length : 0
+  const count = (list) => (user ? `${list.filter((d) => d.collected).length} / ${list.length}` : `${list.length}`)
 
   return (
     <div className="app-shell">
@@ -63,27 +90,24 @@ export default function DeityListPage() {
           </div>
 
           {items.length === 0 && <p className="muted small center mt24">当てはまる神様はいません</p>}
-          <ul className="deity-list">
-            {items.slice(0, limit).map((d) => (
-              <li key={d.name}>
-                <Link to={deityPath(d.name)} className={`deity-row ${d.collected ? 'collected' : ''}`}>
-                  <span className="deity-mark" aria-label={d.collected ? '集めた' : 'まだ'}>{d.collected ? '⛩' : ''}</span>
-                  <span className="deity-row-body">
-                    <span className="deity-row-name">{deityLabel(d.name)}</span>
-                    <span className="muted small">
-                      祀る神社 {d.shrineCount.toLocaleString()}社
-                      {d.collected && d.collectedOn && <>　{formatDate(d.collectedOn)}に参拝</>}
-                    </span>
-                  </span>
-                  <span className="collection-arrow">›</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-          {items.length > limit && (
-            <button className="btn-secondary mt16" onClick={() => setLimit((n) => n + PAGE)}>
-              もっと見る（あと{(items.length - limit).toLocaleString()}柱）
-            </button>
+
+          {famous.length > 0 && (
+            <section>
+              <div className="deity-section-head"><span>有名な神様</span><span className="muted small">{count(famous)}</span></div>
+              <DeityGrid items={famous} />
+            </section>
+          )}
+
+          {others.length > 0 && (
+            <section>
+              <div className="deity-section-head"><span>その他の神様</span><span className="muted small">{count(others)}</span></div>
+              <DeityGrid items={others.slice(0, limit)} />
+              {others.length > limit && (
+                <button className="btn-secondary mt16" onClick={() => setLimit((n) => n + PAGE)}>
+                  もっと見る（あと{(others.length - limit).toLocaleString()}柱）
+                </button>
+              )}
+            </section>
           )}
         </>)}
       </div>

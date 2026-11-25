@@ -426,13 +426,17 @@ a { color: inherit; }
 .collection-summary { text-align: center; background: var(--paper2); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; font-family: var(--font-mincho); }
 .collection-summary .collection-bar { margin-top: 8px; }
 .collection-summary p { font-family: var(--font-body); }
-.deity-list { list-style: none; padding: 0; margin: 0; }
-.deity-row { display: flex; align-items: center; gap: 10px; padding: 11px 2px; border-bottom: 1px solid rgba(26, 18, 8, 0.07); text-decoration: none; color: inherit; }
-.deity-row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.deity-row-name { font-family: var(--font-mincho); font-size: 15px; letter-spacing: 0.06em; overflow-wrap: anywhere; }
+.deity-section-head { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--font-mincho); font-size: 13px; letter-spacing: 0.15em; margin: 20px 0 10px; padding-left: 8px; border-left: 3px solid var(--vermillion); }
+.deity-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.deity-cell { height: 100%; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 12px 4px 10px; background: var(--paper2); border-radius: 10px; text-decoration: none; color: inherit; text-align: center; border: 1px solid transparent; }
+.deity-cell.collected { background: var(--vermillion-bg); border-color: rgba(192, 57, 43, 0.25); }
+.deity-cell .deity-mark { margin-bottom: 4px; }
+.deity-cell-name { font-family: var(--font-mincho); font-size: 12px; line-height: 1.4; letter-spacing: 0.02em; overflow-wrap: anywhere; }
+.deity-cell:not(.collected) .deity-cell-name { color: rgba(26, 18, 8, 0.5); }
+.deity-cell-kana { font-size: 9px; color: var(--mist); letter-spacing: 0.05em; }
+.deity-cell-count { font-size: 9px; color: var(--mist); margin-top: auto; padding-top: 2px; }
 .deity-mark { flex: none; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 1.5px dashed rgba(26, 18, 8, 0.18); }
-.deity-row:not(.collected) .deity-row-name { color: rgba(26, 18, 8, 0.45); }
-.deity-row.collected .deity-mark { border: 1.5px solid var(--vermillion); background: var(--vermillion-bg); }
+.deity-cell.collected .deity-mark { border: 1.5px solid var(--vermillion); background: var(--paper); }
 .deity-head { text-align: center; margin: 8px 0 16px; }
 .deity-head .shrine-name { overflow-wrap: anywhere; }
 .deity-seal { width: 64px; height: 64px; margin: 0 auto 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; font-family: var(--font-mincho); color: var(--mist); border: 2px dashed rgba(26, 18, 8, 0.2); }
